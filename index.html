@@ -237,18 +237,18 @@
                 <h3>Selected Box Properties</h3>
                 <div class="input-group">
                     <label>Mode</label>
-                    <select id="box-mode" onchange="updateBoxData()">
+                    <select id="box-mode" onchange="updateBoxData()" onkeypress = "this.onchange();" onpaste    = "this.onchange();" oninput    = "this.onchange();">
                         <option value="obj">Object (obj)</option>
                         <option value="text">Text (text)</option>
                     </select>
                 </div>
                 <div class="input-group" id="text-input-group" style="display: none;">
                     <label>Text Content</label>
-                    <input type="text" id="box-text" onchange="updateBoxData()">
+                    <input type="text" id="box-text" onchange="updateBoxData()" onkeypress = "this.onchange();" onpaste    = "this.onchange();" oninput    = "this.onchange();">
                 </div>
                 <div class="input-group">
                     <label>Description</label>
-                    <textarea id="box-desc" onchange="updateBoxData()"></textarea>
+                    <textarea id="box-desc" onchange="updateBoxData()" onkeypress = "this.onchange();" onpaste    = "this.onchange();" oninput    = "this.onchange();"></textarea>
                 </div>
                 <div class="input-group">
                     <label>Box Color Palette (Max 5)</label>
@@ -492,6 +492,7 @@
             box.text = document.getElementById('box-text').value;
             box.desc = document.getElementById('box-desc').value;
             document.getElementById('text-input-group').style.display = box.mode === 'text' ? 'block' : 'none';
+            console.log("change")
         }
 
         function deleteSelectedBox() {
