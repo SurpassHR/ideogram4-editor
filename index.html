@@ -5,8 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JSON Prompt Generation Tool</title>
-    <style>
-        :root {
+    <style>:root {
             --bg-color: #f4f4f9;
             --panel-bg: #ffffff;
             --border: #ccc;
@@ -175,33 +174,39 @@
             padding: 10px;
             box-sizing: border-box;
         }
+
+        .pill-group { display: flex; gap: 12px; font-family: sans-serif; }
+        .pill-group input[type="radio"] { position: absolute; opacity: 0; width: 0; height: 0; }
+        .pill-label { display: inline-block; padding: 1px 10px; background-color: #f3f4f6; border: 2px solid #e5e7eb; border-radius: 30px; cursor: pointer; }
+        .pill-group input[type="radio"]:checked + .pill-label { background-color: #2563eb; color: white; border-color: #2563eb; }
+        .pill-group p { display: inline-block; padding: 3px 10px;}
     </style>
+
 </head>
 
 <body>
 
     <div class="header-controls">
-        <div>
+        <div style="width: 30%;">
             <label>Width: <span id="w-val">1024</span></label>
-            <input type="range" id="canvas-width" min="256" max="2048" step="16" value="1024">
+            <input type="range" id="canvas-width" min="256" max="4096" step="16" value="1024" style="width: 80%;">
         </div>
-        <div>
+        <div style="width: 30%;">
             <label>Height: <span id="h-val">1024</span></label>
-            <input type="range" id="canvas-height" min="256" max="2048" step="16" value="1024">
+            <input type="range" id="canvas-height" min="256" max="4096" step="16" value="1024" style="width: 80%;">
         </div>
         <button onclick="initCanvas()">Go (Reset Canvas)</button>
     </div>
 
     <div class="main-content">
         <div class="left-col">
-            <div><em>Click and drag on the canvas to create regional bounding boxes.</em></div>
+            <div><em>Click and drag below to create bounding boxes. Drag in a PNG from comfy to import its bounding boxes and prompts</em></div>
             <div style="width: 100%; max-height: 800px; border: 1px solid #ccc; background: #fff; margin: auto;">
                 <div id="canvas-wrapper"></div>
             </div>
 
-            <button onclick="generateJSON()" style="background: #00CC88; padding: 12px; font-size: 16px;">Generate
-                Prompt JSON</button>
-            <textarea id="json-output" readonly placeholder="JSON will appear here..."></textarea>
+            <button onclick="generateJSON()" style="background: #00CC88; padding: 12px; font-size: 16px;">Generate JSON Prompt</button>
+            <textarea id="json-output" placeholder="JSON will appear here..."></textarea>
         <div>
             <label>Seed: <span id="r-seed-value">42</span></label>
             <input type="range" id="r-seed" min="1" max="99999" step="1" value="42">
@@ -210,20 +215,28 @@
             <label>Comfy API:</label>
             <input type="text" id="api-location" value="http://localhost:8188">
         </div>
-            <button onclick="generateImage()" style="background: #00CC88; padding: 12px; font-size: 16px;">Generate
-                Image</button>
+            <button onclick="generateImage()" style="background: #00CC88; padding: 12px; font-size: 16px;">Generate Image</button>
             <img id="image-view" style="max-height: 800px; object-fit: scale-down;">
         </div>
 
         <div class="right-col">
             <div class="panel">
                 <h3>Global Settings</h3>
+                <div class="pill-group">
+                    <p style="margin: 0;">Mode:</p>
+                    <input type="radio" id="mode_photo" name="art_mode" value="photo" onchange="setPhotoArtstyle(0)">
+                    <label for="mode_photo" class="pill-label">photo</label>
+
+                    <input type="radio" id="mode_artstyle" name="art_mode" value="art_style" checked onchange="setPhotoArtstyle(1)">
+                    <label for="mode_artstyle" class="pill-label">art_style</label>
+                </div>
+                <br>
                 <div class="input-group"><label>High Level Description</label><input type="text"
                         id="high_level_description"></div>
                 <div class="input-group"><label>Aesthetics</label><input type="text" id="aesthetics"></div>
                 <div class="input-group"><label>Lighting</label><input type="text" id="lighting"></div>
                 <div class="input-group"><label>Medium</label><input type="text" id="medium"></div>
-                <div class="input-group"><label>Art Style</label><input type="text" id="art_style"></div>
+                <div class="input-group"><label id="mode_label">Art Style</label><input type="text" id="art_style"></div>
                 <div class="input-group"><label>Background</label><textarea id="background"></textarea></div>
                 <div class="input-group">
                     <label>Global Color Palette (Max 16)</label>
@@ -261,7 +274,7 @@
             </div>
         </div>
     </div>
-    
+
     <script>
         var json_prompt = JSON.parse(atob("eyIyNSI6eyJpbnB1dHMiOnsiaW1hZ2VzIjpbIjk4OjEzIiwwXX0sImNsYXNzX3R5cGUiOiJQcmV2aWV3SW1hZ2UiLCJfbWV0YSI6eyJ0aXRsZSI6IlByZXZpZXcgSW1hZ2UifX0sIjk4OjkiOnsiaW5wdXRzIjp7InZhZV9uYW1lIjoiZmx1eDItdmFlLnNhZmV0ZW5zb3JzIn0sImNsYXNzX3R5cGUiOiJWQUVMb2FkZXIiLCJfbWV0YSI6eyJ0aXRsZSI6IkxvYWQgVkFFIn19LCI5ODoxMCI6eyJpbnB1dHMiOnsiY29uZGl0aW9uaW5nIjpbIjk4OjI0IiwwXX0sImNsYXNzX3R5cGUiOiJDb25kaXRpb25pbmdaZXJvT3V0IiwiX21ldGEiOnsidGl0bGUiOiJDb25kaXRpb25pbmdaZXJvT3V0In19LCI5ODoxMSI6eyJpbnB1dHMiOnsid2lkdGgiOlsiOTg6MzEiLDFdLCJoZWlnaHQiOlsiOTg6MzIiLDFdLCJiYXRjaF9zaXplIjoxfSwiY2xhc3NfdHlwZSI6IkVtcHR5Rmx1eDJMYXRlbnRJbWFnZSIsIl9tZXRhIjp7InRpdGxlIjoiRW1wdHkgRmx1eCAyIExhdGVudCJ9fSwiOTg6MTIiOnsiaW5wdXRzIjp7Im5vaXNlIjpbIjk4OjE4IiwwXSwiZ3VpZGVyIjpbIjk4OjE1NSIsMF0sInNhbXBsZXIiOlsiOTg6MTYiLDBdLCJzaWdtYXMiOlsiOTg6MTciLDBdLCJsYXRlbnRfaW1hZ2UiOlsiOTg6MTEiLDBdfSwiY2xhc3NfdHlwZSI6IlNhbXBsZXJDdXN0b21BZHZhbmNlZCIsIl9tZXRhIjp7InRpdGxlIjoiU2FtcGxlckN1c3RvbUFkdmFuY2VkIn19LCI5ODoxMyI6eyJpbnB1dHMiOnsic2FtcGxlcyI6WyI5ODoxMiIsMF0sInZhZSI6WyI5ODo5IiwwXX0sImNsYXNzX3R5cGUiOiJWQUVEZWNvZGUiLCJfbWV0YSI6eyJ0aXRsZSI6IlZBRSBEZWNvZGUifX0sIjk4OjE2Ijp7ImlucHV0cyI6eyJzYW1wbGVyX25hbWUiOiJyZXNfbXVsdGlzdGVwIn0sImNsYXNzX3R5cGUiOiJLU2FtcGxlclNlbGVjdCIsIl9tZXRhIjp7InRpdGxlIjoiS1NhbXBsZXJTZWxlY3QifX0sIjk4OjE3Ijp7ImlucHV0cyI6eyJzdGVwcyI6WyI5ODoxNTEiLDFdLCJ3aWR0aCI6WyI5ODozMSIsMV0sImhlaWdodCI6WyI5ODozMiIsMV0sIm11IjpbIjk4OjE0NCIsMF0sInN0ZCI6WyI5ODoxNDYiLDBdfSwiY2xhc3NfdHlwZSI6IklkZW9ncmFtNFNjaGVkdWxlciIsIl9tZXRhIjp7InRpdGxlIjoiSWRlb2dyYW0gNCBTY2hlZHVsZXIifX0sIjk4OjE4Ijp7ImlucHV0cyI6eyJub2lzZV9zZWVkIjo0MjU2OTI1MzAzMDkyNTB9LCJjbGFzc190eXBlIjoiUmFuZG9tTm9pc2UiLCJfbWV0YSI6eyJ0aXRsZSI6IlJhbmRvbU5vaXNlIn19LCI5ODoyMyI6eyJpbnB1dHMiOnsidW5ldF9uYW1lIjoiaWRlb2dyYW00X2ZwOF9zY2FsZWQuc2FmZXRlbnNvcnMiLCJ3ZWlnaHRfZHR5cGUiOiJkZWZhdWx0In0sImNsYXNzX3R5cGUiOiJVTkVUTG9hZGVyIiwiX21ldGEiOnsidGl0bGUiOiJMb2FkIERpZmZ1c2lvbiBNb2RlbCJ9fSwiOTg6MjQiOnsiaW5wdXRzIjp7InRleHQiOiJBU0RGQVNERiIsImNsaXAiOlsiOTg6MTQiLDBdfSwiY2xhc3NfdHlwZSI6IkNMSVBUZXh0RW5jb2RlIiwiX21ldGEiOnsidGl0bGUiOiJDTElQIFRleHQgRW5jb2RlIChQb3NpdGl2ZSBQcm9tcHQpIn19LCI5ODoxNCI6eyJpbnB1dHMiOnsiY2xpcF9uYW1lIjoicXdlbjN2bF84Yl9mcDhfc2NhbGVkLnNhZmV0ZW5zb3JzIiwidHlwZSI6ImlkZW9ncmFtNCIsImRldmljZSI6ImRlZmF1bHQifSwiY2xhc3NfdHlwZSI6IkNMSVBMb2FkZXIiLCJfbWV0YSI6eyJ0aXRsZSI6IkxvYWQgQ0xJUCJ9fSwiOTg6MjciOnsiaW5wdXRzIjp7InZhbHVlIjoxMDI0fSwiY2xhc3NfdHlwZSI6IlByaW1pdGl2ZUludCIsIl9tZXRhIjp7InRpdGxlIjoiSW50IChXaWR0aCkifX0sIjk4OjI4Ijp7ImlucHV0cyI6eyJ2YWx1ZSI6MTAyNH0sImNsYXNzX3R5cGUiOiJQcmltaXRpdmVJbnQiLCJfbWV0YSI6eyJ0aXRsZSI6IkludCAoSGVpZ2h0KSJ9fSwiOTg6MzEiOnsiaW5wdXRzIjp7ImV4cHJlc3Npb24iOiJtYXgoKChhICsgMTUpIC8vIDE2KSAqIDE2LCAyNTYpIiwidmFsdWVzLmEiOlsiOTg6MjciLDBdfSwiY2xhc3NfdHlwZSI6IkNvbWZ5TWF0aEV4cHJlc3Npb24iLCJfbWV0YSI6eyJ0aXRsZSI6Ik1hdGggRXhwcmVzc2lvbiJ9fSwiOTg6MzIiOnsiaW5wdXRzIjp7ImV4cHJlc3Npb24iOiJtYXgoKChhICsgMTUpIC8vIDE2KSAqIDE2LCAyNTYpIiwidmFsdWVzLmEiOlsiOTg6MjgiLDBdfSwiY2xhc3NfdHlwZSI6IkNvbWZ5TWF0aEV4cHJlc3Npb24iLCJfbWV0YSI6eyJ0aXRsZSI6Ik1hdGggRXhwcmVzc2lvbiJ9fSwiOTg6MTQ0Ijp7ImlucHV0cyI6eyJ2YWx1ZSI6WyI5ODoxNDUiLDBdfSwiY2xhc3NfdHlwZSI6IkNvbWZ5TnVtYmVyQ29udmVydCIsIl9tZXRhIjp7InRpdGxlIjoiTnVtYmVyIENvbnZlcnQifX0sIjk4OjE0NSI6eyJpbnB1dHMiOnsianNvbl9zdHJpbmciOlsiOTg6MTQ4IiwwXSwia2V5IjoibXUifSwiY2xhc3NfdHlwZSI6Ikpzb25FeHRyYWN0U3RyaW5nIiwiX21ldGEiOnsidGl0bGUiOiJFeHRyYWN0IFRleHQgZnJvbSBKU09OIn19LCI5ODoxNDYiOnsiaW5wdXRzIjp7InZhbHVlIjpbIjk4OjE1MCIsMF19LCJjbGFzc190eXBlIjoiQ29tZnlOdW1iZXJDb252ZXJ0IiwiX21ldGEiOnsidGl0bGUiOiJOdW1iZXIgQ29udmVydCJ9fSwiOTg6MTQ3Ijp7ImlucHV0cyI6eyJqc29uX3N0cmluZyI6IntcbiAgXCJRdWFsaXR5XCI6IHtcbiAgICBcIm51bV9zdGVwc1wiOiA0OCxcbiAgICBcIm11XCI6IDAuMCxcbiAgICBcInN0ZFwiOiAxLjUsXG4gICAgXCJwcmVzZXRfaWRcIjogXCJWNF9RVUFMSVRZXzQ4XCJcbiAgfSxcbiAgXCJEZWZhdWx0XCI6IHtcbiAgICBcIm51bV9zdGVwc1wiOiAyMCxcbiAgICBcIm11XCI6IDAuMCxcbiAgICBcInN0ZFwiOiAxLjc1LFxuICAgIFwicHJlc2V0X2lkXCI6IFwiVjRfREVGQVVMVF8yMFwiXG4gIH0sXG4gIFwiVHVyYm9cIjoge1xuICAgIFwibnVtX3N0ZXBzXCI6IDEyLFxuICAgIFwibXVcIjogMC41LFxuICAgIFwic3RkXCI6IDEuNzUsXG4gICAgXCJwcmVzZXRfaWRcIjogXCJWNF9UVVJCT18xMlwiXG4gIH1cbn0iLCJrZXkiOlsiOTg6MTU2IiwwXX0sImNsYXNzX3R5cGUiOiJKc29uRXh0cmFjdFN0cmluZyIsIl9tZXRhIjp7InRpdGxlIjoiRXh0cmFjdCBUZXh0IGZyb20gSlNPTiJ9fSwiOTg6MTQ4Ijp7ImlucHV0cyI6eyJzdHJpbmciOlsiOTg6MTQ3IiwwXSwiZmluZCI6IiciLCJyZXBsYWNlIjoiXCIifSwiY2xhc3NfdHlwZSI6IlN0cmluZ1JlcGxhY2UiLCJfbWV0YSI6eyJ0aXRsZSI6IlJlcGxhY2UgVGV4dCJ9fSwiOTg6MTQ5Ijp7ImlucHV0cyI6eyJqc29uX3N0cmluZyI6WyI5ODoxNDgiLDBdLCJrZXkiOiJudW1fc3RlcHMifSwiY2xhc3NfdHlwZSI6Ikpzb25FeHRyYWN0U3RyaW5nIiwiX21ldGEiOnsidGl0bGUiOiJFeHRyYWN0IFRleHQgZnJvbSBKU09OIn19LCI5ODoxNTAiOnsiaW5wdXRzIjp7Impzb25fc3RyaW5nIjpbIjk4OjE0OCIsMF0sImtleSI6InN0ZCJ9LCJjbGFzc190eXBlIjoiSnNvbkV4dHJhY3RTdHJpbmciLCJfbWV0YSI6eyJ0aXRsZSI6IkV4dHJhY3QgVGV4dCBmcm9tIEpTT04ifX0sIjk4OjE1MSI6eyJpbnB1dHMiOnsidmFsdWUiOlsiOTg6MTQ5IiwwXX0sImNsYXNzX3R5cGUiOiJDb21meU51bWJlckNvbnZlcnQiLCJfbWV0YSI6eyJ0aXRsZSI6Ik51bWJlciBDb252ZXJ0In19LCI5ODoxNTQiOnsiaW5wdXRzIjp7InVuZXRfbmFtZSI6ImlkZW9ncmFtNF91bmNvbmRpdGlvbmFsX2ZwOF9zY2FsZWQuc2FmZXRlbnNvcnMiLCJ3ZWlnaHRfZHR5cGUiOiJkZWZhdWx0In0sImNsYXNzX3R5cGUiOiJVTkVUTG9hZGVyIiwiX21ldGEiOnsidGl0bGUiOiJMb2FkIERpZmZ1c2lvbiBNb2RlbCJ9fSwiOTg6MTU1Ijp7ImlucHV0cyI6eyJjZmciOjcsIm1vZGVsIjpbIjk4OjE1NyIsMF0sInBvc2l0aXZlIjpbIjk4OjI0IiwwXSwibW9kZWxfbmVnYXRpdmUiOlsiOTg6MTU0IiwwXSwibmVnYXRpdmUiOlsiOTg6MTAiLDBdfSwiY2xhc3NfdHlwZSI6IkR1YWxNb2RlbEd1aWRlciIsIl9tZXRhIjp7InRpdGxlIjoiRHVhbCBNb2RlbCBDRkcgR3VpZGVyIn19LCI5ODoxNTYiOnsiaW5wdXRzIjp7ImNob2ljZSI6IkRlZmF1bHQiLCJpbmRleCI6MSwib3B0aW9uMSI6IlF1YWxpdHkiLCJvcHRpb24yIjoiRGVmYXVsdCIsIm9wdGlvbjMiOiJUdXJibyIsIm9wdGlvbjQiOiIifSwiY2xhc3NfdHlwZSI6IkN1c3RvbUNvbWJvIiwiX21ldGEiOnsidGl0bGUiOiJDdXN0b20gQ29tYm8ifX0sIjk4OjE1NyI6eyJpbnB1dHMiOnsiY2ZnIjozLCJzdGFydF9wZXJjZW50IjowLjksImVuZF9wZXJjZW50IjoxLCJtb2RlbCI6WyI5ODoyMyIsMF19LCJjbGFzc190eXBlIjoiQ0ZHT3ZlcnJpZGUiLCJfbWV0YSI6eyJ0aXRsZSI6IkNGRyBPdmVycmlkZSJ9fX0="))
         // State
@@ -275,16 +288,31 @@
 
         // DOM Elements
         const canvas = document.getElementById('canvas-wrapper');
+        const canvasWSlider = document.getElementById('canvas-width');
+        const canvasHSlider = document.getElementById('canvas-height');
+        const seedSlider = document.getElementById('r-seed');
         const boxPanel = document.getElementById('box-panel');
+        const jsonOutput = document.getElementById('json-output')
 
         // UI Listeners for sliders
-        document.getElementById('canvas-width').addEventListener('input', e => document.getElementById('w-val').innerText = e.target.value.toString().padStart(4, '0'));
-        document.getElementById('canvas-height').addEventListener('input', e => document.getElementById('h-val').innerText = e.target.value.toString().padStart(4, '0'));
-        document.getElementById('r-seed').addEventListener('input', e => document.getElementById('r-seed-value').innerText = e.target.value.toString().padStart(5, '0'));
+        canvasWSlider.addEventListener('input', e => document.getElementById('w-val').innerText = e.target.value.toString().padStart(4, '0'));
+        canvasHSlider.addEventListener('input', e => document.getElementById('h-val').innerText = e.target.value.toString().padStart(4, '0'));
+        seedSlider.addEventListener('input', e => document.getElementById('r-seed-value').innerText = e.target.value.toString().padStart(5, '0'));
+
+        document.addEventListener('dragover', (e) => {
+            e.preventDefault();
+        });
+        document.addEventListener('drop', (e) => {
+            e.preventDefault();
+
+            if (e.dataTransfer.files.length > 0) {
+                importImage(e.dataTransfer.files[0]); // is async
+            }
+        });
 
         function initCanvas() {
-            canvasW = parseInt(document.getElementById('canvas-width').value);
-            canvasH = parseInt(document.getElementById('canvas-height').value);
+            canvasW = parseInt(canvasWSlider.value);
+            canvasH = parseInt(canvasHSlider.value);
             canvas.style.width = canvasW + 'px';
             canvas.style.height = canvasH + 'px';
 
@@ -292,11 +320,12 @@
             scale = canvasH > 800 ? 800 / canvasH : 1;
             canvas.style.transform = `scale(${scale})`;
             canvas.parentElement.style.width = (canvasW * scale) + 'px';
-            
+
             canvas.style.backgroundImage = ""
             canvas.style.backgroundSize = ""
 
             canvas.innerHTML = '';
+            jsonOutput.value = '';
             boxes = [];
             selectBox(null);
         }
@@ -304,7 +333,7 @@
         // Color Palette Logic
         function addColor(type) {
             const picker = document.getElementById(type + '-color-picker');
-            let hex = picker.value.toUpperCase(); // Ensure uppercase string
+            let hex = picker.value.toUpperCase(); // Ideogram4 requires uppercase string
 
             if (type === 'global') {
                 if (globalPalette.length >= 16) return alert("Max 16 colors allowed.");
@@ -381,6 +410,26 @@
 
                 canvas.appendChild(currentBoxDOM);
                 selectBox(box.id);
+            } else if (e.target.classList.contains('resize-handle')) {
+                isResizing = true;
+                currentBoxDOM = e.target.parentElement;
+                selectBox(currentBoxDOM.id);
+                const rect = canvas.getBoundingClientRect();
+                dragStartX = (e.clientX - rect.left) / scale;
+                dragStartY = (e.clientY - rect.top) / scale;
+                initialBoxW = parseFloat(currentBoxDOM.style.width);
+                initialBoxH = parseFloat(currentBoxDOM.style.height);
+                e.stopPropagation();
+            } else if (e.target.classList.contains('bounding-box')) {
+                isDragging = true;
+                currentBoxDOM = e.target;
+                selectBox(currentBoxDOM.id);
+                const rect = canvas.getBoundingClientRect();
+                dragStartX = (e.clientX - rect.left) / scale;
+                dragStartY = (e.clientY - rect.top) / scale;
+                initialBoxX = parseFloat(currentBoxDOM.style.left);
+                initialBoxY = parseFloat(currentBoxDOM.style.top);
+                e.stopPropagation();
             }
         });
 
@@ -423,30 +472,6 @@
 
         // Box Interaction (Select, Drag, Resize)
         let dragStartX, dragStartY, initialBoxX, initialBoxY, initialBoxW, initialBoxH;
-
-        canvas.addEventListener('pointerdown', (e) => {
-            if (e.target.classList.contains('resize-handle')) {
-                isResizing = true;
-                currentBoxDOM = e.target.parentElement;
-                selectBox(currentBoxDOM.id);
-                const rect = canvas.getBoundingClientRect();
-                dragStartX = (e.clientX - rect.left) / scale;
-                dragStartY = (e.clientY - rect.top) / scale;
-                initialBoxW = parseFloat(currentBoxDOM.style.width);
-                initialBoxH = parseFloat(currentBoxDOM.style.height);
-                e.stopPropagation();
-            } else if (e.target.classList.contains('bounding-box')) {
-                isDragging = true;
-                currentBoxDOM = e.target;
-                selectBox(currentBoxDOM.id);
-                const rect = canvas.getBoundingClientRect();
-                dragStartX = (e.clientX - rect.left) / scale;
-                dragStartY = (e.clientY - rect.top) / scale;
-                initialBoxX = parseFloat(currentBoxDOM.style.left);
-                initialBoxY = parseFloat(currentBoxDOM.style.top);
-                e.stopPropagation();
-            }
-        });
 
         window.addEventListener('pointermove', (e) => {
             const rect = canvas.getBoundingClientRect();
@@ -537,14 +562,14 @@
                 return el;
             });
 
-            const output = {
+            var output = {
                 high_level_description: document.getElementById('high_level_description').value,
                 style_description: {
                     aesthetics: document.getElementById('aesthetics').value,
                     lighting: document.getElementById('lighting').value,
-                    medium: document.getElementById('medium').value,
-                    art_style: document.getElementById('art_style').value,
-                    color_palette: globalPalette
+                    //medium: document.getElementById('medium').value,
+                    //art_style: document.getElementById('art_style').value,
+                    //color_palette: globalPalette
                 },
                 compositional_deconstruction: {
                     background: document.getElementById('background').value,
@@ -552,7 +577,20 @@
                 }
             };
 
-            document.getElementById('json-output').value = JSON.stringify(output, null, 2);
+            // in photo mode, order in prompt should be "photo" then "medium",
+            // while in art_style mode order should be "medium" then "art_style"
+            if(photoArtStyleMode == MODE_PHOTO){
+                output.style_description.photo = document.getElementById('art_style').value;
+                output.style_description.medium = document.getElementById('medium').value;
+            }
+            else{
+                output.style_description.medium = document.getElementById('medium').value;
+                output.style_description.art_style = document.getElementById('art_style').value
+            }
+
+            output.style_description.color_palette = globalPalette
+
+            jsonOutput.value = JSON.stringify(output, null, 2);
         }
 
         async function waitForComfyUIResult(
@@ -624,12 +662,18 @@
             }
         }
 
+        function setImage(imgURL){
+            document.getElementById("image-view").src = imgURL
+            canvas.style.backgroundImage = `url("${imgURL}")`
+            canvas.style.backgroundSize = "cover"
+        }
+
         async function generateImage() {
             const api = document.getElementById("api-location").value
-            json_prompt["98:24"]["inputs"]["text"] = document.getElementById('json-output').value
-            json_prompt["98:27"]["inputs"]["value"] = document.getElementById('canvas-width').value
-            json_prompt["98:28"]["inputs"]["value"] = document.getElementById('canvas-height').value
-            json_prompt["98:18"]["inputs"]["noise_seed"] = document.getElementById('r-seed').value
+            json_prompt["98:24"]["inputs"]["text"] = jsonOutput.value
+            json_prompt["98:27"]["inputs"]["value"] = canvasWSlider.value
+            json_prompt["98:28"]["inputs"]["value"] = canvasHSlider.value
+            json_prompt["98:18"]["inputs"]["noise_seed"] = seedSlider.value
 
             var req = await fetch(api+"/api/prompt", {
                 "headers": {
@@ -645,13 +689,186 @@
                 300000,
                 true
             )
-            const imgURL = image[0].imageUrl;//.createObjectURL(image[0].blob)
-            document.getElementById("image-view").src = imgURL
-            canvas.style.backgroundImage = `url("${imgURL}")`
-            canvas.style.backgroundSize = "cover"
+            setImage(image[0].imageUrl)
         }
-        // Initialize on load
+
+        function extractComfyUIMetadata(arrayBuffer) {
+            const view = new DataView(arrayBuffer);
+
+            // Check valid PNG 8-byte signature
+            if (view.byteLength < 8 || view.getUint32(0) !== 0x89504E47 || view.getUint32(4) !== 0x0D0A1A0A) {
+                throw new Error("Not a valid PNG file.");
+            }
+
+            let offset = 8;
+            const result = {};
+
+            while (offset < view.byteLength) {
+                if (offset + 8 > view.byteLength) break;
+
+                // Read chunk length and type
+                const length = view.getUint32(offset);
+                const chunkType = String.fromCharCode(
+                    view.getUint8(offset + 4),
+                    view.getUint8(offset + 5),
+                    view.getUint8(offset + 6),
+                    view.getUint8(offset + 7)
+                );
+
+                offset += 8; // Move past length and type
+
+                if (chunkType === 'tEXt') {
+                    if (offset + length > view.byteLength) break;
+
+                    const chunkData = new Uint8Array(arrayBuffer, offset, length);
+                    const nullByteIndex = chunkData.indexOf(0); // Keyword and text are separated by a 0x00 byte
+
+                    if (nullByteIndex !== -1) {
+                        const keyword = new TextDecoder('ascii').decode(chunkData.subarray(0, nullByteIndex));
+
+                        if (keyword === 'prompt' || keyword === 'workflow') {
+                            const rawText = new TextDecoder('utf-8').decode(chunkData.subarray(nullByteIndex + 1));
+                            try {
+                                result[keyword] = JSON.parse(rawText);
+                            } catch (e) {
+                                result[keyword] = rawText; // Fallback if JSON parsing fails
+                            }
+                        }
+                    }
+                }
+
+                offset += length + 4; // Skip the data segment and the 4-byte CRC trailing checksum
+            }
+            for (const key of Object.keys(result.prompt)){
+                try{
+                    const json = JSON.parse(result.prompt[key].inputs.text)
+                    if(json.hasOwnProperty("high_level_description")){
+                        return json
+                    }
+                }
+                catch(e){}
+            }
+        }
+
+        function parseBoxesFromJSON(json){
+            try{
+                const n = json.compositional_deconstruction.elements.length
+                for (var i=0; i<n; i++){
+                    const element = json.compositional_deconstruction.elements[i]
+                    const bbox = element.bbox
+                    bbox[0] = bbox[0]/1000*canvasH
+                    bbox[2] = bbox[2]/1000*canvasH
+                    bbox[1] = bbox[1]/1000*canvasW
+                    bbox[3] = bbox[3]/1000*canvasW
+                    var box = {
+                        id: 'box_' + boxCounter++,
+                        x: bbox[1], y: bbox[0], w: bbox[3]-bbox[1], h: bbox[2]-bbox[0],
+                        mode: element.type, text: element.text ?? '', desc: element.desc, colors: element.color_palette
+                    }
+                    boxes.push(box);
+
+                    currentBoxDOM = document.createElement('div');
+                    currentBoxDOM.className = 'bounding-box';
+                    currentBoxDOM.id = box.id;
+                    currentBoxDOM.style.left = box.x + 'px';
+                    currentBoxDOM.style.top = box.y + 'px';
+                    currentBoxDOM.style.width = box.w + 'px';
+                    currentBoxDOM.style.height = box.h + 'px';
+
+                    const handle = document.createElement('div');
+                    handle.className = 'resize-handle';
+                    currentBoxDOM.appendChild(handle);
+
+                    canvas.appendChild(currentBoxDOM);
+
+                    currentBoxDOM = null;
+                }
+            }
+            catch(e){
+                alert("invalid JSON")
+            }
+        }
+        function parseParametersFromJSON(json){
+            document.getElementById('high_level_description').value = json.high_level_description
+            document.getElementById('aesthetics').value = json.style_description.aesthetics
+            document.getElementById('lighting').value = json.style_description.lighting
+            document.getElementById('medium').value = json.style_description.medium
+            document.getElementById('background').value = json.compositional_deconstruction.background
+            const globalColorPicker = document.getElementById('global-color-picker')
+            globalPalette = [];
+            renderColors('global');
+            for(var i=0; i<json.style_description.color_palette.length; i++){
+                globalColorPicker.value = json.style_description.color_palette[i];
+                addColor('global');
+            }
+
+            if(json.style_description.hasOwnProperty("photo")){
+                document.getElementById('art_style').value = json.style_description.photo
+                document.getElementById('mode_photo').checked = true
+                setPhotoArtstyle(MODE_PHOTO);
+            }
+            else{
+                document.getElementById('art_style').value = json.style_description.art_style
+                document.getElementById('mode_artstyle').checked = true
+                setPhotoArtstyle(MODE_ARTSTYLE);
+            }
+        }
+
+        async function importImage(image){
+            console.log(image.size)
+            if(image.type.startsWith("image")){
+                // is image
+                const img = new Image();
+                img.onload = function() {
+                    canvasWSlider.value = this.width.toString();
+                    canvasWSlider.dispatchEvent(new Event('input'));
+                    canvasHSlider.value = this.height.toString();
+                    canvasHSlider.dispatchEvent(new Event('input'));
+                    initCanvas();
+                    setImage(img.src);
+
+                    if(image.type=="image/png"){
+                        // is png. try and find workflow metadata
+                        image.arrayBuffer()
+                        .then(buff => {
+                            const json = extractComfyUIMetadata(buff);
+                            jsonOutput.value = JSON.stringify(json, null, 2);
+                            parseBoxesFromJSON(json)
+                            parseParametersFromJSON(json)
+                        })
+                    }
+                };
+                img.src = URL.createObjectURL(image);
+            }
+            else{
+                alert("images only")
+            }
+        }
+
+        var photoArtStyleMode = 1;
+        const MODE_PHOTO = 0;
+        const MODE_ARTSTYLE = 1;
+        function setPhotoArtstyle(mode){
+            console.log(mode)
+            photoArtStyleMode = mode
+            if(mode==MODE_PHOTO){
+                // photo mode
+                document.getElementById("medium").value = "photograph";
+                document.getElementById("medium").disabled = true
+                document.getElementById("mode_label").innerText = "Photo"
+            }
+            else if (mode==MODE_ARTSTYLE){
+                // art_style mode
+                document.getElementById("medium").disabled = false
+                document.getElementById("mode_label").innerText = "Art Style"
+            }
+            else{
+                console.error("invalid mode")
+            }
+        }
+
         initCanvas();
+        setPhotoArtstyle(1)
     </script>
 
 </body>
