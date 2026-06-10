@@ -205,8 +205,12 @@
                 <div id="canvas-wrapper"></div>
             </div>
 
-            <button onclick="generateJSON()" style="background: #00CC88; padding: 12px; font-size: 16px;">Generate JSON Prompt</button>
-            <textarea id="json-output" placeholder="JSON will appear here..."></textarea>
+            <div style="display: flex; justify-content: space-around; width: 100%;">
+                <button onclick="generateJSON()" style="background: #00CC88; padding: 12px; font-size: 16px; width:100%; margin:5px;">Generate JSON Prompt</button>
+                <button onclick="clearBoxes();parseParametersFromJSON(JSON.parse(jsonOutput.value));parseBoxesFromJSON(JSON.parse(jsonOutput.value))" style="background: #00CC88; padding: 12px; font-size: 16px; width:100%; margin:5px;">Load From Pasted JSON</button>
+            </div>
+            <textarea id="json-output" placeholder="JSON will appear here...
+Or paste a JSON here to load parameters from it"></textarea>
         <div>
             <label>Seed: <span id="r-seed-value">42</span></label>
             <input type="range" id="r-seed" min="1" max="99999" step="1" value="42">
@@ -324,8 +328,12 @@
             canvas.style.backgroundImage = ""
             canvas.style.backgroundSize = ""
 
-            canvas.innerHTML = '';
             jsonOutput.value = '';
+            clearBoxes();
+        }
+
+        function clearBoxes(){
+            canvas.innerHTML = '';
             boxes = [];
             selectBox(null);
         }
@@ -763,7 +771,7 @@
                     var box = {
                         id: 'box_' + boxCounter++,
                         x: bbox[1], y: bbox[0], w: bbox[3]-bbox[1], h: bbox[2]-bbox[0],
-                        mode: element.type, text: element.text ?? '', desc: element.desc, colors: element.color_palette
+                        mode: element.type, text: element.text ?? '', desc: element.desc, colors: element.color_palette ?? []
                     }
                     boxes.push(box);
 
