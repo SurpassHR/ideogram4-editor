@@ -4,10 +4,12 @@ import LlmConfigPanel from './LlmConfigPanel';
 import { getLlmProviders } from './api';
 import type { LlmProvider } from './types';
 import { KIND_LABELS } from './types';
+import { useI18n } from '../../i18n/context';
 
 export default function LlmPanel() {
   const [showConfig, setShowConfig] = useState(false);
   const [providers, setProviders] = useState<LlmProvider[]>([]);
+  const { t } = useI18n();
 
   useEffect(() => {
     getLlmProviders().then(setProviders);
@@ -22,14 +24,14 @@ export default function LlmPanel() {
   return (
     <>
       <GlowGrid>
-        <h3>LLM Tools</h3>
+        <h3>{t('llm.tools')}</h3>
         {providers.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '12px 0' }}>
             <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 10px 0' }}>
-              配置 LLM 提供商以使用 AI 辅助生成 prompt
+              {t('llm.configureToUse')}
             </p>
             <button className="btn" onClick={() => setShowConfig(true)} style={{ fontSize: 12, padding: '5px 14px' }}>
-              配置 LLM
+              {t('llm.configure')}
             </button>
           </div>
         ) : (
@@ -40,17 +42,17 @@ export default function LlmPanel() {
                   <span className="llm-dot active" style={{ display: 'inline-block' }} />
                   <span style={{ fontWeight: 500 }}>{p.name || p.id}</span>
                   <span style={{ color: 'var(--text-muted)' }}>
-                    {KIND_LABELS[p.kind]} · {p.models.length} 模型
+                    {KIND_LABELS[p.kind]} · {t('llm.models', { count: p.models.length })}
                   </span>
                 </div>
               ))}
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <button className="btn" onClick={() => setShowConfig(true)} style={{ fontSize: 12, padding: '5px 14px' }}>
-                管理配置
+                {t('llm.manageConfig')}
               </button>
               <button className="btn" disabled style={{ fontSize: 12, padding: '5px 14px', opacity: 0.4 }}>
-                优化 Prompt
+                {t('llm.optimizePrompt')}
               </button>
             </div>
           </div>

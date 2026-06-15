@@ -1,5 +1,6 @@
 import { useEditorStore } from '../../store';
 import { MODE_PHOTO, MODE_ARTSTYLE } from '../../types';
+import { useI18n } from '../../i18n/context';
 import ColorPalette from './ColorPalette';
 import GlowGrid from './GlowGrid';
 
@@ -16,13 +17,14 @@ export default function GlobalSettingsPanel() {
   const setPhotoArtStyleMode = useEditorStore(s => s.setPhotoArtStyleMode);
   const addGlobalColor = useEditorStore(s => s.addGlobalColor);
   const removeGlobalColor = useEditorStore(s => s.removeGlobalColor);
+  const { t } = useI18n();
 
   const isPhoto = photoArtStyleMode === MODE_PHOTO;
-  const artStyleLabel = isPhoto ? 'Photo' : 'Art Style';
+  const artStyleLabel = isPhoto ? t('panels.globalSettings.photo') : t('panels.globalSettings.artStyle');
 
   return (
     <GlowGrid className="panel">
-      <h3>Global Settings</h3>
+      <h3>{t('panels.globalSettings.title')}</h3>
 
       <div className="pill-group" style={{ marginBottom: 16 }}>
         <label>
@@ -32,7 +34,7 @@ export default function GlobalSettingsPanel() {
             checked={isPhoto}
             onChange={() => setPhotoArtStyleMode(MODE_PHOTO)}
           />
-          <span className="pill-label">Photo</span>
+          <span className="pill-label">{t('panels.globalSettings.photo')}</span>
         </label>
         <label>
           <input
@@ -41,12 +43,12 @@ export default function GlobalSettingsPanel() {
             checked={!isPhoto}
             onChange={() => setPhotoArtStyleMode(MODE_ARTSTYLE)}
           />
-          <span className="pill-label">Art Style</span>
+          <span className="pill-label">{t('panels.globalSettings.artStyle')}</span>
         </label>
       </div>
 
       <div className="input-group">
-        <label>High Level Description</label>
+        <label>{t('panels.globalSettings.highLevelDescription')}</label>
         <input
           type="text"
           value={highLevelDescription}
@@ -55,7 +57,7 @@ export default function GlobalSettingsPanel() {
       </div>
 
       <div className="input-group">
-        <label>Aesthetics</label>
+        <label>{t('panels.globalSettings.aesthetics')}</label>
         <input
           type="text"
           value={aesthetics}
@@ -64,7 +66,7 @@ export default function GlobalSettingsPanel() {
       </div>
 
       <div className="input-group">
-        <label>Lighting</label>
+        <label>{t('panels.globalSettings.lighting')}</label>
         <input
           type="text"
           value={lighting}
@@ -73,7 +75,7 @@ export default function GlobalSettingsPanel() {
       </div>
 
       <div className="input-group">
-        <label>Medium</label>
+        <label>{t('panels.globalSettings.medium')}</label>
         <input
           type="text"
           value={medium}
@@ -92,7 +94,7 @@ export default function GlobalSettingsPanel() {
       </div>
 
       <div className="input-group">
-        <label>Background</label>
+        <label>{t('panels.globalSettings.background')}</label>
         <textarea
           value={background}
           onChange={e => setGlobalSetting('background', e.target.value)}
@@ -100,7 +102,7 @@ export default function GlobalSettingsPanel() {
       </div>
 
       <ColorPalette
-        label="Global Color Palette"
+        label={t('panels.globalSettings.globalColorPalette')}
         colors={globalPalette}
         maxColors={16}
         onAdd={addGlobalColor}

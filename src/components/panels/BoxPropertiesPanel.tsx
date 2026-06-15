@@ -1,4 +1,5 @@
 import { useEditorStore } from '../../store';
+import { useI18n } from '../../i18n/context';
 import ColorPalette from './ColorPalette';
 import GlowGrid from './GlowGrid';
 
@@ -9,35 +10,36 @@ export default function BoxPropertiesPanel() {
   const removeBox = useEditorStore(s => s.removeBox);
   const addBoxColor = useEditorStore(s => s.addBoxColor);
   const removeBoxColor = useEditorStore(s => s.removeBoxColor);
+  const { t } = useI18n();
 
   const box = boxes.find(b => b.id === selectedBoxId);
 
   if (!selectedBoxId || !box) {
     return (
       <GlowGrid id="box-panel" style={{ display: 'none' }}>
-        <h3>Box Properties</h3>
+        <h3>{t('panels.boxProperties.title')}</h3>
       </GlowGrid>
     );
   }
 
   return (
     <GlowGrid id="box-panel">
-      <h3>Box Properties</h3>
+      <h3>{t('panels.boxProperties.title')}</h3>
 
       <div className="input-group">
-        <label>Mode</label>
+        <label>{t('panels.boxProperties.mode')}</label>
         <select
           value={box.mode}
           onChange={e => updateBox(box.id, { mode: e.target.value as 'obj' | 'text' })}
         >
-          <option value="obj">Object (obj)</option>
-          <option value="text">Text (text)</option>
+          <option value="obj">{t('panels.boxProperties.objectLabel')}</option>
+          <option value="text">{t('panels.boxProperties.textLabel')}</option>
         </select>
       </div>
 
       {box.mode === 'text' && (
         <div className="input-group">
-          <label>Text Content</label>
+          <label>{t('panels.boxProperties.textContent')}</label>
           <input
             type="text"
             value={box.text}
@@ -47,7 +49,7 @@ export default function BoxPropertiesPanel() {
       )}
 
       <div className="input-group">
-        <label>Description</label>
+        <label>{t('panels.boxProperties.description')}</label>
         <textarea
           value={box.desc}
           onChange={e => updateBox(box.id, { desc: e.target.value })}
@@ -55,7 +57,7 @@ export default function BoxPropertiesPanel() {
       </div>
 
       <ColorPalette
-        label="Box Color Palette"
+        label={t('panels.boxProperties.boxColorPalette')}
         colors={box.colors}
         maxColors={5}
         onAdd={addBoxColor}
@@ -67,7 +69,7 @@ export default function BoxPropertiesPanel() {
         style={{ marginTop: 12 }}
         onClick={() => removeBox(box.id)}
       >
-        Delete Box
+        {t('panels.boxProperties.deleteBox')}
       </button>
     </GlowGrid>
   );

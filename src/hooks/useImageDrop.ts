@@ -1,12 +1,14 @@
 import { useEffect } from 'react';
 import { useEditorStore } from '../store';
 import { extractComfyUIMetadata } from '../utils/png-metadata';
+import { useI18n } from '../i18n/context';
 import type { IdeogramOutput } from '../types';
 
 export function useImageDrop() {
   const setCanvasDimensions = useEditorStore(s => s.setCanvasDimensions);
   const setGeneratedImageUrl = useEditorStore(s => s.setGeneratedImageUrl);
   const loadFromJSON = useEditorStore(s => s.loadFromJSON);
+  const { t } = useI18n();
 
   useEffect(() => {
     const onDragOver = (e: DragEvent) => {
@@ -19,7 +21,7 @@ export function useImageDrop() {
       if (!file) return;
 
       if (!file.type.startsWith('image/')) {
-        alert('Please drop an image file.');
+        alert(t('common.imageDropError'));
         return;
       }
 
@@ -52,5 +54,5 @@ export function useImageDrop() {
       document.removeEventListener('dragover', onDragOver);
       document.removeEventListener('drop', onDrop);
     };
-  }, [setCanvasDimensions, setGeneratedImageUrl, loadFromJSON]);
+  }, [setCanvasDimensions, setGeneratedImageUrl, loadFromJSON, t]);
 }

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import type { LlmProvider, ProviderKind } from './types';
 import { KIND_LABELS, DEFAULT_BASE_URLS, createEmptyProvider } from './types';
 import { getLlmProviders, saveLlmProvider, deleteLlmProvider, fetchModels } from './api';
+import { useI18n } from '../../i18n/context';
 
 interface Props {
   onClose: () => void;
@@ -18,6 +19,7 @@ export default function LlmConfigPanel({ onClose }: Props) {
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const { t } = useI18n();
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -60,7 +62,7 @@ export default function LlmConfigPanel({ onClose }: Props) {
 
   const handleSave = async () => {
     if (!editing.id.trim() || !editing.name.trim()) {
-      showToast('ID 和名称不能为空');
+      showToast(t('llmConfig.toast.idNameRequired'));
       return;
     }
     setSaving(true);
@@ -70,16 +72,16 @@ export default function LlmConfigPanel({ onClose }: Props) {
       setProviders(updated);
       setSelectedId(editing.id);
       setIsNew(false);
-      showToast('保存成功');
+      showToast(t('llmConfig.toast.saved'));
     } catch (e) {
-      showToast('保存失败: ' + (e as Error).message);
+      showToast(t('llmConfig.toast.saveFailed', { error: (e as Error).message }));
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('确定要删除该提供商吗？')) return;
+    if (!confirm(t('llmConfig.toast.confirmDelete'))) return;
     try {
       await deleteLlmProvider(id);
       if (selectedId === id) {
@@ -89,9 +91,9 @@ export default function LlmConfigPanel({ onClose }: Props) {
       }
       const updated = await getLlmProviders();
       setProviders(updated);
-      showToast('删除成功');
+      showToast(t('llmConfig.toast.deleted'));
     } catch (e) {
-      showToast('删除失败: ' + (e as Error).message);
+      showToast(t('llmConfig.toast.deleteFailed', { error: (e as Error).message }));
     }
   };
 
@@ -100,11 +102,11 @@ export default function LlmConfigPanel({ onClose }: Props) {
     const apiKey = editing.api_key;
 
     if (!baseUrl) {
-      showToast('请先填写 Base URL');
+      showToast(t('llmConfig.toast.fillBaseUrl'));
       return;
     }
     if (!apiKey || isKeyMasked(apiKey)) {
-      showToast('请先填写有效的 API Key');
+      showToast(t('llmConfig.toast.fillApiKey'));
       return;
     }
 
@@ -113,9 +115,9 @@ export default function LlmConfigPanel({ onClose }: Props) {
       const models = await fetchModels(editing.kind, baseUrl, apiKey);
       const merged = [...new Set([...editing.models, ...models])].sort();
       setEditing(prev => ({ ...prev, models: merged }));
-      showToast(`获取到 ${models.length} 个模型`);
+      showToast(t('llmConfig.toast.fetchedModels', { count: models.length }));
     } catch (e) {
-      showToast('获取模型失败: ' + (e as Error).message);
+      showToast(t('llmConfig.toast.fetchFailed', { error: (e as Error).message }));
     } finally {
       setFetchingModels(false);
     }
@@ -134,7 +136,7 @@ export default function LlmConfigPanel({ onClose }: Props) {
     return (
       <div className="llm-overlay">
         <div className="llm-modal" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 400 }}>
-          <p style={{ color: 'var(--text-secondary)' }}>加载中...</p>
+          <p style={{ color: 'var(--text-secondary)' }}>{t('llmConfig.loading')}</p>
         </div>
       </div>
     );
@@ -146,9 +148,9 @@ export default function LlmConfigPanel({ onClose }: Props) {
         {/* Header */}
         <div className="llm-header">
           <button className="btn" onClick={onClose} style={{ background: 'transparent', color: 'var(--text-secondary)', padding: '4px 8px' }}>
-            ← Back
+            {t('llmConfig.back')}
           </button>
-          <span style={{ fontWeight: 600, fontSize: 15 }}>LLM 配置</span>
+          <span style={{ fontWeight: 600, fontSize: 15 }}>{t('llmConfig.title')}</span>
           <div style={{ width: 60 }} />
         </div>
 
@@ -157,13 +159,13 @@ export default function LlmConfigPanel({ onClose }: Props) {
           {/* Sidebar */}
           <div className="llm-sidebar">
             <div className="llm-sidebar-header">
-              <span style={{ fontWeight: 600, fontSize: 12, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>提供商</span>
-              <button className="btn" onClick={startNew} style={{ padding: '3px 10px', fontSize: 11 }}>+ 添加</button>
+              <span style={{ fontWeight: 600, fontSize: 12, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('llmConfig.providers')}</span>
+              <button className="btn" onClick={startNew} style={{ padding: '3px 10px', fontSize: 11 }}>{t('llmConfig.addProvider')}</button>
             </div>
             <div style={{ flex: 1, overflow: 'auto' }}>
               {providers.length === 0 ? (
                 <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>
-                  暂无提供商，点击「+ 添加」创建
+                  {t('llmConfig.noProviders')}
                 </div>
               ) : (
                 providers.map(p => (
@@ -181,7 +183,7 @@ export default function LlmConfigPanel({ onClose }: Props) {
                           {p.name || p.id}
                         </div>
                         <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                          {KIND_LABELS[p.kind]} · {p.models.length} 模型
+                          {KIND_LABELS[p.kind]} · {t('llm.models', { count: p.models.length })}
                         </div>
                       </div>
                     </div>
@@ -205,25 +207,25 @@ export default function LlmConfigPanel({ onClose }: Props) {
             {!selectedId && !isNew ? (
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', gap: 12 }}>
                 <div style={{ fontSize: 32 }}>⚙️</div>
-                <p style={{ fontSize: 13, margin: 0 }}>选择一个提供商或创建新的配置</p>
-                <button className="btn" onClick={startNew} style={{ padding: '6px 16px' }}>+ 新建提供商</button>
+                <p style={{ fontSize: 13, margin: 0 }}>{t('llmConfig.selectOrCreate')}</p>
+                <button className="btn" onClick={startNew} style={{ padding: '6px 16px' }}>{t('llmConfig.newProviderButton')}</button>
               </div>
             ) : (
               <>
                 <div style={{ flex: 1, overflow: 'auto', padding: '20px 24px' }}>
                   {/* ID */}
                   <div className="input-group">
-                    <label>ID</label>
+                    <label>{t('llmConfig.id')}</label>
                     {isNew ? (
                       <>
                         <input
                           type="text"
                           value={editing.id}
                           onChange={e => update('id', e.target.value)}
-                          placeholder="例如：my-openai"
+                          placeholder={t('llmConfig.idPlaceholder')}
                           style={{ fontFamily: 'JetBrains Mono, monospace' }}
                         />
-                        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 3 }}>创建后不可修改</div>
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 3 }}>{t('llmConfig.idImmutable')}</div>
                       </>
                     ) : (
                       <div style={{ padding: '8px 10px', background: 'var(--surface-raised)', borderRadius: 6, fontSize: 13, fontFamily: 'JetBrains Mono, monospace', color: 'var(--text-secondary)' }}>
@@ -234,18 +236,18 @@ export default function LlmConfigPanel({ onClose }: Props) {
 
                   {/* Name */}
                   <div className="input-group">
-                    <label>名称</label>
+                    <label>{t('llmConfig.name')}</label>
                     <input
                       type="text"
                       value={editing.name}
                       onChange={e => update('name', e.target.value)}
-                      placeholder="例如：GPT-4o"
+                      placeholder={t('llmConfig.namePlaceholder')}
                     />
                   </div>
 
                   {/* Kind */}
                   <div className="input-group">
-                    <label>协议类型</label>
+                    <label>{t('llmConfig.protocolType')}</label>
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                       {(Object.keys(KIND_LABELS) as ProviderKind[]).map(kind => (
                         <button
@@ -272,7 +274,7 @@ export default function LlmConfigPanel({ onClose }: Props) {
                   {/* Base URL */}
                   {editing.kind === 'openai_compat' && (
                     <div className="input-group">
-                      <label>Base URL</label>
+                      <label>{t('llmConfig.baseUrl')}</label>
                       <input
                         type="text"
                         value={editing.base_url}
@@ -285,7 +287,7 @@ export default function LlmConfigPanel({ onClose }: Props) {
 
                   {/* API Key */}
                   <div className="input-group">
-                    <label>API Key</label>
+                    <label>{t('llmConfig.apiKey')}</label>
                     <div style={{ position: 'relative' }}>
                       <input
                         type={showApiKey ? 'text' : 'password'}
@@ -309,11 +311,11 @@ export default function LlmConfigPanel({ onClose }: Props) {
                           padding: '4px 8px',
                         }}
                       >
-                        {showApiKey ? '隐藏' : '显示'}
+                        {showApiKey ? t('llmConfig.hide') : t('llmConfig.show')}
                       </button>
                     </div>
                     {isKeyMasked(editing.api_key) && (
-                      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 3 }}>密钥已脱敏，如需更换请重新输入</div>
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 3 }}>{t('llmConfig.keyMasked')}</div>
                     )}
                   </div>
 
@@ -323,7 +325,7 @@ export default function LlmConfigPanel({ onClose }: Props) {
                   {/* Models */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                     <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.03em', margin: 0 }}>
-                      模型列表
+                      {t('llmConfig.modelList')}
                     </label>
                     <button
                       className="btn"
@@ -331,7 +333,7 @@ export default function LlmConfigPanel({ onClose }: Props) {
                       disabled={fetchingModels}
                       style={{ padding: '4px 12px', fontSize: 11 }}
                     >
-                      {fetchingModels ? '获取中...' : '获取模型列表'}
+                      {fetchingModels ? t('llmConfig.fetching') : t('llmConfig.fetchModels')}
                     </button>
                   </div>
 
@@ -345,9 +347,9 @@ export default function LlmConfigPanel({ onClose }: Props) {
                       fontSize: 12,
                     }}>
                       {(() => {
-                        if (editing.kind === 'openai_compat' && !editing.base_url) return '请先填写 Base URL 和 API Key';
-                        if (!editing.api_key || isKeyMasked(editing.api_key)) return '请先填写有效的 API Key';
-                        return '点击「获取模型列表」从提供商拉取';
+                        if (editing.kind === 'openai_compat' && !editing.base_url) return t('llmConfig.fillBaseUrlFirst');
+                        if (!editing.api_key || isKeyMasked(editing.api_key)) return t('llmConfig.fillApiKeyFirst');
+                        return t('llmConfig.clickFetchHint');
                       })()}
                     </div>
                   ) : (
@@ -379,7 +381,7 @@ export default function LlmConfigPanel({ onClose }: Props) {
                           </label>
                         ))}
                       </div>
-                      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 6 }}>取消勾选将移除该模型</div>
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 6 }}>{t('llmConfig.uncheckToRemove')}</div>
                     </>
                   )}
                 </div>
@@ -394,18 +396,18 @@ export default function LlmConfigPanel({ onClose }: Props) {
                   background: 'var(--surface)',
                 }}>
                   <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                    {isNew ? '新建提供商' : hasChanges ? '有未保存的更改' : '已是最新'}
+                    {isNew ? t('llmConfig.newProvider') : hasChanges ? t('llmConfig.unsavedChanges') : t('llmConfig.upToDate')}
                   </span>
                   <div style={{ display: 'flex', gap: 8 }}>
                     {!isNew && (
-                      <button className="btn btn-danger" onClick={() => handleDelete(editing.id)}>删除</button>
+                      <button className="btn btn-danger" onClick={() => handleDelete(editing.id)}>{t('llmConfig.delete')}</button>
                     )}
                     <button
                       className="btn"
                       onClick={handleSave}
                       disabled={saving || (!isNew && !hasChanges)}
                     >
-                      {saving ? '保存中...' : '保存配置'}
+                      {saving ? t('llmConfig.saving') : t('llmConfig.saveConfig')}
                     </button>
                   </div>
                 </div>

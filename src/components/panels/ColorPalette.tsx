@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useI18n } from '../../i18n/context';
 
 interface ColorPaletteProps {
   label: string;
@@ -10,11 +11,12 @@ interface ColorPaletteProps {
 
 export default function ColorPalette({ label, colors, maxColors, onAdd, onRemove }: ColorPaletteProps) {
   const [pickerColor, setPickerColor] = useState('#000000');
+  const { t } = useI18n();
 
   const handleAdd = () => {
     const ok = onAdd(pickerColor);
     if (!ok) {
-      alert(`Max ${maxColors} colors allowed.`);
+      alert(t('colorPalette.maxColors', { max: maxColors }));
     }
   };
 
@@ -28,7 +30,7 @@ export default function ColorPalette({ label, colors, maxColors, onAdd, onRemove
           onChange={e => setPickerColor(e.target.value)}
           style={{ width: 36, height: 36, border: 'none', cursor: 'pointer', padding: 0 }}
         />
-        <button className="btn" onClick={handleAdd} style={{ padding: '4px 12px' }}>Add</button>
+        <button className="btn" onClick={handleAdd} style={{ padding: '4px 12px' }}>{t('colorPalette.add')}</button>
       </div>
       <div className="color-list">
         {colors.map(hex => (

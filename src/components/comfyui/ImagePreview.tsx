@@ -1,13 +1,15 @@
 import { useEditorStore } from '../../store';
+import { useI18n } from '../../i18n/context';
 
 export default function ImagePreview() {
   const generatedImageUrl = useEditorStore(s => s.generatedImageUrl);
   const generationStatus = useEditorStore(s => s.generationStatus);
+  const { t } = useI18n();
 
   if (generationStatus === 'error') {
     return (
       <div className="panel" style={{ color: '#e74c3c' }}>
-        Generation failed. Check the console for details.
+        {t('comfyui.generationFailed')}
       </div>
     );
   }
@@ -18,7 +20,7 @@ export default function ImagePreview() {
     <div>
       <img
         src={generatedImageUrl}
-        alt="Generated result"
+        alt={t('comfyui.generatedResult')}
         style={{ maxWidth: '100%', maxHeight: 800, borderRadius: 4 }}
       />
     </div>

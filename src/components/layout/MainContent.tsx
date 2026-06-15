@@ -6,15 +6,17 @@ import GlobalSettingsPanel from '../panels/GlobalSettingsPanel';
 import BoxPropertiesPanel from '../panels/BoxPropertiesPanel';
 import LlmPanel from '../llm/LlmPanel';
 import { useImageDrop } from '../../hooks/useImageDrop';
+import { useI18n } from '../../i18n/context';
 
 export default function MainContent() {
   useImageDrop();
+  const { t } = useI18n();
 
   return (
     <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px' }}>
         <p className="instruction-text">
-          Click and drag on the canvas to create a bounding box. Drag and drop a PNG to import.
+          {t('main.instruction')}
         </p>
         <CanvasArea />
         <JsonToolbar />

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useEditorStore } from '../../store';
 import { useComfyUIGeneration } from '../../hooks/useComfyUIGeneration';
+import { useI18n } from '../../i18n/context';
 import GlowGrid from '../panels/GlowGrid';
 
 export default function ComfyUIControls() {
@@ -9,6 +10,7 @@ export default function ComfyUIControls() {
   const setApiUrl = useEditorStore(s => s.setApiUrl);
   const setSeed = useEditorStore(s => s.setSeed);
   const generationStatus = useEditorStore(s => s.generationStatus);
+  const { t } = useI18n();
 
   const { generate } = useComfyUIGeneration();
 
@@ -18,10 +20,10 @@ export default function ComfyUIControls() {
 
   return (
     <GlowGrid>
-      <h3>Generation</h3>
+      <h3>{t('comfyui.generation')}</h3>
 
       <div className="input-group">
-        <label>Seed: <span>{seedDisplay}</span></label>
+        <label>{t('comfyui.seed')} <span>{seedDisplay}</span></label>
         <input
           type="range"
           min={1}
@@ -37,7 +39,7 @@ export default function ComfyUIControls() {
       </div>
 
       <div className="input-group">
-        <label>ComfyUI API URL</label>
+        <label>{t('comfyui.apiUrl')}</label>
         <input
           type="text"
           value={apiUrl}
@@ -51,7 +53,7 @@ export default function ComfyUIControls() {
         disabled={isLoading}
         style={{ opacity: isLoading ? 0.6 : 1 }}
       >
-        {isLoading ? 'Generating...' : 'Generate Image'}
+        {isLoading ? t('comfyui.generating') : t('comfyui.generateImage')}
       </button>
     </GlowGrid>
   );
