@@ -1,6 +1,6 @@
 import { useEditorStore } from '../../store';
 import ColorPalette from './ColorPalette';
-import GlowPanel from './GlowPanel';
+import GlowGrid from './GlowGrid';
 
 export default function BoxPropertiesPanel() {
   const selectedBoxId = useEditorStore(s => s.selectedBoxId);
@@ -14,14 +14,14 @@ export default function BoxPropertiesPanel() {
 
   if (!selectedBoxId || !box) {
     return (
-      <GlowPanel id="box-panel" style={{ display: 'none' }}>
+      <GlowGrid id="box-panel" style={{ display: 'none' }}>
         <h3>Box Properties</h3>
-      </GlowPanel>
+      </GlowGrid>
     );
   }
 
   return (
-    <GlowPanel id="box-panel">
+    <GlowGrid id="box-panel">
       <h3>Box Properties</h3>
 
       <div className="input-group">
@@ -69,6 +69,6 @@ export default function BoxPropertiesPanel() {
       >
         Delete Box
       </button>
-    </GlowPanel>
+    </GlowGrid>
   );
 }
