@@ -4,12 +4,17 @@ node_modules/
 # Build output
 dist/
 
-# Vite
-.vite/
+# TypeScript
+*.tsbuildinfo
 
 # IDE
 .vscode/
 .idea/
+
+# Tools
+.cline/
+.codegraph/
+.mcp.json
 
 # Playwright
 .playwright-cli/
