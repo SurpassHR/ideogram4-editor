@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useEditorStore } from '../../store';
+import GlowPanel from '../panels/GlowPanel';
 
 export default function HeaderControls() {
   const canvasW = useEditorStore(s => s.canvasW);
@@ -11,7 +12,7 @@ export default function HeaderControls() {
   const [hDisplay, setHDisplay] = useState(String(canvasH).padStart(4, '0'));
 
   return (
-    <div className="panel" style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+    <GlowPanel style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
       <div className="input-group" style={{ margin: 0, flex: 1, minWidth: 200 }}>
         <label>Width: <span>{wDisplay}</span></label>
         <input
@@ -46,7 +47,7 @@ export default function HeaderControls() {
           }}
         />
       </div>
-      <button className="btn" onClick={resetCanvas}>Go (Reset Canvas)</button>
-    </div>
+      <button className="btn" onClick={resetCanvas}>Reset Canvas</button>
+    </GlowPanel>
   );
 }

@@ -13,7 +13,7 @@ export default function MainContent() {
   return (
     <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        <p style={{ margin: 0, fontSize: 13, color: '#666' }}>
+        <p className="instruction-text">
           Click and drag on the canvas to create a bounding box. Drag and drop a PNG to import.
         </p>
         <CanvasArea />

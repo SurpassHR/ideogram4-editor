@@ -1,18 +1,16 @@
+import GlowPanel from '../panels/GlowPanel';
+
 export default function LlmPanel() {
   return (
-    <div className="panel">
+    <GlowPanel>
       <h3>LLM Tools</h3>
-      <p style={{ fontSize: 13, color: '#666' }}>
-        LLM configuration panel will be integrated here using the llm-config-panel pattern.
+      <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>
+        Configure an LLM provider to generate and optimize prompts.
       </p>
-      <div style={{ marginTop: 12 }}>
-        <button className="btn" disabled style={{ marginRight: 8, opacity: 0.5 }}>
-          Generate Description
-        </button>
-        <button className="btn" disabled style={{ opacity: 0.5 }}>
-          Optimize Prompt
-        </button>
+      <div style={{ marginTop: 14, display: 'flex', gap: 8 }}>
+        <button className="btn" disabled>Generate Description</button>
+        <button className="btn" disabled>Optimize Prompt</button>
       </div>
-    </div>
+    </GlowPanel>
   );
 }

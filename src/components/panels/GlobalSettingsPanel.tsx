@@ -1,6 +1,7 @@
 import { useEditorStore } from '../../store';
 import { MODE_PHOTO, MODE_ARTSTYLE } from '../../types';
 import ColorPalette from './ColorPalette';
+import GlowPanel from './GlowPanel';
 
 export default function GlobalSettingsPanel() {
   const highLevelDescription = useEditorStore(s => s.highLevelDescription);
@@ -20,7 +21,7 @@ export default function GlobalSettingsPanel() {
   const artStyleLabel = isPhoto ? 'Photo' : 'Art Style';
 
   return (
-    <div className="panel">
+    <GlowPanel>
       <h3>Global Settings</h3>
 
       <div className="pill-group" style={{ marginBottom: 16 }}>
@@ -105,6 +106,6 @@ export default function GlobalSettingsPanel() {
         onAdd={addGlobalColor}
         onRemove={removeGlobalColor}
       />
-    </div>
+    </GlowPanel>
   );
 }

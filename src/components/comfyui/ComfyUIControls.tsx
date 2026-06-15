@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useEditorStore } from '../../store';
 import { useComfyUIGeneration } from '../../hooks/useComfyUIGeneration';
+import GlowPanel from '../panels/GlowPanel';
 
 export default function ComfyUIControls() {
   const apiUrl = useEditorStore(s => s.apiUrl);
@@ -16,8 +17,8 @@ export default function ComfyUIControls() {
   const isLoading = generationStatus === 'generating' || generationStatus === 'polling';
 
   return (
-    <div className="panel">
-      <h3>ComfyUI Generation</h3>
+    <GlowPanel>
+      <h3>Generation</h3>
 
       <div className="input-group">
         <label>Seed: <span>{seedDisplay}</span></label>
@@ -52,6 +53,6 @@ export default function ComfyUIControls() {
       >
         {isLoading ? 'Generating...' : 'Generate Image'}
       </button>
-    </div>
+    </GlowPanel>
   );
 }
