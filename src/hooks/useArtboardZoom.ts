@@ -52,7 +52,7 @@ export function useArtboardZoom(
   );
 
   const handleWheel = useCallback(
-    (e: React.WheelEvent) => {
+    (e: WheelEvent) => {
       e.preventDefault();
       const artboard = artboardRef.current;
       if (!artboard) return;
@@ -69,6 +69,14 @@ export function useArtboardZoom(
     },
     [artboardRef, triggerUpdate],
   );
+
+  useEffect(() => {
+    const artboard = artboardRef.current;
+    if (!artboard) return;
+    const onWheel = (e: WheelEvent) => handleWheel(e);
+    artboard.addEventListener('wheel', onWheel, { passive: false });
+    return () => artboard.removeEventListener('wheel', onWheel);
+  }, [artboardRef, handleWheel]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 1) return;

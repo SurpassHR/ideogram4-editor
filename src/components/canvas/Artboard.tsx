@@ -14,7 +14,6 @@ export default function Artboard() {
     zoom,
     panX,
     panY,
-    handleWheel,
     handleMouseDown,
     fitToArtboard,
     resetView,
@@ -40,7 +39,6 @@ export default function Artboard() {
     <div
       ref={artboardRef}
       className={`artboard${isPanning ? ' is-panning' : ''}`}
-      onWheel={handleWheel}
       onMouseDown={handleMouseDown}
     >
       <div className="artboard-controls">

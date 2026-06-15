@@ -45,6 +45,7 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
   }, []);
 
   const handleCanvasPointerDown = useCallback((e: React.PointerEvent) => {
+    if (e.button !== 0) return;
     const target = e.target as HTMLElement;
 
     if (target.closest('.resize-handle')) {
