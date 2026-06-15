@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import GlowPanel from '../panels/GlowPanel';
+import GlowGrid from '../panels/GlowGrid';
 import LlmConfigPanel from './LlmConfigPanel';
 import { getLlmProviders } from './api';
 import type { LlmProvider } from './types';
@@ -21,7 +21,7 @@ export default function LlmPanel() {
 
   return (
     <>
-      <GlowPanel>
+      <GlowGrid className="panel">
         <h3>LLM Tools</h3>
         {providers.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '12px 0' }}>
@@ -55,7 +55,7 @@ export default function LlmPanel() {
             </div>
           </div>
         )}
-      </GlowPanel>
+      </GlowGrid>
 
       {showConfig && <LlmConfigPanel onClose={handleClose} />}
     </>
