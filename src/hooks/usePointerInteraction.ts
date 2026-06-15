@@ -1,13 +1,16 @@
 import { useCallback, useRef, useEffect, useState } from 'react';
-import type { InteractionState, InteractionMode } from '../types';
+import type { InteractionState } from '../types';
 import { useEditorStore } from '../store';
 
 interface UsePointerInteractionOptions {
   canvasRef: React.RefObject<HTMLDivElement | null>;
-  scale: number;
+  zoom: number;
+  panX: number;
+  panY: number;
+  screenToCanvas: (sx: number, sy: number) => { x: number; y: number };
 }
 
-export function usePointerInteraction({ canvasRef, scale }: UsePointerInteractionOptions) {
+export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerInteractionOptions) {
   const interactionRef = useRef<InteractionState>({
     mode: 'idle',
     startX: 0,
@@ -30,14 +33,8 @@ export function usePointerInteraction({ canvasRef, scale }: UsePointerInteractio
   const updateBox = useEditorStore(s => s.updateBox);
 
   const getPointerPos = useCallback((e: PointerEvent | React.PointerEvent): { x: number; y: number } => {
-    const canvas = canvasRef.current;
-    if (!canvas) return { x: 0, y: 0 };
-    const rect = canvas.getBoundingClientRect();
-    return {
-      x: (e.clientX - rect.left) / scale,
-      y: (e.clientY - rect.top) / scale,
-    };
-  }, [canvasRef, scale]);
+    return screenToCanvas(e.clientX, e.clientY);
+  }, [screenToCanvas]);
 
   const registerBoxRef = useCallback((id: string) => (el: HTMLDivElement | null) => {
     if (el) {
@@ -137,11 +134,7 @@ export function usePointerInteraction({ canvasRef, scale }: UsePointerInteractio
       if (ir.mode !== 'dragging' && ir.mode !== 'resizing') return;
       if (!ir.currentBoxElement) return;
 
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const rect = canvas.getBoundingClientRect();
-      const x = (e.clientX - rect.left) / scale;
-      const y = (e.clientY - rect.top) / scale;
+      const { x, y } = screenToCanvas(e.clientX, e.clientY);
 
       if (ir.mode === 'dragging') {
         ir.currentBoxElement.style.left = `${ir.initialBoxX + (x - ir.dragStartX)}px`;
@@ -192,7 +185,7 @@ export function usePointerInteraction({ canvasRef, scale }: UsePointerInteractio
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
     };
-  }, [scale, addBox, updateBox, canvasRef]);
+  }, [screenToCanvas, addBox, updateBox]);
 
   return {
     boxRefs,
