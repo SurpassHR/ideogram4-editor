@@ -11,6 +11,9 @@ dist/
 .vscode/
 .idea/
 
+# Playwright
+.playwright-cli/
+
 # OS
 .DS_Store
 Thumbs.db
