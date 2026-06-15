@@ -6,62 +6,108 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Ideogram JSON Prompt 可视化编辑器 — 在画布上拖拽创建边界框，配置描述与颜色，生成 Ideogram 4 图像生成模型所需的 JSON prompt，并通过 ComfyUI API 生成图片。
 
-## 技术栈
+## 分支说明
 
-- 纯单文件 HTML（无框架、无构建工具、无外部依赖）
-- 原生 DOM 操作 + Pointer Events API
-- ComfyUI API 集成（`/api/prompt` + `/history/{id}` 轮询）
+- `main` — 原始单文件 HTML 版本（`index.html`，~884 行），纯静态，无构建工具
+- `react-refactor` — **当前活跃开发分支**，Vite + React + TypeScript 重构
 
-## 项目结构
+## 技术栈（react-refactor）
+
+- **构建**: Vite 7 + TypeScript 5.9
+- **框架**: React 19 + Zustand 5（状态管理）
+- **样式**: Tailwind CSS 4
+- **包管理**: pnpm
+
+## 常用命令
+
+```bash
+pnpm dev          # 启动开发服务器
+pnpm build        # 类型检查 + 生产构建（tsc -b && vite build）
+pnpm preview      # 预览生产构建
+```
+
+## 项目结构（react-refactor）
 
 ```
-index.html          # 唯一源文件，包含 HTML/CSS/JS（~884 行，~40KB）
+src/
+├── main.tsx                          # 入口
+├── index.css                         # Tailwind + 自定义样式
+├── components/
+│   ├── layout/
+│   │   ├── App.tsx                   # 根组件，组合 HeaderControls + MainContent
+│   │   ├── HeaderControls.tsx        # 画布尺寸 slider + Go 按钮
+│   │   └── MainContent.tsx           # 左右双栏布局
+│   ├── canvas/
+│   │   ├── CanvasArea.tsx            # 画布区域，绑定 Pointer Events
+│   │   └── BoundingBox.tsx           # 单个边界框 DOM 渲染
+│   ├── panels/
+│   │   ├── GlobalSettingsPanel.tsx   # 全局设置（模式、描述、美学、光照、调色板等）
+│   │   ├── BoxPropertiesPanel.tsx    # 选中框属性（mode、text、desc、调色板）
+│   │   ├── ColorPalette.tsx          # 通用调色板 UI 组件
+│   │   ├── GlowPanel.tsx             # 发光面板容器
+│   │   └── GlowGrid.tsx              # 交互式网格发光效果
+│   ├── json/
+│   │   └── JsonToolbar.tsx           # JSON 生成/加载按钮 + 文本区
+│   ├── comfyui/
+│   │   ├── ComfyUIControls.tsx       # API 地址、Seed、生成按钮
+│   │   └── ImagePreview.tsx          # 生成结果展示
+│   └── llm/
+│       ├── LlmPanel.tsx              # LLM 面板入口
+│       ├── LlmConfigPanel.tsx        # 多提供商 LLM 配置面板
+│       ├── types.ts                  # LLM 相关类型
+│       └── api.ts                    # LLM API 调用
+├── hooks/
+│   ├── usePointerInteraction.ts     # 画布指针交互（绘制/拖拽/缩放 box）
+│   ├── useComfyUIGeneration.ts      # ComfyUI 图片生成 + 轮询
+│   └── useImageDrop.ts              # 拖入 PNG 导入
+├── store/
+│   └── index.ts                     # Zustand 单一 store（所有编辑器状态）
+├── types/
+│   └── index.ts                     # Box, IdeogramOutput, InteractionState 等类型
+├── utils/
+│   ├── comfyui-api.ts               # ComfyUI API 调用
+│   ├── coordinates.ts               # 坐标归一化/反归一化（0-1000 ↔ 实际像素）
+│   ├── json-serializer.ts           # JSON 序列化/反序列化
+│   └── png-metadata.ts              # PNG tEXt chunk 元数据提取
+└── workflow/
+    ├── comfyui-workflow.ts          # 硬编码的 ComfyUI workflow 模板
+    └── workflow-mutator.ts          # 运行时注入参数到 workflow 节点
 ```
 
 ## 核心架构
 
+### 状态管理（Zustand）
+
+单一 store `useEditorStore` 管理所有状态，无 prop drilling：
+
+- **画布**: `canvasW`, `canvasH`, `scale`, `setCanvasDimensions()`, `resetCanvas()`
+- **Boxes**: `boxes[]`, `addBox()`, `updateBox()`, `removeBox()`, `selectBox()`, `clearBoxes()`
+- **全局设置**: `highLevelDescription`, `aesthetics`, `lighting`, `medium`, `artStyle`, `background`, `photoArtStyleMode`, `globalPalette[]`
+- **调色板**: `addGlobalColor()`, `removeGlobalColor()`, `addBoxColor()`, `removeBoxColor()`
+- **ComfyUI**: `apiUrl`, `seed`, `generationStatus`, `generatedImageUrl`
+- **JSON**: `generateJSON()` 返回 `IdeogramOutput`，`loadFromJSON()` 从 JSON 恢复全部状态
+
 ### 数据流
 
-1. 用户在画布上拖拽创建 `bounding-box`（Pointer Events 驱动）
-2. 每个 box 存储为对象：`{ id, x, y, w, h, mode, text, desc, colors }`
-3. 全局状态存储在可变全局变量中：`boxes[]`, `globalPalette[]`, `selectedBoxId`, `canvasW/H`, `scale`
-4. `generateJSON()` 将 boxes 坐标归一化到 0-1000 范围，合并全局设置，输出 JSON
-5. `generateImage()` 将 JSON 注入硬编码的 ComfyUI workflow（`json_prompt` 变量），调用 ComfyUI API 生成图片
-
-### 关键全局变量
-
-- `json_prompt` — base64 编码的 ComfyUI workflow 模板（节点图），在 `generateImage()` 时动态注入参数
-- `boxes[]` — 所有边界框的状态数组
-- `globalPalette[]` — 全局调色板（最多 16 色）
-- `photoArtStyleMode` — `MODE_PHOTO`(0) 或 `MODE_ARTSTYLE`(1)，影响 JSON 输出中 photo/medium/art_style 的字段排列
-
-### 关键函数
-
-| 函数 | 用途 |
-|------|------|
-| `initCanvas()` | 根据 slider 值重置画布尺寸和缩放 |
-| `generateJSON()` | 将 boxes + 全局设置序列化为 Ideogram JSON |
-| `generateImage()` | 将 JSON 注入 ComfyUI workflow 并调用 API |
-| `waitForComfyUIResult()` | 轮询 ComfyUI `/history/{id}` 获取生成结果 |
-| `extractComfyUIMetadata()` | 从 PNG 二进制中解析 tEXt chunk 提取 prompt/workflow 元数据 |
-| `importImage()` | 拖入图片：设置画布尺寸、提取 PNG 元数据、重建 boxes 和参数 |
-| `parseBoxesFromJSON()` | 从 JSON 反序列化 boxes 到画布（坐标从 0-1000 映射回实际像素） |
-| `parseParametersFromJSON()` | 从 JSON 恢复全局设置面板的值 |
+1. 交互层（`usePointerInteraction`）→ store 更新 boxes
+2. UI 表单 onChange → store `setGlobalSetting()` / `updateBox()`
+3. `generateJSON()` 从 store 读取所有状态，坐标归一化到 0-1000，输出 `IdeogramOutput`
+4. `useComfyUIGeneration` 将 JSON 注入 workflow 模板，调用 ComfyUI API，轮询结果
 
 ### 坐标系统
 
 - 画布实际像素：`canvasW × canvasH`（slider 控制，256-4096）
-- 视觉缩放：`scale = canvasH > 800 ? 800 / canvasH : 1`（保持可视区域不超过 800px 高）
+- 视觉缩放：`scale = canvasH > 800 ? 800 / canvasH : 1`
 - JSON 输出坐标：归一化到 0-1000（`Math.round((val / max) * 1000)`）
 
 ### ComfyUI Workflow
 
-`json_prompt` 是一个硬编码的 Ideogram 4 双模型 CFG workflow，包含：
-- 节点 `98:24`（CLIPTextEncode）：注入生成的 JSON prompt 作为正向条件
-- 节点 `98:27`/`98:28`：画布宽高
-- 节点 `98:18`（RandomNoise）：seed 值
-- 节点 `98:156`（CustomCombo）：Quality/Default/Turbo 预设选择
+硬编码的 Ideogram 4 双模型 CFG workflow，关键节点：
+- `98:24`（CLIPTextEncode）— 注入生成的 JSON prompt
+- `98:27`/`98:28` — 画布宽高
+- `98:18`（RandomNoise）— seed 值
+- `98:156`（CustomCombo）— Quality/Default/Turbo 预设选择
 
-## 运行方式
+### Photo / Art Style 模式
 
-直接用浏览器打开 `index.html`，无需构建或服务器。需要本地 ComfyUI 实例（默认 `http://localhost:8188`）才能使用图片生成功能。
+`MODE_PHOTO`(0) 时 `medium` 强制为 `"photograph"` 且 disabled，JSON 输出 `style_description.photo` + `style_description.medium`；`MODE_ARTSTYLE`(1) 时输出 `style_description.medium` + `style_description.art_style`。
