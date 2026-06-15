@@ -24,10 +24,8 @@ export default function HeaderControls() {
           step={16}
           value={canvasW}
           onChange={e => {
+            const w = parseInt(e.target.value);
             setWDisplay(e.target.value.padStart(4, '0'));
-          }}
-          onMouseUp={e => {
-            const w = parseInt((e.target as HTMLInputElement).value);
             setCanvasDimensions(w, canvasH);
           }}
         />
@@ -41,10 +39,8 @@ export default function HeaderControls() {
           step={16}
           value={canvasH}
           onChange={e => {
+            const h = parseInt(e.target.value);
             setHDisplay(e.target.value.padStart(4, '0'));
-          }}
-          onMouseUp={e => {
-            const h = parseInt((e.target as HTMLInputElement).value);
             setCanvasDimensions(canvasW, h);
           }}
         />

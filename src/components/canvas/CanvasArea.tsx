@@ -1,16 +1,35 @@
-import { useRef } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useEditorStore } from '../../store';
 import { usePointerInteraction } from '../../hooks/usePointerInteraction';
 import BoundingBox from './BoundingBox';
 
 export default function CanvasArea() {
   const canvasRef = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const canvasW = useEditorStore(s => s.canvasW);
   const canvasH = useEditorStore(s => s.canvasH);
-  const scale = useEditorStore(s => s.scale);
   const boxes = useEditorStore(s => s.boxes);
   const selectedBoxId = useEditorStore(s => s.selectedBoxId);
   const generatedImageUrl = useEditorStore(s => s.generatedImageUrl);
+
+  const [containerWidth, setContainerWidth] = useState(0);
+
+  useEffect(() => {
+    const el = wrapperRef.current?.parentElement;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      setContainerWidth(entry.contentRect.width);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const MAX_VISUAL_H = 800;
+  const scale = Math.min(
+    containerWidth > 0 ? containerWidth / canvasW : 1,
+    canvasH > MAX_VISUAL_H ? MAX_VISUAL_H / canvasH : 1,
+    1,
+  );
 
   const {
     registerBoxRef,
@@ -20,7 +39,7 @@ export default function CanvasArea() {
   } = usePointerInteraction({ canvasRef, scale });
 
   return (
-    <div style={{ width: canvasW * scale, overflow: 'hidden' }}>
+    <div ref={wrapperRef} style={{ width: canvasW * scale, overflow: 'hidden' }}>
       <div
         ref={canvasRef}
         id="canvas-wrapper"

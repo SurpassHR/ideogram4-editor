@@ -14,7 +14,7 @@ export default function MainContent() {
 
   return (
     <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px', minWidth: 0, overflow: 'hidden' }}>
         <p className="instruction-text">
           {t('main.instruction')}
         </p>
