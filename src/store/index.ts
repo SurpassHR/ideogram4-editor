@@ -5,7 +5,6 @@ import { MODE_ARTSTYLE, MODE_PHOTO } from '../types';
 interface EditorStore {
   canvasW: number;
   canvasH: number;
-  scale: number;
   setCanvasDimensions: (w: number, h: number) => void;
   resetCanvas: () => void;
 
@@ -50,29 +49,18 @@ interface EditorStore {
 export const useEditorStore = create<EditorStore>((set, get) => ({
   canvasW: 1024,
   canvasH: 1024,
-  scale: 1,
 
   setCanvasDimensions: (w, h) => set({
     canvasW: w,
     canvasH: h,
-    scale: h > 800 ? 800 / h : 1,
   }),
 
-  resetCanvas: () => {
-    set(state => {
-      const w = state.canvasW;
-      const h = state.canvasH;
-      return {
-        canvasW: w,
-        canvasH: h,
-        scale: h > 800 ? 800 / h : 1,
-        boxes: [],
-        selectedBoxId: null,
-        generatedImageUrl: null,
-        generationStatus: 'idle',
-      };
-    });
-  },
+  resetCanvas: () => set({
+    boxes: [],
+    selectedBoxId: null,
+    generatedImageUrl: null,
+    generationStatus: 'idle',
+  }),
 
   boxes: [],
   selectedBoxId: null,
