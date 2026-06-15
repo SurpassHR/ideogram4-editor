@@ -382,3 +382,91 @@ input[type="color"]::-webkit-color-swatch {
   color: var(--text-muted);
   margin: 0 0 4px 0;
 }
+
+/* LLM Config Panel */
+.llm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.llm-modal {
+  position: relative;
+  width: 90vw;
+  max-width: 860px;
+  height: 85vh;
+  max-height: 640px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+}
+
+.llm-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 44px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-raised);
+  flex-shrink: 0;
+}
+
+.llm-sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-raised);
+}
+
+.llm-sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.llm-provider-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s;
+  gap: 8px;
+}
+
+.llm-provider-item:hover {
+  background: var(--primary-muted);
+}
+
+.llm-provider-item.active {
+  background: var(--primary-muted);
+  border-right: 3px solid var(--primary);
+}
+
+.llm-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.llm-dot.active {
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent);
+}
