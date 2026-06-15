@@ -108,6 +108,10 @@ export interface Translations {
   common: {
     imageDropError: string;
   };
+  artboard: {
+    fitToArtboard: string;
+    resetView: string;
+  };
 }
 
 const en: Translations = {
@@ -218,6 +222,10 @@ const en: Translations = {
   common: {
     imageDropError: 'Please drop an image file.',
   },
+  artboard: {
+    fitToArtboard: 'Fit to artboard',
+    resetView: 'Reset view',
+  },
 };
 
 const zh: Translations = {
@@ -327,6 +335,10 @@ const zh: Translations = {
   },
   common: {
     imageDropError: '请拖放图像文件。',
+  },
+  artboard: {
+    fitToArtboard: '适应画板',
+    resetView: '重置视图',
   },
 };
 

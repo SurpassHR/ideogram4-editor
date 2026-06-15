@@ -1,4 +1,4 @@
-import CanvasArea from '../canvas/CanvasArea';
+import Artboard from '../canvas/Artboard';
 import JsonToolbar from '../json/JsonToolbar';
 import ComfyUIControls from '../comfyui/ComfyUIControls';
 import ImagePreview from '../comfyui/ImagePreview';
@@ -18,7 +18,7 @@ export default function MainContent() {
         <p className="instruction-text">
           {t('main.instruction')}
         </p>
-        <CanvasArea />
+        <Artboard />
         <JsonToolbar />
         <ComfyUIControls />
         <ImagePreview />

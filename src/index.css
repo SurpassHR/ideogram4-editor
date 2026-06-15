@@ -395,6 +395,65 @@ input[type="color"]::-webkit-color-swatch {
   z-index: 1;
 }
 
+/* Artboard */
+.artboard {
+  flex: 1;
+  min-height: 400px;
+  position: relative;
+  overflow: hidden;
+  background: #0a0a14;
+  border: 2px solid var(--border-focus);
+  border-radius: 8px;
+  box-shadow: 0 0 30px rgba(124, 92, 252, 0.08);
+}
+
+.artboard.is-panning {
+  cursor: grabbing;
+}
+
+.artboard-controls {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(22, 22, 48, 0.9);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  pointer-events: auto;
+}
+
+.artboard-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.artboard-btn:hover {
+  background: var(--primary-muted);
+  color: var(--text);
+}
+
+.artboard-zoom-label {
+  min-width: 40px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

@@ -20,6 +20,7 @@ export function useArtboardZoom(
   const triggerUpdate = useCallback(() => forceUpdate((n) => n + 1), []);
 
   const isDragging = useRef(false);
+  const [isPanning, setIsPanning] = useState(false);
   const dragStart = useRef({ panX: 0, panY: 0, mouseX: 0, mouseY: 0 });
 
   const fitToArtboard = useCallback(() => {
@@ -73,6 +74,7 @@ export function useArtboardZoom(
     if (e.button !== 1) return;
     e.preventDefault();
     isDragging.current = true;
+    setIsPanning(true);
     const s = stateRef.current;
     dragStart.current = {
       panX: s.panX,
@@ -96,6 +98,7 @@ export function useArtboardZoom(
 
   const handleMouseUp = useCallback(() => {
     isDragging.current = false;
+    setIsPanning(false);
   }, []);
 
   useEffect(() => {
@@ -121,5 +124,6 @@ export function useArtboardZoom(
     fitToArtboard,
     resetView,
     screenToCanvas,
+    isPanning,
   };
 }

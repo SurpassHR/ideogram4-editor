@@ -36,8 +36,9 @@ src/
 │   ├── layout/
 │   │   ├── App.tsx                   # 根组件：HeaderControls + MainContent
 │   │   ├── HeaderControls.tsx        # 顶部栏：画布宽高滑块 + 重置 + 语言切换
-│   │   └── MainContent.tsx           # 主布局：左列（画布+JSON+生成）右列（面板）
+│   │   └── MainContent.tsx           # 主布局：左列（Artboard+JSON+生成）右列（面板）
 │   ├── canvas/
+│   │   ├── Artboard.tsx              # 画板容器：固定视口、滚轮缩放+中键平移、缩放控件
 │   │   ├── CanvasArea.tsx            # 交互式画布（Pointer Events）
 │   │   └── BoundingBox.tsx           # 单个边界框覆盖层 + resize handle
 │   ├── panels/
@@ -70,7 +71,8 @@ src/
 ### 数据流
 
 1. 用户在画布上拖拽创建 `bounding-box`（Pointer Events 驱动，`usePointerInteraction` hook）
-2. 每个 box 存储为对象：`{ id, x, y, w, h, mode, text, desc, colors }`
+2. 画布置于 `Artboard` 画板容器中，支持滚轮缩放（以鼠标位置为中心）和中键拖拽平移
+3. 每个 box 存储为对象：`{ id, x, y, w, h, mode, text, desc, colors }`
 3. 全局状态存储在 Zustand store（`useEditorStore`）中
 4. `generateJSON()` 将 boxes 坐标归一化到 0-1000 范围，合并全局设置，输出 JSON
 5. `generateImage()` 将 JSON 注入 ComfyUI workflow 模板，调用 ComfyUI API 生成图片
@@ -87,7 +89,8 @@ src/
 ### 坐标系统
 
 - 画布实际像素：`canvasW × canvasH`（slider 控制，256-4096）
-- 视觉缩放：`scale = canvasH > 800 ? 800 / canvasH : 1`
+- 画板视口：`Artboard` 组件提供固定视口，`useArtboardZoom` hook 管理 zoom（10%~500%）和 pan（中键拖拽）
+- 坐标转换：`screenToCanvas(sx, sy)` 将屏幕坐标转换为画布坐标，公式 `(sx - artboardRect.left - panX) / zoom`
 - JSON 输出坐标：归一化到 0-1000（`Math.round((val / max) * 1000)`）
 
 ### ComfyUI Workflow
