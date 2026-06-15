@@ -30,7 +30,8 @@ src/
 ├── hooks/
 │   ├── usePointerInteraction.ts      # 画布 Pointer Events：绘制/拖拽/缩放 boxes
 │   ├── useImageDrop.ts               # 图片拖放导入，PNG 元数据提取
-│   └── useComfyUIGeneration.ts       # ComfyUI 生成流程编排
+│   ├── useComfyUIGeneration.ts       # ComfyUI 生成流程编排
+│   └── useArtboardZoom.ts            # 画板缩放/平移：wheel 缩放+中键拖拽+坐标转换
 ├── components/
 │   ├── layout/
 │   │   ├── App.tsx                   # 根组件：HeaderControls + MainContent
