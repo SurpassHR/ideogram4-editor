@@ -286,7 +286,45 @@ body {
   box-shadow: 0 0 0 3px var(--primary-muted);
 }
 
-/* Slider styling */
+/* Slider row: horizontal layout for range + number input */
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.slider-row input[type="range"] {
+  flex: 1;
+}
+
+.slider-number {
+  width: 72px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: 'Inter', sans-serif;
+  background: var(--surface-raised);
+  color: var(--text);
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.slider-number:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px var(--primary-muted);
+}
+
+.slider-number::-webkit-inner-spin-button,
+.slider-number::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.slider-number {
+  -moz-appearance: textfield;
+}
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
