@@ -12,7 +12,7 @@ export default function HeaderControls() {
   const [hDisplay, setHDisplay] = useState(String(canvasH).padStart(4, '0'));
 
   return (
-    <GlowGrid className="panel" style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+    <GlowGrid style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
       <div className="input-group" style={{ margin: 0, flex: 1, minWidth: 200 }}>
         <label>Width: <span>{wDisplay}</span></label>
         <input

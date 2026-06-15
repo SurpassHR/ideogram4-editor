@@ -54,7 +54,7 @@ export default function GlowGrid({
       onMouseMove={handleMouseMove}
     >
       <div ref={layerRef} className="glow-grid-layer" />
-      <div className="relative z-10">{children}</div>
+      {children}
     </div>
   );
 }

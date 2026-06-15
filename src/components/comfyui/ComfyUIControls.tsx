@@ -17,7 +17,7 @@ export default function ComfyUIControls() {
   const isLoading = generationStatus === 'generating' || generationStatus === 'polling';
 
   return (
-    <GlowGrid className="panel">
+    <GlowGrid>
       <h3>Generation</h3>
 
       <div className="input-group">

@@ -21,7 +21,7 @@ export default function LlmPanel() {
 
   return (
     <>
-      <GlowGrid className="panel">
+      <GlowGrid>
         <h3>LLM Tools</h3>
         {providers.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '12px 0' }}>
