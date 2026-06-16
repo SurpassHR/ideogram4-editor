@@ -31,9 +31,7 @@ export default function ComfyUIControls() {
           value={seed}
           onChange={e => {
             setSeedDisplay(e.target.value.padStart(5, '0'));
-          }}
-          onMouseUp={e => {
-            setSeed(parseInt((e.target as HTMLInputElement).value));
+            setSeed(parseInt(e.target.value));
           }}
         />
       </div>

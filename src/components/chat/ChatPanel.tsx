@@ -4,6 +4,7 @@ import { useI18n } from '../../i18n/context';
 import { useChatPanel } from '../../hooks/useChatPanel';
 import ChatMessage from './ChatMessage';
 import LlmConfigPanel from '../llm/LlmConfigPanel';
+import { computeChatPanelPosition } from '../../utils/panelPosition';
 
 export default function ChatPanel() {
   const {
@@ -32,7 +33,25 @@ export default function ChatPanel() {
   const panelRef = useRef<HTMLDivElement>(null);
   const [panelPos, setPanelPos] = useState({ top: 0, left: 0 });
 
-  // 计算面板初始位置：box 正下方居中
+  // 获取容器（Artboard）的边界矩形，未找到则回退到视口
+  const getArtboardRect = useCallback(() => {
+    const artboardEl = document.querySelector('.artboard');
+    if (artboardEl) {
+      const r = artboardEl.getBoundingClientRect();
+      return { top: r.top, left: r.left, right: r.right, bottom: r.bottom, width: r.width, height: r.height };
+    }
+    // 回退：使用视口尺寸
+    return {
+      top: 0,
+      left: 0,
+      right: window.innerWidth,
+      bottom: window.innerHeight,
+      width: window.innerWidth,
+      height: window.innerHeight,
+    };
+  }, []);
+
+  // 计算面板初始位置：box 正下方居中，在 Artboard 内 clamp
   useLayoutEffect(() => {
     if (!isChatOpen || !activeChatBoxId) return;
     const boxEl = document.getElementById(activeChatBoxId);
@@ -44,23 +63,14 @@ export default function ChatPanel() {
       return;
     }
     const rect = boxEl.getBoundingClientRect();
-    const vpW = window.innerWidth;
-    const vpH = window.innerHeight;
-    const panelW = 320;
-    const panelH = 400;
+    const boxRect = { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom, width: rect.width, height: rect.height };
+    const containerRect = getArtboardRect();
 
-    let top = rect.bottom + 6;
-    let left = rect.left + (rect.width - panelW) / 2;
-
-    if (left + panelW > vpW - 10) left = vpW - panelW - 10;
-    if (left < 10) left = 10;
-    if (top + panelH > vpH - 10) top = rect.top - panelH - 6;
-    if (top < 10) top = 10;
-
-    setPanelPos({ top: Math.round(top), left: Math.round(left) });
-  }, [isChatOpen, activeChatBoxId]);
+    setPanelPos(computeChatPanelPosition(boxRect, containerRect, 320, 400, 10));
+  }, [isChatOpen, activeChatBoxId, getArtboardRect]);
 
   // 使用 rAF 平滑跟随 box 移动（直接操作 DOM，避免 React re-render）
+  // 使用 Artboard 边界进行 clamp，确保面板不溢出画板
   useEffect(() => {
     if (!isChatOpen || !activeChatBoxId) return;
     let rafId: number;
@@ -73,28 +83,21 @@ export default function ChatPanel() {
         return;
       }
       const rect = boxEl.getBoundingClientRect();
-      const vpW = window.innerWidth;
-      const vpH = window.innerHeight;
-      const panelW = 320;
-      const panelH = panelEl.offsetHeight || 400;
+      const boxRect = { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom, width: rect.width, height: rect.height };
+      const containerRect = getArtboardRect();
+      const actualH = panelEl.offsetHeight || 400;
 
-      let top = rect.bottom + 6;
-      let left = rect.left + (rect.width - panelW) / 2;
+      const pos = computeChatPanelPosition(boxRect, containerRect, 320, actualH, 10);
 
-      if (left + panelW > vpW - 10) left = vpW - panelW - 10;
-      if (left < 10) left = 10;
-      if (top + panelH > vpH - 10) top = rect.top - panelH - 6;
-      if (top < 10) top = 10;
-
-      panelEl.style.top = `${Math.round(top)}px`;
-      panelEl.style.left = `${Math.round(left)}px`;
+      panelEl.style.top = `${pos.top}px`;
+      panelEl.style.left = `${pos.left}px`;
 
       rafId = requestAnimationFrame(track);
     };
 
     rafId = requestAnimationFrame(track);
     return () => cancelAnimationFrame(rafId);
-  }, [isChatOpen, activeChatBoxId]);
+  }, [isChatOpen, activeChatBoxId, getArtboardRect]);
 
   // 新消息自动滚动到底部
   useEffect(() => {

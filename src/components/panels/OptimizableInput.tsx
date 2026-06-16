@@ -110,14 +110,13 @@ export default function OptimizableInput({
 
   return (
     <div className="input-group">
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
-        <label>{label}</label>
+      <label>{label}</label>
+      <div className="optimizable-input-wrapper">
+        {multiline ? (
+          <textarea {...inputProps} />
+        ) : (
+          <input type="text" {...inputProps} />
+        )}
         <button
           className="sparkle-btn"
           disabled={sparkleDisabled}
@@ -127,11 +126,6 @@ export default function OptimizableInput({
           ✨
         </button>
       </div>
-      {multiline ? (
-        <textarea {...inputProps} />
-      ) : (
-        <input type="text" {...inputProps} />
-      )}
       <SuggestionBar
         original={suggestion.original}
         suggested={suggestion.suggested}

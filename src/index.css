@@ -479,7 +479,7 @@ input[type="color"]::-webkit-color-swatch {
   position: absolute;
   bottom: 12px;
   right: 12px;
-  z-index: 100;
+  z-index: 50;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -765,6 +765,29 @@ input[type="color"]::-webkit-color-swatch {
   cursor: not-allowed;
 }
 
+/* Optimizable input wrapper — sparkle 按钮在 input 内部右侧 */
+.optimizable-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.optimizable-input-wrapper > input,
+.optimizable-input-wrapper > textarea {
+  padding-right: 32px;
+}
+
+.optimizable-input-wrapper .sparkle-btn {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  font-size: 10px;
+  border-radius: 3px;
+}
+
 /* Suggestion bar */
 .suggestion-bar {
   margin-top: 8px;
@@ -910,7 +933,7 @@ input[type="color"]::-webkit-color-swatch {
   flex-direction: column;
   overflow: hidden;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
-  z-index: 1000;
+  z-index: 90;
   animation: chat-panel-in 0.2s ease-out;
 }
 
