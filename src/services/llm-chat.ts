@@ -85,6 +85,75 @@ function timeoutPromise(): Promise<never> {
 
 // ─── Provider 分发 ─────────────────────────────────────────────────
 
+/** 解析 OpenAI 响应：自动检测 SSE 流式格式或普通 JSON 格式 */
+export function parseOpenAIResponse(text: string): string {
+  if (text.trimStart().startsWith('data: ')) {
+    // SSE 流式格式
+    const lines = text.split('\n');
+    let content = '';
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue;
+      const jsonStr = line.slice(6); // 去掉 "data: " 前缀
+      if (jsonStr === '[DONE]') continue;
+      try {
+        const chunk = JSON.parse(jsonStr);
+        const deltaContent = chunk.choices?.[0]?.delta?.content;
+        if (deltaContent) {
+          content += deltaContent;
+        }
+      } catch {
+        // 跳过无法解析的行
+      }
+    }
+    if (!content) {
+      throw new Error('No content in API response');
+    }
+    return content;
+  }
+
+  // 普通 JSON 格式
+  const data = JSON.parse(text);
+  const choice = data.choices?.[0];
+  if (!choice?.message?.content) {
+    throw new Error('No content in API response');
+  }
+  return choice.message.content;
+}
+
+/** 解析 Anthropic 响应：自动检测 SSE 流式格式或普通 JSON 格式 */
+export function parseAnthropicResponse(text: string): string {
+  if (text.trimStart().startsWith('data: ')) {
+    // SSE 流式格式
+    const lines = text.split('\n');
+    let content = '';
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue;
+      const jsonStr = line.slice(6); // 去掉 "data: " 前缀
+      if (jsonStr === '[DONE]') continue;
+      try {
+        const event = JSON.parse(jsonStr);
+        if (event.type === 'content_block_delta' && event.delta?.text) {
+          content += event.delta.text;
+        }
+      } catch {
+        // 跳过无法解析的行
+      }
+    }
+    if (!content) {
+      throw new Error('No content in API response');
+    }
+    return content;
+  }
+
+  // 普通 JSON 格式
+  const data = JSON.parse(text);
+  const block = data.content?.[0];
+  if (!block?.text) {
+    throw new Error('No content in API response');
+  }
+  return block.text;
+}
+
 /** OpenAI / OpenAI Compatible 调用 */
 async function callOpenAI(
   baseUrl: string,
@@ -111,12 +180,8 @@ async function callOpenAI(
     throw new Error(`API error ${resp.status}: ${body.slice(0, 200)}`);
   }
 
-  const data = await resp.json();
-  const choice = data.choices?.[0];
-  if (!choice?.message?.content) {
-    throw new Error('No content in API response');
-  }
-  return choice.message.content;
+  const text = await resp.text();
+  return parseOpenAIResponse(text);
 }
 
 /** Anthropic 调用 */
@@ -148,12 +213,8 @@ async function callAnthropic(
     throw new Error(`API error ${resp.status}: ${body.slice(0, 200)}`);
   }
 
-  const data = await resp.json();
-  const block = data.content?.[0];
-  if (!block?.text) {
-    throw new Error('No content in API response');
-  }
-  return block.text;
+  const text = await resp.text();
+  return parseAnthropicResponse(text);
 }
 
 /** Gemini 调用 */
