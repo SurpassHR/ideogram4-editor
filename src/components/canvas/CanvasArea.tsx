@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { useEditorStore } from '../../store';
 import { usePointerInteraction } from '../../hooks/usePointerInteraction';
 import BoundingBox from './BoundingBox';
+import ChatPanel from '../chat/ChatPanel';
 
 interface CanvasAreaProps {
   zoom: number;
@@ -21,6 +22,7 @@ export default function CanvasArea({ zoom, panX, panY, screenToCanvas }: CanvasA
   const {
     registerBoxRef,
     drawingGhost,
+    interactionMode,
     handleCanvasPointerDown,
     handleCanvasPointerMove,
   } = usePointerInteraction({ canvasRef, zoom, panX, panY, screenToCanvas });
@@ -62,6 +64,7 @@ export default function CanvasArea({ zoom, panX, panY, screenToCanvas }: CanvasA
             box={box}
             isSelected={box.id === selectedBoxId}
             boxRef={registerBoxRef(box.id)}
+            interactionMode={interactionMode}
           />
         ))}
         {drawingGhost && (
@@ -78,6 +81,7 @@ export default function CanvasArea({ zoom, panX, panY, screenToCanvas }: CanvasA
           />
         )}
       </div>
+      <ChatPanel />
     </div>
   );
 }

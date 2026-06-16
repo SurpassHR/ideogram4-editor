@@ -1,12 +1,15 @@
 import type { Box } from '../../types';
+import type { InteractionMode } from '../../types';
+import ChatBubbleButton from './ChatBubbleButton';
 
 interface BoundingBoxProps {
   box: Box;
   isSelected: boolean;
   boxRef: (el: HTMLDivElement | null) => void;
+  interactionMode: InteractionMode;
 }
 
-export default function BoundingBox({ box, isSelected, boxRef }: BoundingBoxProps) {
+export default function BoundingBox({ box, isSelected, boxRef, interactionMode }: BoundingBoxProps) {
   return (
     <div
       id={box.id}
@@ -19,6 +22,7 @@ export default function BoundingBox({ box, isSelected, boxRef }: BoundingBoxProp
         height: box.h,
       }}
     >
+      {isSelected && <ChatBubbleButton boxId={box.id} interactionMode={interactionMode} />}
       <div className="resize-handle" />
     </div>
   );

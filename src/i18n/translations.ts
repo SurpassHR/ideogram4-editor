@@ -1,3 +1,5 @@
+export type Lang = 'en' | 'zh';
+
 export interface Translations {
   header: {
     width: string;
@@ -118,6 +120,22 @@ export interface Translations {
   artboard: {
     fitToArtboard: string;
     resetView: string;
+  };
+  chat: {
+    title: string;
+    boxBadge: string;
+    modelSelect: string;
+    noProvider: string;
+    configureLlm: string;
+    inputPlaceholder: string;
+    send: string;
+    adopt: string;
+    dismiss: string;
+    adopted: string;
+    clearHistory: string;
+    loading: string;
+    error: string;
+    emptyHint: string;
   };
 }
 
@@ -242,6 +260,22 @@ const en: Translations = {
     fitToArtboard: 'Fit to artboard',
     resetView: 'Reset view',
   },
+  chat: {
+    title: '✨ AI Chat',
+    boxBadge: 'box: {name}',
+    modelSelect: 'Select model',
+    noProvider: 'No LLM provider configured yet',
+    configureLlm: 'Configure LLM',
+    inputPlaceholder: 'Type a message...',
+    send: 'Send',
+    adopt: 'Adopt',
+    dismiss: 'Dismiss',
+    adopted: 'Adopted ✓',
+    clearHistory: 'Clear',
+    loading: 'AI is thinking...',
+    error: 'Error: {error}',
+    emptyHint: 'Send a message to start the conversation',
+  },
 };
 
 const zh: Translations = {
@@ -364,6 +398,22 @@ const zh: Translations = {
   artboard: {
     fitToArtboard: '适应画板',
     resetView: '重置视图',
+  },
+  chat: {
+    title: '✨ AI 对话',
+    boxBadge: '框: {name}',
+    modelSelect: '选择模型',
+    noProvider: '尚未配置 LLM 提供商',
+    configureLlm: '配置 LLM',
+    inputPlaceholder: '输入消息...',
+    send: '发送',
+    adopt: '采纳',
+    dismiss: '忽略',
+    adopted: '已采纳 ✓',
+    clearHistory: '清空',
+    loading: 'AI 正在思考...',
+    error: '错误：{error}',
+    emptyHint: '发送消息开始对话',
   },
 };
 

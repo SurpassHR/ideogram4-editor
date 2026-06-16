@@ -10,11 +10,49 @@ import type { LlmProvider } from '../components/llm/types';
 import { DEFAULT_BASE_URLS } from '../components/llm/types';
 import type { ChatMessage } from '../types/chat';
 import { messagesToApiFormat } from '../types/chat';
+import type { Box } from '../types';
 
 // ─── System Prompt 常量 ────────────────────────────────────────────
 
 /** AI 对话面板的系统提示词 */
 export const BOX_CHAT_SYSTEM_PROMPT = `You are an expert prompt writer for the Ideogram 4 image generation model. The user is describing the content of a specific region in an image. Based on their description, generate a more detailed and precise English prompt suitable for direct use in Ideogram 4 image generation. Your response should include rich visual details (color, material, lighting, posture, scene details, etc.). The user may converse in Chinese or English, but your response must always be an English prompt.`;
+
+/** AI 对话面板的上下文感知系统提示词构建 */
+export interface BoxChatContext {
+  highLevelDescription: string;
+  aesthetics: string;
+  lighting: string;
+  medium: string;
+  artStyle: string;
+  background: string;
+  globalPalette: string[];
+  photoArtStyleMode: number;
+}
+
+export function buildBoxChatSystemPrompt(box: Box, ctx: BoxChatContext): string {
+  const modeLabel = box.mode === 'text' ? 'text' : 'object';
+  const lines = [
+    BOX_CHAT_SYSTEM_PROMPT,
+    '',
+    `Current box properties:`,
+    `- Mode: ${modeLabel}`,
+    `- Text: ${box.text || '(empty)'}`,
+    `- Description: ${box.desc || '(empty)'}`,
+    `- Colors: ${box.colors.length > 0 ? box.colors.join(', ') : '(none)'}`,
+    '',
+    `Global composition context:`,
+    `- High-level description: ${ctx.highLevelDescription || '(empty)'}`,
+    `- Aesthetics: ${ctx.aesthetics || '(empty)'}`,
+    `- Lighting: ${ctx.lighting || '(empty)'}`,
+    `- Medium: ${ctx.medium || '(empty)'}`,
+    `- Art style: ${ctx.artStyle || '(empty)'}`,
+    `- Background: ${ctx.background || '(empty)'}`,
+    `- Global color palette: ${ctx.globalPalette.length > 0 ? ctx.globalPalette.join(', ') : '(none)'}`,
+    '',
+    `Help the user improve the box's description for better image generation results. Provide concise, specific descriptions that work well within the overall composition. Respond in the same language the user uses. When suggesting descriptions, provide them in a clear format that can be directly adopted as the box description.`,
+  ];
+  return lines.join('\n');
+}
 
 /** 各全局设置字段的优化提示词 */
 export const OPTIMIZE_PROMPTS: Record<string, string> = {

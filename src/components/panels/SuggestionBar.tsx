@@ -3,7 +3,7 @@ import { useI18n } from '../../i18n/context';
 interface SuggestionBarProps {
   original: string;
   suggested: string;
-  status: 'loading' | 'ready' | 'adopted' | 'dismissed';
+  status: 'idle' | 'loading' | 'ready' | 'adopted' | 'dismissed';
   onAdopt: () => void;
   onDismiss: () => void;
 }
@@ -17,7 +17,7 @@ export default function SuggestionBar({
 }: SuggestionBarProps) {
   const { t } = useI18n();
 
-  if (status === 'adopted' || status === 'dismissed') return null;
+  if (status === 'idle' || status === 'adopted' || status === 'dismissed') return null;
 
   if (status === 'loading') {
     return (

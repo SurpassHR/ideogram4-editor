@@ -1,4 +1,5 @@
 import { useCallback, useRef, useEffect, useState } from 'react';
+import type { InteractionMode } from '../types';
 import type { InteractionState } from '../types';
 import { useEditorStore } from '../store';
 
@@ -27,6 +28,7 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
 
   const boxRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const [drawingGhost, setDrawingGhost] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const [interactionMode, setInteractionMode] = useState<InteractionMode>('idle');
 
   const addBox = useEditorStore(s => s.addBox);
   const selectBox = useEditorStore(s => s.selectBox);
@@ -57,6 +59,7 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
       const pos = getPointerPos(e);
       const ir = interactionRef.current;
       ir.mode = 'resizing';
+      setInteractionMode('resizing');
       ir.dragStartX = pos.x;
       ir.dragStartY = pos.y;
       ir.initialBoxW = parseFloat(boxEl.style.width) || 0;
@@ -74,6 +77,7 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
       const pos = getPointerPos(e);
       const ir = interactionRef.current;
       ir.mode = 'dragging';
+      setInteractionMode('dragging');
       ir.dragStartX = pos.x;
       ir.dragStartY = pos.y;
       ir.initialBoxX = parseFloat(boxEl.style.left) || 0;
@@ -88,6 +92,7 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
       const pos = getPointerPos(e);
       const ir = interactionRef.current;
       ir.mode = 'drawing';
+      setInteractionMode('drawing');
       ir.startX = pos.x;
       ir.startY = pos.y;
 
@@ -176,6 +181,7 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
       }
 
       ir.mode = 'idle';
+      setInteractionMode('idle');
       ir.currentBoxElement = null;
     };
 
@@ -192,6 +198,7 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
     boxRefs,
     registerBoxRef,
     drawingGhost,
+    interactionMode,
     handleCanvasPointerDown,
     handleCanvasPointerMove,
   };

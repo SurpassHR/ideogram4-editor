@@ -31,8 +31,7 @@ Ideogram4 Editor 是一个基于 Web 的可视化编辑器，专为 [Ideogram 4]
 - 🖼️ **图片拖放导入** — 拖入 PNG 图片自动设置画布尺寸并显示底图；如果 PNG 包含 ComfyUI 元数据，自动提取并加载嵌入的 prompt
 - 🔌 **ComfyUI 集成** — 直接调用本地 ComfyUI API 生成图片，支持种子控制和质量预设（Quality/Default/Turbo）
 - 🤖 **LLM 辅助** — 配置多个 LLM 提供商（OpenAI、Anthropic、Gemini、OpenAI 兼容），为 prompt 优化提供 AI 辅助
-- 💬 **AI 对话** — 选中边界框后打开 AI 对话面板，生成/优化 box 描述，支持多轮对话与一键采纳
-- ✨ **AI 优化提示词** — 全局设置面板每个输入框旁的 ✨ 按钮，一键调用 LLM 优化描述/美学/光照等字段，可采纳或忽略建议
+- 💬 **AI 对话面板** — 选中边界框后点击 ✨ 按钮，打开浮动 AI 对话面板，可与 LLM 对话优化描述，支持采纳/忽略 AI 回复
 - 🎭 **黑暗主题** — 精心设计的深色 UI，自定义 CSS 变量驱动的设计系统，零外部 UI 组件库依赖
 - ✨ **发光点阵背景** — 交互式 CSS Masking + JS 坐标映射的动态发光点阵装饰效果
 
@@ -66,12 +65,13 @@ src/
 │   └── index.ts                          # Zustand store（useEditorStore），单一数据源
 ├── types/
 │   ├── index.ts                          # Box, IdeogramOutput, GenerationStatus 等类型
-│   └── chat.ts                           # ChatMessage 类型 + 消息构造/转换辅助函数
+│   └── chat.ts                           # ChatMessage 类型（id, role, content, timestamp, adopted）
 ├── hooks/
-│   ├── usePointerInteraction.ts          # 画布 Pointer Events：绘制/拖拽/缩放 boxes
+│   ├── usePointerInteraction.ts          # 画布 Pointer Events：绘制/拖拽/缩放 boxes + interactionMode 状态
 │   ├── useImageDrop.ts                   # 图片拖放导入，PNG 元数据提取
 │   ├── useComfyUIGeneration.ts           # ComfyUI 生成流程编排
-│   └── useArtboardZoom.ts                # 画板缩放/平移：wheel 缩放+中键拖拽+坐标转换
+│   ├── useArtboardZoom.ts                # 画板缩放/平移：wheel 缩放+中键拖拽+坐标转换
+│   └── useChatPanel.ts                   # AI 对话面板逻辑：消息发送/采纳/清空/模型选择
 ├── components/
 │   ├── layout/
 │   │   ├── App.tsx                       # 根组件：HeaderControls + MainContent
@@ -79,12 +79,11 @@ src/
 │   │   └── MainContent.tsx               # 主布局：左列（Artboard+JSON+生成）右列（面板）
 │   ├── canvas/
 │   │   ├── Artboard.tsx                  # 画板容器：固定视口、滚轮缩放+中键平移、缩放控件
-│   │   ├── CanvasArea.tsx                # 交互式画布（Pointer Events）
-│   │   └── BoundingBox.tsx               # 单个边界框覆盖层 + resize handle
+│   │   ├── CanvasArea.tsx                # 交互式画布（Pointer Events）+ ChatPanel 渲染
+│   │   ├── BoundingBox.tsx               # 单个边界框覆盖层 + resize handle + ChatBubbleButton
+│   │   └── ChatBubbleButton.tsx          # ✨ 按钮：选中 box 右上角，点击打开 AI 对话面板
 │   ├── panels/
-│   │   ├── GlobalSettingsPanel.tsx        # 全局设置：OptimizableInput 驱动的 AI 优化字段
-│   │   ├── OptimizableInput.tsx           # 可优化输入框：input/textarea + ✨ AI 优化按钮 + SuggestionBar
-│   │   ├── SuggestionBar.tsx              # AI 建议条：loading 动画 / 建议内容 + 采纳/忽略
+│   │   ├── GlobalSettingsPanel.tsx        # 全局设置：模式/描述/美学/光照/媒介/背景/调色板
 │   │   ├── BoxPropertiesPanel.tsx         # 边界框属性：模式/文本/描述/调色板/删除
 │   │   ├── ColorPalette.tsx              # 可复用颜色选择器 + 色板组件
 │   │   └── GlowGrid.tsx                 # 装饰性交互式发光点阵背景容器
@@ -98,13 +97,16 @@ src/
 │       ├── LlmConfigPanel.tsx            # LLM 配置模态框：CRUD + 模型拉取
 │       ├── types.ts                      # LlmProvider, ProviderKind 类型 + 常量
 │       └── api.ts                        # LLM 提供商 CRUD（localStorage）+ 模型 API 调用
-├── services/
-│   └── llm-chat.ts                       # LLM 对话与优化服务：sendChatMessage + optimizeText + provider/model 持久化
+│   └── chat/
+│       ├── ChatPanel.tsx                 # AI 对话浮动面板（createPortal→body），320px + 模型下拉
+│       └── ChatMessage.tsx               # 用户/AI 消息气泡 + 采纳/忽略按钮
 ├── utils/
 │   ├── coordinates.ts                    # 坐标归一化/反归一化（0-1000 ↔ 像素）
 │   ├── json-serializer.ts               # generateJSON() + parseBoxesFromJSON()
 │   ├── png-metadata.ts                   # 从 PNG tEXt chunk 提取 prompt/workflow 元数据
 │   └── comfyui-api.ts                    # 轮询 ComfyUI /history 端点
+├── services/
+│   └── llm-chat.ts                       # sendChatMessage() 多提供商 LLM API 调用
 └── workflow/
     ├── comfyui-workflow.ts               # 静态 ComfyUI workflow JSON 模板
     └── workflow-mutator.ts               # 向模板注入 prompt/width/height/seed
@@ -147,9 +149,10 @@ POST /api/prompt → 轮询 /history/{id} → 显示生成图片
 | `seed` | `42` | 生成随机种子 |
 | `generationStatus` | `'idle'` | 生成状态：`idle | generating | polling | done | error` |
 | `generatedImageUrl` | `null` | 生成图像的 URL |
-| `chatHistories` | `{}` | 各 box 的 AI 对话历史（`Record<boxId, ChatMessage[]>`） |
-| `activeChatBoxId` | `null` | 当前打开对话面板的 box ID |
-| `isChatOpen` | `false` | 对话面板可见性标志 |
+| `activeChatBoxId` | `null` | 当前打开 AI 对话的 box ID |
+| `isChatOpen` | `false` | AI 对话面板是否打开 |
+| `chatHistories` | `{}` | 每个 box 的对话历史（`Record<string, ChatMessage[]>`） |
+| `chatModel` | localStorage | 选中的 LLM 模型标识（格式 `providerId:modelName`） |
 
 ### 坐标系统
 
@@ -297,16 +300,6 @@ apiUrl: 'http://your-comfyui-host:8188'
 LLM 配置完全存储在浏览器本地（localStorage），包括：
 - 提供商列表及其连接参数
 - API Key（⚠️ 注意：API Key 以明文存储在 localStorage，请确保浏览器环境安全）
-
-### AI 优化提示词
-
-全局设置面板的每个输入字段旁都有一个 ✨ 按钮，点击后可调用配置的 LLM 对当前文本进行优化：
-
-- **触发方式**：点击输入框旁的 ✨ 按钮（仅在文本不为空时启用）
-- **优化流程**：✨ → loading 状态（输入框禁用 + 半透明） → 展示 AI 建议条 → 采纳/忽略
-- **字段专属提示词**：每个字段（高层描述、美学、光照、媒介、风格、背景）有针对性的系统提示词
-- **Provider 选择**：自动使用上次优化的 provider+model，持久化到 localStorage
-- **快捷键提示**：点击 ✨ 按钮时可查看 tooltip「AI 优化此字段」
 
 ---
 

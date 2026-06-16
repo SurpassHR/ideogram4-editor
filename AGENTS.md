@@ -27,12 +27,13 @@ src/
 │   └── index.ts                      # Zustand store（useEditorStore），单一数据源
 ├── types/
 │   ├── index.ts                      # Box, IdeogramOutput, GenerationStatus 等类型
-│   └── chat.ts                       # ChatMessage 类型 + 消息构造/转换辅助函数
+│   └── chat.ts                       # ChatMessage 类型（id, role, content, timestamp, adopted）
 ├── hooks/
-│   ├── usePointerInteraction.ts      # 画布 Pointer Events：绘制/拖拽/缩放 boxes
+│   ├── usePointerInteraction.ts      # 画布 Pointer Events：绘制/拖拽/缩放 boxes + interactionMode 状态
 │   ├── useImageDrop.ts               # 图片拖放导入，PNG 元数据提取
 │   ├── useComfyUIGeneration.ts       # ComfyUI 生成流程编排
-│   └── useArtboardZoom.ts            # 画板缩放/平移：wheel 缩放+中键拖拽+坐标转换
+│   ├── useArtboardZoom.ts            # 画板缩放/平移：wheel 缩放+中键拖拽+坐标转换
+│   └── useChatPanel.ts               # AI 对话面板逻辑：消息发送/采纳/清空/模型选择
 ├── components/
 │   ├── layout/
 │   │   ├── App.tsx                   # 根组件：HeaderControls + MainContent
@@ -40,12 +41,11 @@ src/
 │   │   └── MainContent.tsx           # 主布局：左列（Artboard+JSON+生成）右列（面板）
 │   ├── canvas/
 │   │   ├── Artboard.tsx              # 画板容器：固定视口、滚轮缩放+中键平移、缩放控件
-│   │   ├── CanvasArea.tsx            # 交互式画布（Pointer Events）
-│   │   └── BoundingBox.tsx           # 单个边界框覆盖层 + resize handle
+│   │   ├── CanvasArea.tsx            # 交互式画布（Pointer Events）+ ChatPanel 渲染
+│   │   ├── BoundingBox.tsx           # 单个边界框覆盖层 + resize handle + ChatBubbleButton
+│   │   └── ChatBubbleButton.tsx      # ✨ 按钮：选中 box 右上角，点击打开 AI 对话面板
 │   ├── panels/
-│   │   ├── GlobalSettingsPanel.tsx    # 全局设置：OptimizableInput 驱动的 AI 优化字段
-│   │   ├── OptimizableInput.tsx       # 可优化输入框：input/textarea + ✨ AI 优化按钮 + SuggestionBar
-│   │   ├── SuggestionBar.tsx          # AI 建议条：loading 动画 / 建议内容 + 采纳/忽略
+│   │   ├── GlobalSettingsPanel.tsx    # 全局设置：模式/描述/美学/光照/媒介/背景/调色板
 │   │   ├── BoxPropertiesPanel.tsx     # 边界框属性：模式/文本/描述/调色板/删除
 │   │   ├── ColorPalette.tsx          # 可复用颜色选择器 + 色板组件
 │   │   └── GlowGrid.tsx             # 装饰性交互式发光点阵背景容器
@@ -59,15 +59,16 @@ src/
 │       ├── LlmConfigPanel.tsx        # LLM 配置模态框：CRUD + 模型拉取
 │       ├── types.ts                  # LlmProvider, ProviderKind 类型 + 常量
 │       └── api.ts                    # LLM 提供商 CRUD（localStorage）+ 模型 API 调用
-├── services/
-│   └── llm-chat.ts                   # LLM 聊天：optimizeText() + provider/model 持久化
+│   └── chat/
+│       ├── ChatPanel.tsx             # AI 对话浮动面板（createPortal→body），320px + 模型下拉
+│       └── ChatMessage.tsx           # 用户/AI 消息气泡 + 采纳/忽略按钮
 ├── utils/
 │   ├── coordinates.ts               # 坐标归一化/反归一化（0-1000 ↔ 像素）
 │   ├── json-serializer.ts           # generateJSON() + parseBoxesFromJSON()
 │   ├── png-metadata.ts              # 从 PNG tEXt chunk 提取 prompt/workflow 元数据
 │   └── comfyui-api.ts               # 轮询 ComfyUI /history 端点
 ├── services/
-│   └── llm-chat.ts                  # LLM 对话服务：sendChatMessage + optimizeText，按 provider.kind 分发 API 调用
+│   └── llm-chat.ts                  # sendChatMessage() 多提供商 LLM API 调用（OpenAI/Anthropic/Gemini/OpenAI_compat）
 └── workflow/
     ├── comfyui-workflow.ts           # 静态 ComfyUI workflow JSON 模板
     └── workflow-mutator.ts           # 向模板注入 prompt/width/height/seed
@@ -92,9 +93,10 @@ src/
 - `canvasW / canvasH` — 画布尺寸（256-4096）
 - `generationStatus` — `'idle' | 'generating' | 'polling' | 'done' | 'error'`
 - `apiUrl` — ComfyUI API 地址（默认 `http://localhost:8188`）
-- `chatHistories` — `Record<boxId, ChatMessage[]>` 各 box 的 AI 对话历史
-- `activeChatBoxId` — 当前打开对话面板的 box ID（`null` 时面板关闭）
-- `isChatOpen` — 对话面板可见性标志
+- `activeChatBoxId` — 当前打开 AI 对话的 box ID（`null` 表示未打开）
+- `isChatOpen` — AI 对话面板是否打开
+- `chatHistories` — 每个 box 的对话历史（`Record<string, ChatMessage[]>`）
+- `chatModel` — 选中的 LLM 模型标识（格式 `providerId:modelName`，持久化 localStorage `ideogram4-chat-model`）
 
 ### 坐标系统
 
@@ -110,14 +112,6 @@ src/
 - 节点 `98:27`/`98:28`：画布宽高
 - 节点 `98:18`（RandomNoise）：seed 值
 - 节点 `98:156`（CustomCombo）：Quality/Default/Turbo 预设
-
-### AI 优化提示词
-
-- `OptimizableInput` 组件包装 input/textarea + ✨ 按钮，替代 `GlobalSettingsPanel` 中所有输入字段
-- 点击 ✨ → 调用 `services/llm-chat.ts` 的 `optimizeText(provider, model, text, fieldKey)`
-- 每个字段（highLevelDescription, aesthetics, lighting, medium, artStyle, background）有专属的系统提示词
-- `SuggestionBar` 展示 AI 建议：loading 动画 → 建议内容 + 采纳/忽略按钮
-- 上次使用的 provider+model 持久化到 localStorage key `ideogram4-optimize-provider`
 
 ### 国际化（i18n）
 

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { Box, IdeogramOutput, GenerationStatus, PhotoArtStyleMode } from '../types';
-import { MODE_ARTSTYLE, MODE_PHOTO } from '../types';
 import type { ChatMessage } from '../types/chat';
+import { MODE_ARTSTYLE, MODE_PHOTO } from '../types';
 
 interface EditorStore {
   canvasW: number;
@@ -46,20 +46,17 @@ interface EditorStore {
   generateJSON: () => IdeogramOutput;
   loadFromJSON: (json: IdeogramOutput) => void;
 
-  /** 各 box 的对话历史，key 为 boxId */
-  chatHistories: Record<string, ChatMessage[]>;
-  /** 当前打开对话面板的 box ID */
+  // Chat 状态
   activeChatBoxId: string | null;
-  /** 对话面板是否可见 */
   isChatOpen: boolean;
-  /** 打开指定 box 的对话面板 */
+  chatHistories: Record<string, ChatMessage[]>;
+  chatModel: string;
   openChat: (boxId: string) => void;
-  /** 关闭对话面板 */
   closeChat: () => void;
-  /** 向指定 box 的对话历史追加一条消息 */
-  addChatMessage: (boxId: string, msg: ChatMessage) => void;
-  /** 清空指定 box 的对话历史 */
+  addChatMessage: (boxId: string, message: ChatMessage) => void;
+  markChatMessageAdopted: (boxId: string, messageId: string) => void;
   clearChatHistory: (boxId: string) => void;
+  setChatModel: (model: string) => void;
 }
 
 export const useEditorStore = create<EditorStore>((set, get) => ({
@@ -97,12 +94,25 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     boxes: state.boxes.map(b => b.id === id ? { ...b, ...updates } : b),
   })),
 
-  removeBox: (id) => set(state => ({
-    boxes: state.boxes.filter(b => b.id !== id),
-    selectedBoxId: state.selectedBoxId === id ? null : state.selectedBoxId,
-  })),
+  removeBox: (id) => {
+    const state = get();
+    const newHistories = { ...state.chatHistories };
+    delete newHistories[id];
+    set({
+      boxes: state.boxes.filter(b => b.id !== id),
+      selectedBoxId: state.selectedBoxId === id ? null : state.selectedBoxId,
+      activeChatBoxId: state.activeChatBoxId === id ? null : state.activeChatBoxId,
+      isChatOpen: state.activeChatBoxId === id ? false : state.isChatOpen,
+      chatHistories: newHistories,
+    });
+  },
 
-  selectBox: (id) => set({ selectedBoxId: id }),
+  selectBox: (id) => set(state => ({
+    selectedBoxId: id,
+    ...(state.activeChatBoxId && state.activeChatBoxId !== id
+      ? { isChatOpen: false, activeChatBoxId: null }
+      : {}),
+  })),
 
   clearBoxes: () => set({ boxes: [], selectedBoxId: null }),
 
@@ -168,6 +178,44 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   generatedImageUrl: null,
   setGenerationStatus: (status) => set({ generationStatus: status }),
   setGeneratedImageUrl: (url) => set({ generatedImageUrl: url }),
+
+  // Chat 状态
+  activeChatBoxId: null,
+  isChatOpen: false,
+  chatHistories: {},
+  chatModel: localStorage.getItem('ideogram4-chat-model') || '',
+
+  openChat: (boxId) => set({ activeChatBoxId: boxId, isChatOpen: true }),
+
+  closeChat: () => set({ isChatOpen: false, activeChatBoxId: null }),
+
+  addChatMessage: (boxId, message) => set(state => ({
+    chatHistories: {
+      ...state.chatHistories,
+      [boxId]: [...(state.chatHistories[boxId] || []), message],
+    },
+  })),
+
+  markChatMessageAdopted: (boxId, messageId) => set(state => ({
+    chatHistories: {
+      ...state.chatHistories,
+      [boxId]: (state.chatHistories[boxId] || []).map(m =>
+        m.id === messageId ? { ...m, adopted: true } : m
+      ),
+    },
+  })),
+
+  clearChatHistory: (boxId) => set(state => ({
+    chatHistories: {
+      ...state.chatHistories,
+      [boxId]: [],
+    },
+  })),
+
+  setChatModel: (model) => {
+    localStorage.setItem('ideogram4-chat-model', model);
+    set({ chatModel: model });
+  },
 
   generateJSON: () => {
     const state = get();
@@ -259,26 +307,4 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       photoArtStyleMode: mode,
     });
   },
-
-  chatHistories: {},
-  activeChatBoxId: null,
-  isChatOpen: false,
-
-  openChat: (boxId) => set({ activeChatBoxId: boxId, isChatOpen: true }),
-
-  closeChat: () => set({ isChatOpen: false, activeChatBoxId: null }),
-
-  addChatMessage: (boxId, msg) => set(state => ({
-    chatHistories: {
-      ...state.chatHistories,
-      [boxId]: [...(state.chatHistories[boxId] || []), msg],
-    },
-  })),
-
-  clearChatHistory: (boxId) => set(state => ({
-    chatHistories: {
-      ...state.chatHistories,
-      [boxId]: [],
-    },
-  })),
 }));
