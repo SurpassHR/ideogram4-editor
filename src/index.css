@@ -1055,7 +1055,6 @@ input[type="color"]::-webkit-color-swatch {
   align-items: center;
   gap: 4px;
 }
-}
 
 .chat-model-select {
   flex: 1;
