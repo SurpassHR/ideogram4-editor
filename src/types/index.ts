@@ -48,6 +48,10 @@ export interface InteractionState {
   initialBoxH: number;
   currentBoxElement: HTMLDivElement | null;
   pendingBoxId: string | null;
+  pointerMoved: boolean;
+  clickTargetId: string | null;
+  lastClickTime: number;
+  lastClickBoxId: string | null;
 }
 
 export type GenerationStatus = 'idle' | 'generating' | 'polling' | 'done' | 'error';

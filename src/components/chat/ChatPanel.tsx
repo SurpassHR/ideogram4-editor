@@ -29,14 +29,14 @@ export default function ChatPanel() {
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
   const [showLlmConfig, setShowLlmConfig] = useState(false);
   const messagesRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const [panelPos, setPanelPos] = useState({ top: 0, left: 0 });
 
-  // 计算面板位置：box 下方偏右，避免超出视口
+  // 计算面板初始位置：box 正下方居中
   useLayoutEffect(() => {
     if (!isChatOpen || !activeChatBoxId) return;
     const boxEl = document.getElementById(activeChatBoxId);
     if (!boxEl) {
-      // box 元素不存在，居中显示
       setPanelPos({
         top: Math.round(window.innerHeight / 2 - 200),
         left: Math.round(window.innerWidth / 2 - 160),
@@ -46,42 +46,54 @@ export default function ChatPanel() {
     const rect = boxEl.getBoundingClientRect();
     const vpW = window.innerWidth;
     const vpH = window.innerHeight;
+    const panelW = 320;
+    const panelH = 400;
 
-    let top = rect.bottom + 8;
-    let left = rect.left;
+    let top = rect.bottom + 6;
+    let left = rect.left + (rect.width - panelW) / 2;
 
-    // 右侧偏移：尽量在 box 下方右对齐
-    if (left + 320 > vpW) left = vpW - 320 - 10;
+    if (left + panelW > vpW - 10) left = vpW - panelW - 10;
     if (left < 10) left = 10;
-
-    // 上方偏移：如果下方空间不足，显示在 box 上方
-    if (top + 400 > vpH) top = rect.top - 400 - 8;
+    if (top + panelH > vpH - 10) top = rect.top - panelH - 6;
     if (top < 10) top = 10;
 
     setPanelPos({ top: Math.round(top), left: Math.round(left) });
   }, [isChatOpen, activeChatBoxId]);
 
-  // 定期更新位置（处理 zoom/pan 变化）
+  // 使用 rAF 平滑跟随 box 移动（直接操作 DOM，避免 React re-render）
   useEffect(() => {
     if (!isChatOpen || !activeChatBoxId) return;
-    const interval = setInterval(() => {
+    let rafId: number;
+
+    const track = () => {
       const boxEl = document.getElementById(activeChatBoxId);
-      if (!boxEl) return;
+      const panelEl = panelRef.current;
+      if (!boxEl || !panelEl) {
+        rafId = requestAnimationFrame(track);
+        return;
+      }
       const rect = boxEl.getBoundingClientRect();
       const vpW = window.innerWidth;
       const vpH = window.innerHeight;
+      const panelW = 320;
+      const panelH = panelEl.offsetHeight || 400;
 
-      let top = rect.bottom + 8;
-      let left = rect.left;
+      let top = rect.bottom + 6;
+      let left = rect.left + (rect.width - panelW) / 2;
 
-      if (left + 320 > vpW) left = vpW - 320 - 10;
+      if (left + panelW > vpW - 10) left = vpW - panelW - 10;
       if (left < 10) left = 10;
-      if (top + 400 > vpH) top = rect.top - 400 - 8;
+      if (top + panelH > vpH - 10) top = rect.top - panelH - 6;
       if (top < 10) top = 10;
 
-      setPanelPos({ top: Math.round(top), left: Math.round(left) });
-    }, 300);
-    return () => clearInterval(interval);
+      panelEl.style.top = `${Math.round(top)}px`;
+      panelEl.style.left = `${Math.round(left)}px`;
+
+      rafId = requestAnimationFrame(track);
+    };
+
+    rafId = requestAnimationFrame(track);
+    return () => cancelAnimationFrame(rafId);
   }, [isChatOpen, activeChatBoxId]);
 
   // 新消息自动滚动到底部
@@ -126,7 +138,7 @@ export default function ChatPanel() {
   const hasProviders = modelOptions.length > 0;
 
   const panelContent = (
-    <div className="chat-panel" style={{ top: panelPos.top, left: panelPos.left }}>
+    <div className="chat-panel" ref={panelRef} style={{ top: panelPos.top, left: panelPos.left }}>
       {/* Header */}
       <div className="chat-header">
         <span className="chat-header-title">{t('chat.title')}</span>

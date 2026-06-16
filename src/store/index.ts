@@ -51,12 +51,14 @@ interface EditorStore {
   isChatOpen: boolean;
   chatHistories: Record<string, ChatMessage[]>;
   chatModel: string;
+  editingBoxId: string | null;
   openChat: (boxId: string) => void;
   closeChat: () => void;
   addChatMessage: (boxId: string, message: ChatMessage) => void;
   markChatMessageAdopted: (boxId: string, messageId: string) => void;
   clearChatHistory: (boxId: string) => void;
   setChatModel: (model: string) => void;
+  setEditingBoxId: (id: string | null) => void;
 }
 
 export const useEditorStore = create<EditorStore>((set, get) => ({
@@ -184,6 +186,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   isChatOpen: false,
   chatHistories: {},
   chatModel: localStorage.getItem('ideogram4-chat-model') || '',
+  editingBoxId: null,
 
   openChat: (boxId) => set({ activeChatBoxId: boxId, isChatOpen: true }),
 
@@ -216,6 +219,8 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     localStorage.setItem('ideogram4-chat-model', model);
     set({ chatModel: model });
   },
+
+  setEditingBoxId: (id) => set({ editingBoxId: id }),
 
   generateJSON: () => {
     const state = get();

@@ -24,6 +24,10 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
     initialBoxH: 0,
     currentBoxElement: null,
     pendingBoxId: null,
+    pointerMoved: false,
+    clickTargetId: null,
+    lastClickTime: 0,
+    lastClickBoxId: null,
   });
 
   const boxRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -33,6 +37,7 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
   const addBox = useEditorStore(s => s.addBox);
   const selectBox = useEditorStore(s => s.selectBox);
   const updateBox = useEditorStore(s => s.updateBox);
+  const setEditingBoxId = useEditorStore(s => s.setEditingBoxId);
 
   const getPointerPos = useCallback((e: PointerEvent | React.PointerEvent): { x: number; y: number } => {
     return screenToCanvas(e.clientX, e.clientY);
@@ -83,6 +88,8 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
       ir.initialBoxX = parseFloat(boxEl.style.left) || 0;
       ir.initialBoxY = parseFloat(boxEl.style.top) || 0;
       ir.currentBoxElement = boxEl;
+      ir.pointerMoved = false;
+      ir.clickTargetId = boxEl.id;
 
       selectBox(boxEl.id);
       return;
@@ -143,8 +150,13 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
       const { x, y } = screenToCanvas(e.clientX, e.clientY);
 
       if (ir.mode === 'dragging') {
-        ir.currentBoxElement.style.left = `${ir.initialBoxX + (x - ir.dragStartX)}px`;
-        ir.currentBoxElement.style.top = `${ir.initialBoxY + (y - ir.dragStartY)}px`;
+        const dx = x - ir.dragStartX;
+        const dy = y - ir.dragStartY;
+        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+          ir.pointerMoved = true;
+        }
+        ir.currentBoxElement.style.left = `${ir.initialBoxX + dx}px`;
+        ir.currentBoxElement.style.top = `${ir.initialBoxY + dy}px`;
       } else if (ir.mode === 'resizing') {
         ir.currentBoxElement.style.width = `${Math.max(10, ir.initialBoxW + (x - ir.dragStartX))}px`;
         ir.currentBoxElement.style.height = `${Math.max(10, ir.initialBoxH + (y - ir.dragStartY))}px`;
@@ -168,10 +180,24 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
         setDrawingGhost(null);
       } else if (ir.mode === 'dragging' && ir.currentBoxElement) {
         const el = ir.currentBoxElement;
-        updateBox(el.id, {
-          x: parseFloat(el.style.left) || 0,
-          y: parseFloat(el.style.top) || 0,
-        });
+        if (!ir.pointerMoved) {
+          const now = Date.now();
+          // 双击检测：同一 box 在 300ms 内被点击两次 → 进入文字编辑模式
+          if (ir.lastClickBoxId === el.id && now - ir.lastClickTime < 300) {
+            setEditingBoxId(el.id);
+            ir.lastClickTime = 0;
+            ir.lastClickBoxId = null;
+          } else {
+            // 单击：不打开 Chat，仅记录点击时间用于双击检测
+            ir.lastClickTime = now;
+            ir.lastClickBoxId = el.id;
+          }
+        } else {
+          updateBox(el.id, {
+            x: parseFloat(el.style.left) || 0,
+            y: parseFloat(el.style.top) || 0,
+          });
+        }
       } else if (ir.mode === 'resizing' && ir.currentBoxElement) {
         const el = ir.currentBoxElement;
         updateBox(el.id, {
@@ -192,7 +218,7 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
     };
-  }, [screenToCanvas, addBox, updateBox]);
+  }, [screenToCanvas, addBox, updateBox, setEditingBoxId]);
 
   return {
     boxRefs,
