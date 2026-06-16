@@ -2,9 +2,7 @@ import Artboard from '../canvas/Artboard';
 import JsonToolbar from '../json/JsonToolbar';
 import ComfyUIControls from '../comfyui/ComfyUIControls';
 import ImagePreview from '../comfyui/ImagePreview';
-import GlobalSettingsPanel from '../panels/GlobalSettingsPanel';
-import BoxPropertiesPanel from '../panels/BoxPropertiesPanel';
-import LlmPanel from '../llm/LlmPanel';
+import RightPanelContainer from '../panels/RightPanelContainer';
 import { useImageDrop } from '../../hooks/useImageDrop';
 import { useI18n } from '../../i18n/context';
 
@@ -24,10 +22,8 @@ export default function MainContent() {
         <ImagePreview />
       </div>
 
-      <div style={{ width: '35%', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        <GlobalSettingsPanel />
-        <BoxPropertiesPanel />
-        <LlmPanel />
+      <div style={{ width: '320px', flexShrink: 0 }}>
+        <RightPanelContainer />
       </div>
     </div>
   );

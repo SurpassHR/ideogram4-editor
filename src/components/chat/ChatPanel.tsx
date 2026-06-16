@@ -4,7 +4,9 @@ import { useI18n } from '../../i18n/context';
 import { useChatPanel } from '../../hooks/useChatPanel';
 import ChatMessage from './ChatMessage';
 import LlmConfigPanel from '../llm/LlmConfigPanel';
+import PresetManagerPanel from './PresetManagerPanel';
 import { computeChatPanelPosition } from '../../utils/panelPosition';
+import { resolveTemplate } from '../../utils/resolveTemplate';
 
 export default function ChatPanel() {
   const {
@@ -23,12 +25,18 @@ export default function ChatPanel() {
     handleClose,
     handleSelectModel,
     refreshProviders,
+    chatPresets,
+    selectedPreset,
+    handleSelectPreset,
+    chatResponseLang,
+    setChatResponseLang,
   } = useChatPanel();
 
   const { t } = useI18n();
   const [inputText, setInputText] = useState('');
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
   const [showLlmConfig, setShowLlmConfig] = useState(false);
+  const [showPresetManager, setShowPresetManager] = useState(false);
   const messagesRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const [panelPos, setPanelPos] = useState({ top: 0, left: 0 });
@@ -40,18 +48,13 @@ export default function ChatPanel() {
       const r = artboardEl.getBoundingClientRect();
       return { top: r.top, left: r.left, right: r.right, bottom: r.bottom, width: r.width, height: r.height };
     }
-    // 回退：使用视口尺寸
     return {
-      top: 0,
-      left: 0,
-      right: window.innerWidth,
-      bottom: window.innerHeight,
-      width: window.innerWidth,
-      height: window.innerHeight,
+      top: 0, left: 0, right: window.innerWidth, bottom: window.innerHeight,
+      width: window.innerWidth, height: window.innerHeight,
     };
   }, []);
 
-  // 计算面板初始位置：box 正下方居中，在 Artboard 内 clamp
+  // 计算面板初始位置
   useLayoutEffect(() => {
     if (!isChatOpen || !activeChatBoxId) return;
     const boxEl = document.getElementById(activeChatBoxId);
@@ -65,16 +68,13 @@ export default function ChatPanel() {
     const rect = boxEl.getBoundingClientRect();
     const boxRect = { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom, width: rect.width, height: rect.height };
     const containerRect = getArtboardRect();
-
     setPanelPos(computeChatPanelPosition(boxRect, containerRect, 320, 400, 10));
   }, [isChatOpen, activeChatBoxId, getArtboardRect]);
 
-  // 使用 rAF 平滑跟随 box 移动（直接操作 DOM，避免 React re-render）
-  // 使用 Artboard 边界进行 clamp，确保面板不溢出画板
+  // rAF 跟随 box 移动
   useEffect(() => {
     if (!isChatOpen || !activeChatBoxId) return;
     let rafId: number;
-
     const track = () => {
       const boxEl = document.getElementById(activeChatBoxId);
       const panelEl = panelRef.current;
@@ -86,20 +86,16 @@ export default function ChatPanel() {
       const boxRect = { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom, width: rect.width, height: rect.height };
       const containerRect = getArtboardRect();
       const actualH = panelEl.offsetHeight || 400;
-
       const pos = computeChatPanelPosition(boxRect, containerRect, 320, actualH, 10);
-
       panelEl.style.top = `${pos.top}px`;
       panelEl.style.left = `${pos.left}px`;
-
       rafId = requestAnimationFrame(track);
     };
-
     rafId = requestAnimationFrame(track);
     return () => cancelAnimationFrame(rafId);
   }, [isChatOpen, activeChatBoxId, getArtboardRect]);
 
-  // 新消息自动滚动到底部
+  // 新消息自动滚动
   useEffect(() => {
     const el = messagesRef.current;
     if (!el) return;
@@ -108,21 +104,24 @@ export default function ChatPanel() {
     }
   }, [messages.length, isLoading]);
 
-  // 处理忽略
   const handleDismiss = useCallback((messageId: string) => {
     setDismissedIds(prev => new Set(prev).add(messageId));
     dismissResponse(messageId);
   }, [dismissResponse]);
 
-  // 处理发送
+  // 发送：若选中预设则先解析模板变量再发送
   const handleSend = useCallback(() => {
     const text = inputText.trim();
     if (!text || isLoading) return;
     setInputText('');
-    sendMessage(text);
-  }, [inputText, isLoading, sendMessage]);
+    // 解析预设模板变量
+    const resolvedText = selectedPreset && currentBox
+      ? resolveTemplate(text, currentBox)
+      : text;
+    sendMessage(resolvedText);
+    handleSelectPreset(null); // 发送后清除预设选择
+  }, [inputText, isLoading, sendMessage, selectedPreset, currentBox, handleSelectPreset]);
 
-  // 处理 Enter 键
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -130,11 +129,34 @@ export default function ChatPanel() {
     }
   }, [handleSend]);
 
-  // 配置面板关闭回调
   const handleLlmConfigClose = useCallback(() => {
     setShowLlmConfig(false);
     refreshProviders();
   }, [refreshProviders]);
+
+  const handlePresetManagerClose = useCallback(() => {
+    setShowPresetManager(false);
+  }, []);
+
+  // 选中预设：将模板文本填入输入框
+  const handlePresetChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    const presetId = e.target.value;
+    if (!presetId) {
+      handleSelectPreset(null);
+      return;
+    }
+    // "__new__" 选项打开预设管理器
+    if (presetId === '__new__') {
+      handleSelectPreset(null);
+      setShowPresetManager(true);
+      return;
+    }
+    handleSelectPreset(presetId);
+    const preset = chatPresets.find(p => p.id === presetId);
+    if (preset) {
+      setInputText(preset.promptTemplate);
+    }
+  }, [chatPresets, handleSelectPreset]);
 
   if (!isChatOpen) return null;
 
@@ -144,32 +166,64 @@ export default function ChatPanel() {
     <div className="chat-panel" ref={panelRef} style={{ top: panelPos.top, left: panelPos.left }}>
       {/* Header */}
       <div className="chat-header">
-        <span className="chat-header-title">{t('chat.title')}</span>
-        {currentBox && (
-          <span className="chat-badge">
-            {t('chat.boxBadge', { name: currentBox.desc || currentBox.text || currentBox.id })}
-          </span>
+        <div className="chat-header-row">
+          <span className="chat-header-title">{t('chat.title')}</span>
+          {currentBox && (
+            <span className="chat-badge">
+              {t('chat.boxBadge', { name: currentBox.desc || currentBox.text || currentBox.id })}
+            </span>
+          )}
+          <div className="chat-header-spacer" />
+          <button className="chat-close-btn" onClick={handleClose} title="Close">
+            ✕
+          </button>
+        </div>
+
+        {/* Controls row */}
+        {hasProviders && (
+          <div className="chat-header-controls">
+            {chatPresets.length > 0 && (
+              <select
+                className="chat-preset-select"
+                value={selectedPreset?.id || ''}
+                onChange={handlePresetChange}
+              >
+                <option value="">预设</option>
+                {chatPresets.map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            )}
+
+            <select
+              className="chat-model-select"
+              value={chatModel}
+              onChange={e => handleSelectModel(e.target.value)}
+            >
+              {!chatModel && <option value="">{t('chat.modelSelect')}</option>}
+              {modelOptions.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+
+            <select
+              className="chat-lang-select"
+              value={chatResponseLang}
+              onChange={e => setChatResponseLang(e.target.value)}
+            >
+              <option value="auto">🌐</option>
+              <option value="en">EN</option>
+              <option value="zh">中</option>
+            </select>
+
+            <button className="chat-preset-mgr-btn" onClick={() => setShowPresetManager(true)} title={t('chat.presets.manage')}>
+              ⚙
+            </button>
+            <button className="chat-clear-btn" onClick={handleClearHistory} title={t('chat.clearHistory')}>
+              🗑
+            </button>
+          </div>
         )}
-        {hasProviders ? (
-          <select
-            className="chat-model-select"
-            value={chatModel}
-            onChange={e => handleSelectModel(e.target.value)}
-          >
-            {!chatModel && <option value="">{t('chat.modelSelect')}</option>}
-            {modelOptions.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-        ) : (
-          <span className="chat-no-model-label">{t('chat.noProvider')}</span>
-        )}
-        <button className="chat-clear-btn" onClick={handleClearHistory} title={t('chat.clearHistory')}>
-          🗑
-        </button>
-        <button className="chat-close-btn" onClick={handleClose} title="Close">
-          ✕
-        </button>
       </div>
 
       {/* 无 LLM 配置提示 */}
@@ -186,9 +240,7 @@ export default function ChatPanel() {
       {hasProviders && (
         <div className="chat-messages" ref={messagesRef}>
           {messages.length === 0 && !isLoading && (
-            <div className="chat-empty-hint">
-              {t('chat.emptyHint')}
-            </div>
+            <div className="chat-empty-hint">{t('chat.emptyHint')}</div>
           )}
           {messages.map(msg => (
             <ChatMessage
@@ -199,12 +251,8 @@ export default function ChatPanel() {
               dismissed={dismissedIds.has(msg.id)}
             />
           ))}
-          {isLoading && (
-            <div className="chat-loading">{t('chat.loading')}</div>
-          )}
-          {error && (
-            <div className="chat-error">{t('chat.error', { error })}</div>
-          )}
+          {isLoading && <div className="chat-loading">{t('chat.loading')}</div>}
+          {error && <div className="chat-error">{t('chat.error', { error })}</div>}
         </div>
       )}
 
@@ -232,9 +280,10 @@ export default function ChatPanel() {
       )}
 
       {/* LLM 配置面板 */}
-      {showLlmConfig && (
-        <LlmConfigPanel onClose={handleLlmConfigClose} />
-      )}
+      {showLlmConfig && <LlmConfigPanel onClose={handleLlmConfigClose} />}
+
+      {/* 预设管理面板 */}
+      {showPresetManager && <PresetManagerPanel onClose={handlePresetManagerClose} />}
     </div>
   );
 

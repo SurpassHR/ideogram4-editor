@@ -136,6 +136,37 @@ export interface Translations {
     loading: string;
     error: string;
     emptyHint: string;
+    langAuto: string;
+    presets: {
+      title: string;
+      selectPreset: string;
+      manage: string;
+      addPreset: string;
+      searchPlaceholder: string;
+      allTags: string;
+      noPresets: string;
+      edit: string;
+      editPreset: string;
+      newPreset: string;
+      name: string;
+      namePlaceholder: string;
+      description: string;
+      descPlaceholder: string;
+      template: string;
+      templatePlaceholder: string;
+      variableHint: string;
+      tags: string;
+      addTag: string;
+      save: string;
+      cancel: string;
+      delete: string;
+      duplicate: string;
+    };
+    image: {
+      uploadHint: string;
+      clear: string;
+      attachImage: string;
+    };
   };
 }
 
@@ -275,6 +306,37 @@ const en: Translations = {
     loading: 'AI is thinking...',
     error: 'Error: {error}',
     emptyHint: 'Send a message to start the conversation',
+    langAuto: 'Auto',
+    presets: {
+      title: 'Preset Manager',
+      selectPreset: 'Select Preset...',
+      manage: 'Manage Presets',
+      addPreset: '+ Add',
+      searchPlaceholder: 'Search presets...',
+      allTags: 'All Tags',
+      noPresets: 'No presets yet.',
+      edit: 'Edit',
+      editPreset: 'Edit Preset',
+      newPreset: 'New Preset',
+      name: 'Name',
+      namePlaceholder: 'e.g. Character Detail Enhancer',
+      description: 'Description',
+      descPlaceholder: 'Brief description of the preset\'s purpose',
+      template: 'Template',
+      templatePlaceholder: 'Enter your prompt template with variables...',
+      variableHint: 'Available variables',
+      tags: 'Tags',
+      addTag: 'Add',
+      save: 'Save',
+      cancel: 'Cancel',
+      delete: 'Delete',
+      duplicate: 'Duplicate',
+    },
+    image: {
+      uploadHint: 'Upload an image',
+      clear: 'Remove image',
+      attachImage: 'Attach image as reference',
+    },
   },
 };
 
@@ -414,6 +476,37 @@ const zh: Translations = {
     loading: 'AI 正在思考...',
     error: '错误：{error}',
     emptyHint: '发送消息开始对话',
+    langAuto: '自动',
+    presets: {
+      title: '预设管理',
+      selectPreset: '选择预设...',
+      manage: '管理预设',
+      addPreset: '+ 添加',
+      searchPlaceholder: '搜索预设...',
+      allTags: '全部标签',
+      noPresets: '暂无预设',
+      edit: '编辑',
+      editPreset: '编辑预设',
+      newPreset: '新建预设',
+      name: '名称',
+      namePlaceholder: '例如：人物细节增强',
+      description: '描述',
+      descPlaceholder: '预设用途说明',
+      template: '模板',
+      templatePlaceholder: '输入提示词模板，使用变量占位符...',
+      variableHint: '可用变量',
+      tags: '标签',
+      addTag: '添加',
+      save: '保存',
+      cancel: '取消',
+      delete: '删除',
+      duplicate: '复制',
+    },
+    image: {
+      uploadHint: '上传图像',
+      clear: '移除图像',
+      attachImage: '附加图像作为参考',
+    },
   },
 };
 

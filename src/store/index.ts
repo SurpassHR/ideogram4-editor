@@ -1,7 +1,33 @@
 import { create } from 'zustand';
 import type { Box, IdeogramOutput, GenerationStatus, PhotoArtStyleMode } from '../types';
 import type { ChatMessage } from '../types/chat';
+import type { PromptPreset } from '../types/presets';
+import { PRESETS_STORAGE_KEY, createBuiltinPresets } from '../types/presets';
 import { MODE_ARTSTYLE, MODE_PHOTO } from '../types';
+
+// ─── 预设持久化辅助 ────────────────────────────────────────────
+
+/** 从 localStorage 加载预设，首次使用自动初始化内置预设 */
+function loadPresetsFromStorage(): PromptPreset[] {
+  try {
+    const raw = localStorage.getItem(PRESETS_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch {
+    // ignore corrupt data
+  }
+  // 首次使用：初始化内置预设并持久化
+  const builtins = createBuiltinPresets();
+  localStorage.setItem(PRESETS_STORAGE_KEY, JSON.stringify(builtins));
+  return builtins;
+}
+
+/** 将预设持久化到 localStorage */
+function savePresetsToStorage(presets: PromptPreset[]): void {
+  localStorage.setItem(PRESETS_STORAGE_KEY, JSON.stringify(presets));
+}
 
 interface EditorStore {
   canvasW: number;
@@ -59,6 +85,20 @@ interface EditorStore {
   clearChatHistory: (boxId: string) => void;
   setChatModel: (model: string) => void;
   setEditingBoxId: (id: string | null) => void;
+
+  // LLM 回复语言偏好（persist）
+  chatResponseLang: string;
+  setChatResponseLang: (lang: string) => void;
+
+  // Image 操作
+  importImageToBox: (boxId: string, dataUrl: string) => void;
+  clearBoxImage: (boxId: string) => void;
+
+  // 预设状态
+  chatPresets: PromptPreset[];
+  addPreset: (preset: Omit<PromptPreset, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  updatePreset: (id: string, updates: Partial<Omit<PromptPreset, 'id'>>) => void;
+  deletePreset: (id: string) => void;
 }
 
 export const useEditorStore = create<EditorStore>((set, get) => ({
@@ -222,6 +262,56 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
   setEditingBoxId: (id) => set({ editingBoxId: id }),
 
+  // LLM 回复语言偏好
+  chatResponseLang: localStorage.getItem('ideogram4-chat-lang') || 'auto',
+  setChatResponseLang: (lang) => {
+    localStorage.setItem('ideogram4-chat-lang', lang);
+    set({ chatResponseLang: lang });
+  },
+
+  // Image 操作
+  importImageToBox: (boxId, dataUrl) => set(state => ({
+    boxes: state.boxes.map(b => b.id === boxId ? { ...b, imageDataUrl: dataUrl } : b),
+  })),
+
+  clearBoxImage: (boxId) => set(state => ({
+    boxes: state.boxes.map(b => b.id === boxId ? { ...b, imageDataUrl: null } : b),
+  })),
+
+  // 预设
+  chatPresets: loadPresetsFromStorage(),
+
+  addPreset: (preset) => {
+    const state = get();
+    const now = Date.now();
+    const id = `preset_${now}`;
+    const newPreset: PromptPreset = {
+      ...preset,
+      id,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const newPresets = [...state.chatPresets, newPreset];
+    savePresetsToStorage(newPresets);
+    set({ chatPresets: newPresets });
+  },
+
+  updatePreset: (id, updates) => {
+    const state = get();
+    const newPresets = state.chatPresets.map(p =>
+      p.id === id ? { ...p, ...updates, updatedAt: Date.now() } : p,
+    );
+    savePresetsToStorage(newPresets);
+    set({ chatPresets: newPresets });
+  },
+
+  deletePreset: (id) => {
+    const state = get();
+    const newPresets = state.chatPresets.filter(p => p.id !== id);
+    savePresetsToStorage(newPresets);
+    set({ chatPresets: newPresets });
+  },
+
   generateJSON: () => {
     const state = get();
     const { canvasW, canvasH, boxes, globalPalette, highLevelDescription, aesthetics, lighting, medium, artStyle, background, photoArtStyleMode } = state;
@@ -291,6 +381,8 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
         text: el.text || '',
         desc: el.desc || '',
         colors: el.color_palette || [],
+        imageDataUrl: null,
+        imageRole: 'both',
       });
       counter++;
     }

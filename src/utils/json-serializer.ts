@@ -14,6 +14,7 @@ export function generateJSON(
   artStyle: string,
   background: string,
   photoArtStyleMode: 0 | 1,
+  includeImageData = false,
 ): IdeogramOutput {
   const elements = boxes.map(box => {
     const x1 = norm(box.x, canvasW);
@@ -29,6 +30,7 @@ export function generateJSON(
     if (box.mode === 'text') el.text = box.text;
     el.desc = box.desc;
     if (box.colors && box.colors.length > 0) el.color_palette = box.colors;
+    if (includeImageData && box.imageDataUrl) el.image_data = box.imageDataUrl;
 
     return el;
   });
@@ -64,6 +66,7 @@ export function parseBoxesFromJSON(
 ): Omit<Box, 'id'>[] {
   return json.compositional_deconstruction.elements.map(el => {
     const [y1, x1, y2, x2] = el.bbox;
+    const imageDataUrl = (el as Record<string, unknown>).image_data as string | undefined;
     return {
       x: denorm(x1, canvasW),
       y: denorm(y1, canvasH),
@@ -73,6 +76,8 @@ export function parseBoxesFromJSON(
       text: el.text || '',
       desc: el.desc || '',
       colors: el.color_palette || [],
+      imageDataUrl: imageDataUrl || null,
+      imageRole: 'both' as const,
     };
   });
 }

@@ -1,9 +1,11 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useEditorStore } from '../store';
 import { getLlmProviders } from '../components/llm/api';
 import { sendChatMessage, buildBoxChatSystemPrompt } from '../services/llm-chat';
+import { resolveTemplate } from '../utils/resolveTemplate';
 import type { LlmProvider } from '../components/llm/types';
 import type { ChatMessage } from '../types/chat';
+import type { PromptPreset } from '../types/presets';
 
 export function useChatPanel() {
   const activeChatBoxId = useEditorStore(s => s.activeChatBoxId);
@@ -19,6 +21,12 @@ export function useChatPanel() {
   const background = useEditorStore(s => s.background);
   const globalPalette = useEditorStore(s => s.globalPalette);
   const photoArtStyleMode = useEditorStore(s => s.photoArtStyleMode);
+  const chatPresets = useEditorStore(s => s.chatPresets);
+  const addPreset = useEditorStore(s => s.addPreset);
+  const updatePreset = useEditorStore(s => s.updatePreset);
+  const deletePreset = useEditorStore(s => s.deletePreset);
+  const chatResponseLang = useEditorStore(s => s.chatResponseLang);
+  const setChatResponseLang = useEditorStore(s => s.setChatResponseLang);
 
   const addChatMessage = useEditorStore(s => s.addChatMessage);
   const markChatMessageAdopted = useEditorStore(s => s.markChatMessageAdopted);
@@ -30,6 +38,17 @@ export function useChatPanel() {
   const [providers, setProviders] = useState<LlmProvider[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
+
+  const currentBox = boxes.find(b => b.id === activeChatBoxId);
+  const messages = activeChatBoxId ? (chatHistories[activeChatBoxId] || []) : [];
+
+  // 可发送参考图：imageRole 为 'reference' 或 'both'
+  const canSendImage = useMemo(() => {
+    return currentBox && currentBox.imageDataUrl && currentBox.imageRole !== 'background'
+      ? currentBox.imageDataUrl
+      : undefined;
+  }, [currentBox?.imageDataUrl, currentBox?.imageRole]);
 
   // 加载提供商列表
   useEffect(() => {
@@ -37,9 +56,6 @@ export function useChatPanel() {
       getLlmProviders().then(setProviders);
     }
   }, [isChatOpen]);
-
-  const currentBox = boxes.find(b => b.id === activeChatBoxId);
-  const messages = activeChatBoxId ? (chatHistories[activeChatBoxId] || []) : [];
 
   // 解析模型字符串 "providerId:modelName"
   const parseModel = useCallback((modelStr: string): { providerId: string; modelName: string } | null => {
@@ -95,9 +111,9 @@ export function useChatPanel() {
         background,
         globalPalette,
         photoArtStyleMode,
-      });
+      }, chatResponseLang);
 
-      const result = await sendChatMessage(provider, parsed.modelName, allMessages, systemPrompt);
+      const result = await sendChatMessage(provider, parsed.modelName, allMessages, systemPrompt, canSendImage);
 
       if (!result.ok) {
         setError(result.error || 'Unknown error');
@@ -117,7 +133,7 @@ export function useChatPanel() {
     } finally {
       setIsLoading(false);
     }
-  }, [activeChatBoxId, currentBox, messages, chatModel, getCurrentProvider, parseModel, addChatMessage, highLevelDescription, aesthetics, lighting, medium, artStyle, background, globalPalette, photoArtStyleMode]);
+  }, [activeChatBoxId, currentBox, messages, chatModel, getCurrentProvider, parseModel, addChatMessage, highLevelDescription, aesthetics, lighting, medium, artStyle, background, globalPalette, photoArtStyleMode, canSendImage, chatResponseLang]);
 
   // 采纳 AI 回复
   const adoptResponse = useCallback((messageId: string) => {
@@ -163,6 +179,17 @@ export function useChatPanel() {
     getLlmProviders().then(setProviders);
   }, []);
 
+  // 选择预设
+  const handleSelectPreset = useCallback((presetId: string | null) => {
+    setSelectedPresetId(presetId);
+  }, []);
+
+  // 获取选中预设
+  const selectedPreset = useMemo(
+    () => (selectedPresetId ? chatPresets.find(p => p.id === selectedPresetId) || null : null),
+    [selectedPresetId, chatPresets],
+  );
+
   return {
     isChatOpen,
     activeChatBoxId,
@@ -180,5 +207,16 @@ export function useChatPanel() {
     handleClose,
     handleSelectModel,
     refreshProviders,
+    // 预设
+    chatPresets,
+    addPreset,
+    updatePreset,
+    deletePreset,
+    selectedPresetId,
+    selectedPreset,
+    handleSelectPreset,
+    // LLM 回复语言
+    chatResponseLang,
+    setChatResponseLang,
   };
 }

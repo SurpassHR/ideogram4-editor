@@ -15,6 +15,7 @@ export default function BoundingBox({ box, isSelected, boxRef, interactionMode }
   const editingBoxId = useEditorStore(s => s.editingBoxId);
   const setEditingBoxId = useEditorStore(s => s.setEditingBoxId);
   const updateBox = useEditorStore(s => s.updateBox);
+  const clearBoxImage = useEditorStore(s => s.clearBoxImage);
   const isEditing = editingBoxId === box.id;
   const [editText, setEditText] = useState(box.text);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -46,6 +47,12 @@ export default function BoundingBox({ box, isSelected, boxRef, interactionMode }
 
   const displayText = box.text || box.desc || '';
 
+  const handleDismissImage = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    clearBoxImage(box.id);
+  }, [box.id, clearBoxImage]);
+
   return (
     <div
       id={box.id}
@@ -58,6 +65,23 @@ export default function BoundingBox({ box, isSelected, boxRef, interactionMode }
         height: box.h,
       }}
     >
+      {box.imageDataUrl && (
+        <img
+          className="bounding-box-bg-img"
+          src={box.imageDataUrl}
+          alt="reference"
+          draggable={false}
+        />
+      )}
+      {box.imageDataUrl && (
+        <button
+          className="bounding-box-img-dismiss"
+          onClick={handleDismissImage}
+          title="Remove image"
+        >
+          ✕
+        </button>
+      )}
       <div className="bounding-box-content">
         {isEditing ? (
           <div className="bounding-box-input-wrapper">

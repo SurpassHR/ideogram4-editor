@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseOpenAIResponse, parseAnthropicResponse } from '../llm-chat';
+import { parseOpenAIResponse, parseAnthropicResponse, buildMultimodalMessages, extractBase64FromDataUrl, extractMimeTypeFromDataUrl } from '../llm-chat';
 
 // ─── parseOpenAIResponse ────────────────────────────────────────────
 
@@ -139,5 +139,139 @@ describe('parseAnthropicResponse', () => {
 
       expect(() => parseAnthropicResponse(sse)).toThrow('No content');
     });
+  });
+});
+
+// ─── buildMultimodalMessages ────────────────────────────────────────
+
+describe('buildMultimodalMessages', () => {
+  const messages = [
+    { role: 'user', content: 'First message' },
+    { role: 'assistant', content: 'First response' },
+    { role: 'user', content: 'Describe this image' },
+  ];
+  const imageDataUrl = 'data:image/png;base64,iVBORw0KGgo=';
+
+  it('无 imageDataUrl 时，应返回原始消息', () => {
+    const result = buildMultimodalMessages(messages, undefined);
+    expect(result).toEqual(messages);
+  });
+
+  it('OpenAI 格式：应正确构造 image_url 多模态消息', () => {
+    const result = buildMultimodalMessages(messages, imageDataUrl, 'openai');
+    const lastMsg = result[result.length - 1];
+    expect(lastMsg.role).toBe('user');
+    expect(Array.isArray(lastMsg.content)).toBe(true);
+    const content = lastMsg.content as Array<{ type: string; image_url?: { url: string }; text?: string }>;
+    expect(content[0]).toEqual({
+      type: 'image_url',
+      image_url: { url: imageDataUrl },
+    });
+    expect(content[1]).toEqual({
+      type: 'text',
+      text: 'Describe this image',
+    });
+    // 前面的消息应保持字符串
+    expect(typeof result[0].content).toBe('string');
+  });
+
+  it('Anthropic 格式：应正确构造 image 多模态消息', () => {
+    const result = buildMultimodalMessages(messages, imageDataUrl, 'anthropic');
+    const lastMsg = result[result.length - 1];
+    expect(lastMsg.role).toBe('user');
+    const content = lastMsg.content as Array<{ type: string; source?: { type: string; media_type: string; data: string }; text?: string }>;
+    expect(content[0]).toEqual({
+      type: 'image',
+      source: {
+        type: 'base64',
+        media_type: 'image/png',
+        data: 'iVBORw0KGgo=',
+      },
+    });
+    expect(content[1]).toEqual({
+      type: 'text',
+      text: 'Describe this image',
+    });
+  });
+
+  it('Gemini 格式：应正确构造 inlineData 多模态消息', () => {
+    const result = buildMultimodalMessages(messages, imageDataUrl, 'gemini');
+    const lastMsg = result[result.length - 1];
+    expect(lastMsg.role).toBe('user');
+    expect(Array.isArray(lastMsg.content)).toBe(true);
+    const content = lastMsg.content as Array<{ inlineData?: { mimeType: string; data: string }; text?: string }>;
+    expect(content[0]).toEqual({
+      inlineData: {
+        mimeType: 'image/png',
+        data: 'iVBORw0KGgo=',
+      },
+    });
+    expect(content[1]).toEqual({
+      text: 'Describe this image',
+    });
+  });
+
+  it('openai_compat 格式应使用与 openai 相同的格式', () => {
+    const openaiResult = buildMultimodalMessages(messages, imageDataUrl, 'openai');
+    const compatResult = buildMultimodalMessages(messages, imageDataUrl, 'openai_compat');
+    expect(compatResult).toEqual(openaiResult);
+  });
+
+  it('最后一条消息不是 user 时，应追加一条空文本 user 消息', () => {
+    const assistantOnly = [
+      { role: 'user', content: 'Hello' },
+      { role: 'assistant', content: 'Hi there' },
+    ];
+    const result = buildMultimodalMessages(assistantOnly, imageDataUrl, 'openai');
+    expect(result).toHaveLength(3);
+    const lastMsg = result[result.length - 1];
+    expect(lastMsg.role).toBe('user');
+    expect(Array.isArray(lastMsg.content)).toBe(true);
+  });
+
+  it('多条用户消息时，仅最后一条 user 消息变为多模态', () => {
+    const multiUser = [
+      { role: 'user', content: 'First' },
+      { role: 'assistant', content: 'Reply' },
+      { role: 'user', content: 'Second' },
+      { role: 'assistant', content: 'Reply2' },
+      { role: 'user', content: 'Third' },
+    ];
+    const result = buildMultimodalMessages(multiUser, imageDataUrl, 'openai');
+    expect(result.length).toBe(5);
+    expect(Array.isArray(result[4].content)).toBe(true);
+    expect(typeof result[0].content).toBe('string');
+    expect(typeof result[2].content).toBe('string');
+  });
+});
+
+// ─── extractBase64FromDataUrl / extractMimeTypeFromDataUrl ──────────
+
+describe('extractBase64FromDataUrl', () => {
+  it('应从 data URL 中提取 base64 数据', () => {
+    const result = extractBase64FromDataUrl('data:image/png;base64,abc123');
+    expect(result).toBe('abc123');
+  });
+
+  it('应提取带 = padding 的 base64 数据', () => {
+    const result = extractBase64FromDataUrl('data:image/jpeg;base64,/9j/4AAQ==');
+    expect(result).toBe('/9j/4AAQ==');
+  });
+});
+
+describe('extractMimeTypeFromDataUrl', () => {
+  it('应从 data URL 中提取 MIME 类型', () => {
+    const result = extractMimeTypeFromDataUrl('data:image/png;base64,abc123');
+    expect(result).toBe('image/png');
+  });
+
+  it('应提取 jpeg MIME 类型', () => {
+    const result = extractMimeTypeFromDataUrl('data:image/jpeg;base64,/9j/4AAQ==');
+    expect(result).toBe('image/jpeg');
+  });
+
+  it('应提取 webp MIME 类型', () => {
+    const result = extractMimeTypeFromDataUrl('data:image/webp;base64,UklGRpA=');
+    expect(result).toBe('image/webp');
   });
 });

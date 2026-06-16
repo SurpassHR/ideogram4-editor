@@ -12,6 +12,105 @@ import type { ChatMessage } from '../types/chat';
 import { messagesToApiFormat } from '../types/chat';
 import type { Box } from '../types';
 
+// ─── 多模态辅助函数 ─────────────────────────────────────────────────
+
+/** 从 Data URL 中提取 base64 数据部分 */
+export function extractBase64FromDataUrl(dataUrl: string): string {
+  return dataUrl.split(',')[1] || '';
+}
+
+/** 从 Data URL 中提取 MIME 类型（如 image/png） */
+export function extractMimeTypeFromDataUrl(dataUrl: string): string {
+  const match = dataUrl.match(/^data:([^;]+);/);
+  return match ? match[1] : 'image/png';
+}
+
+type MultimodalContentBlock = Record<string, unknown>;
+type MultimodalApiMessage = {
+  role: string;
+  content: string | MultimodalContentBlock[];
+  parts?: MultimodalContentBlock[];
+};
+
+/**
+ * 为多模态图像参考构造 API 消息格式。
+ * 将最后一条 user 消息转为多模态 content（含图像），其余消息保持原样。
+ *
+ * @param messages 原始消息列表（{role, content: string}）
+ * @param imageDataUrl 可选的图像 Data URL
+ * @param kind 提供商类型用于确定格式
+ * @returns 格式化后的消息列表
+ */
+export function buildMultimodalMessages(
+  messages: { role: string; content: string }[],
+  imageDataUrl?: string,
+  kind?: string,
+): MultimodalApiMessage[] {
+  if (!imageDataUrl) {
+    return messages;
+  }
+
+  const base64 = extractBase64FromDataUrl(imageDataUrl);
+  const mimeType = extractMimeTypeFromDataUrl(imageDataUrl);
+
+  // 构建多模态 content（不含消息文本，由调用方决定文本内容）
+  const buildImageContent = (text: string) => {
+    if (kind === 'anthropic') {
+      return [
+        { type: 'image', source: { type: 'base64', media_type: mimeType, data: base64 } },
+        { type: 'text', text },
+      ];
+    }
+    if (kind === 'gemini') {
+      return [
+        { inlineData: { mimeType, data: base64 } },
+        { text },
+      ];
+    }
+    // OpenAI / OpenAI Compatible（默认格式）
+    return [
+      { type: 'image_url', image_url: { url: imageDataUrl } },
+      { type: 'text', text },
+    ];
+  };
+
+  // 查找最后一条 user 消息的索引
+  const lastUserIdx = findLastUserMessageIndex(messages);
+
+  if (lastUserIdx < 0) {
+    // 没有 user 消息，追加一条含图像的空 user 消息
+    return [
+      ...messages,
+      { role: 'user', content: buildImageContent('') },
+    ];
+  }
+
+  // 最后一条消息不是 user 时，追加一条多模态 user 消息
+  if (lastUserIdx !== messages.length - 1) {
+    return [
+      ...messages,
+      { role: 'user', content: buildImageContent('') },
+    ];
+  }
+
+  // 最后一条是 user 消息，将其转为多模态
+  return messages.map((msg, i) => {
+    if (i !== lastUserIdx) return msg;
+    return {
+      role: msg.role,
+      content: buildImageContent(msg.content),
+    };
+  });
+}
+
+/** 查找最后一条 user 消息的索引 */
+function findLastUserMessageIndex(messages: { role: string }[]): number {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === 'user') return i;
+  }
+  return -1;
+}
+
 // ─── System Prompt 常量 ────────────────────────────────────────────
 
 /** AI 对话面板的系统提示词 */
@@ -29,7 +128,7 @@ export interface BoxChatContext {
   photoArtStyleMode: number;
 }
 
-export function buildBoxChatSystemPrompt(box: Box, ctx: BoxChatContext): string {
+export function buildBoxChatSystemPrompt(box: Box, ctx: BoxChatContext, responseLang?: string): string {
   const modeLabel = box.mode === 'text' ? 'text' : 'object';
   const lines = [
     BOX_CHAT_SYSTEM_PROMPT,
@@ -49,8 +148,25 @@ export function buildBoxChatSystemPrompt(box: Box, ctx: BoxChatContext): string 
     `- Background: ${ctx.background || '(empty)'}`,
     `- Global color palette: ${ctx.globalPalette.length > 0 ? ctx.globalPalette.join(', ') : '(none)'}`,
     '',
-    `Help the user improve the box's description for better image generation results. Provide concise, specific descriptions that work well within the overall composition. Respond in the same language the user uses. When suggesting descriptions, provide them in a clear format that can be directly adopted as the box description.`,
+    `Help the user improve the box's description for better image generation results. Provide concise, specific descriptions that work well within the overall composition.`,
   ];
+
+  // LLM 回复语言偏好
+  if (responseLang === 'en') {
+    lines.push('Your response MUST be in English.');
+  } else if (responseLang === 'zh') {
+    lines.push('你的回复必须使用中文。');
+  } else {
+    lines.push('Respond in the same language the user uses.');
+  }
+  lines.push('When suggesting descriptions, provide them in a clear format that can be directly adopted as the box description.');
+
+  // 有参考图时追加引导指令
+  if (box.imageDataUrl && box.imageRole !== 'background') {
+    lines.push('');
+    lines.push('This box has a reference image attached. Use the visual content of the image to inform your prompt — describe what you see and how it relates to the user\'s text description.');
+  }
+
   return lines.join('\n');
 }
 
@@ -159,7 +275,7 @@ async function callOpenAI(
   baseUrl: string,
   apiKey: string,
   model: string,
-  apiMessages: { role: string; content: string }[],
+  apiMessages: { role: string; content: string | Record<string, unknown>[] }[],
 ): Promise<string> {
   const url = `${baseUrl}/chat/completions`;
   const resp = await fetch(url, {
@@ -190,7 +306,7 @@ async function callAnthropic(
   apiKey: string,
   model: string,
   systemPrompt: string,
-  apiMessages: { role: string; content: string }[],
+  apiMessages: { role: string; content: string | Record<string, unknown>[] }[],
 ): Promise<string> {
   const url = `${baseUrl}/messages`;
   const resp = await fetch(url, {
@@ -223,14 +339,14 @@ async function callGemini(
   apiKey: string,
   model: string,
   systemPrompt: string,
-  apiMessages: { role: string; content: string }[],
+  apiMessages: { role: string; content: string | Record<string, unknown>[] }[],
 ): Promise<string> {
   const url = `${baseUrl}/models/${model}:generateContent?key=${apiKey}`;
 
   // Gemini 格式：systemInstruction + contents[]
   const contents = apiMessages.map(m => ({
     role: m.role === 'assistant' ? 'model' : 'user',
-    parts: [{ text: m.content }],
+    parts: Array.isArray(m.content) ? m.content : [{ text: m.content }],
   }));
 
   const resp = await fetch(url, {
@@ -267,8 +383,13 @@ export async function sendChatMessage(
   model: string,
   messages: ChatMessage[],
   systemPrompt: string,
+  imageDataUrl?: string,
 ): Promise<ChatResult> {
-  const apiMessages = messagesToApiFormat(messages);
+  const rawApiMessages = messagesToApiFormat(messages);
+  // 当有参考图时，构造多模态消息格式
+  const apiMessages = imageDataUrl
+    ? buildMultimodalMessages(rawApiMessages, imageDataUrl, provider.kind)
+    : rawApiMessages;
   const baseUrl = provider.base_url || DEFAULT_BASE_URLS[provider.kind];
 
   try {
@@ -290,7 +411,7 @@ function dispatchCall(
   apiKey: string,
   model: string,
   systemPrompt: string,
-  apiMessages: { role: string; content: string }[],
+  apiMessages: { role: string; content: string | Record<string, unknown>[] }[],
 ): Promise<string> {
   switch (kind) {
     case 'openai':

@@ -14,6 +14,8 @@ describe('BoundingBox', () => {
     text: 'Hello World',
     desc: 'A test box',
     colors: [],
+    imageDataUrl: null as string | null,
+    imageRole: 'both' as const,
   };
 
   beforeEach(() => {
@@ -158,5 +160,72 @@ describe('BoundingBox', () => {
     expect(wrapper).not.toBeNull();
     const btn = wrapper!.querySelector('.chat-bubble-btn');
     expect(btn).not.toBeNull();
+  });
+
+  describe('background image', () => {
+    it('当 imageDataUrl 非空时，应渲染背景图像', () => {
+      const boxWithImage = { ...baseBox, imageDataUrl: 'data:image/png;base64,fake123' };
+
+      const boxRef = () => {};
+      const { container } = render(
+        <BoundingBox
+          box={boxWithImage}
+          isSelected={false}
+          boxRef={boxRef}
+          interactionMode="idle"
+        />
+      );
+
+      const bgImg = container.querySelector('.bounding-box-bg-img') as HTMLImageElement;
+      expect(bgImg).not.toBeNull();
+      expect(bgImg!.src).toBe('data:image/png;base64,fake123');
+    });
+
+    it('当 imageDataUrl 为 null 时，不应渲染背景图像', () => {
+      const boxRef = () => {};
+      const { container } = render(
+        <BoundingBox
+          box={baseBox}
+          isSelected={false}
+          boxRef={boxRef}
+          interactionMode="idle"
+        />
+      );
+
+      const bgImg = container.querySelector('.bounding-box-bg-img');
+      expect(bgImg).toBeNull();
+    });
+
+    it('当 imageDataUrl 非空时，应渲染悬浮删除按钮（隐藏状态）', () => {
+      const boxWithImage = { ...baseBox, imageDataUrl: 'data:image/png;base64,fake123' };
+
+      const boxRef = () => {};
+      const { container } = render(
+        <BoundingBox
+          box={boxWithImage}
+          isSelected={false}
+          boxRef={boxRef}
+          interactionMode="idle"
+        />
+      );
+
+      const dismissBtn = container.querySelector('.bounding-box-img-dismiss') as HTMLButtonElement;
+      expect(dismissBtn).not.toBeNull();
+    });
+
+    it('当 imageDataUrl 为 null 时，不应渲染悬浮删除按钮', () => {
+      const boxRef = () => {};
+      const { container } = render(
+        <BoundingBox
+          box={baseBox}
+          isSelected={false}
+          boxRef={boxRef}
+          interactionMode="idle"
+        />
+      );
+
+      const dismissBtn = container.querySelector('.bounding-box-img-dismiss');
+      expect(dismissBtn).toBeNull();
+    });
   });
 });

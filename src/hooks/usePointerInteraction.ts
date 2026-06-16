@@ -175,7 +175,7 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
         el.remove();
 
         if (w >= 10 && h >= 10) {
-          addBox({ x, y, w, h, mode: 'obj', text: '', desc: '', colors: [] });
+          addBox({ x, y, w, h, mode: 'obj', text: '', desc: '', colors: [], imageDataUrl: null, imageRole: 'both' });
         }
         setDrawingGhost(null);
       } else if (ir.mode === 'dragging' && ir.currentBoxElement) {

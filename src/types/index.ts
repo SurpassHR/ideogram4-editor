@@ -8,6 +8,10 @@ export interface Box {
   text: string;
   desc: string;
   colors: string[];
+  /** Data URL（base64）或 Blob URL，用于在 box 中显示参考图像 */
+  imageDataUrl: string | null;
+  /** 图像用途：'background' 仅背景展示 | 'reference' 仅 AI 参考 | 'both' 两者 */
+  imageRole: 'background' | 'reference' | 'both';
 }
 
 export interface IdeogramElement {

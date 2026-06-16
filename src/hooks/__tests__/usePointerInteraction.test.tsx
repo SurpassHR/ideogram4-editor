@@ -43,7 +43,7 @@ describe('usePointerInteraction - click vs drag', () => {
   beforeEach(() => {
     useEditorStore.setState({
       boxes: [
-        { id: 'box_test', x: 50, y: 50, w: 100, h: 80, mode: 'obj', text: '', desc: '', colors: [] },
+        { id: 'box_test', x: 50, y: 50, w: 100, h: 80, mode: 'obj', text: '', desc: '', colors: [], imageDataUrl: null, imageRole: 'both' },
       ],
       selectedBoxId: null,
       activeChatBoxId: null,

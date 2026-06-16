@@ -31,15 +31,18 @@ src/
 │       └── index.test.ts             # Store 单元测试（openChat, selectBox, editingBoxId）
 ├── types/
 │   ├── index.ts                      # Box, IdeogramOutput, GenerationStatus 等类型
-│   └── chat.ts                       # ChatMessage 类型（id, role, content, timestamp, adopted）
+│   ├── chat.ts                       # ChatMessage 类型（id, role, content, timestamp, adopted）
+│   └── presets.ts                    # PromptPreset 接口 + 4 个内置预设模板
 ├── hooks/
 │   ├── usePointerInteraction.ts      # 画布 Pointer Events：绘制/拖拽/缩放 boxes + 单击/双击检测
 │   ├── useImageDrop.ts               # 图片拖放导入，PNG 元数据提取
+│   ├── useBoxImageImport.ts          # Box 图像导入：拖放/上传/粘贴 → FileReader → Data URL
 │   ├── useComfyUIGeneration.ts       # ComfyUI 生成流程编排
 │   ├── useArtboardZoom.ts            # 画板缩放/平移：wheel 缩放+中键拖拽+坐标转换
-│   ├── useChatPanel.ts               # AI 对话面板逻辑：消息发送/采纳/清空/模型选择
+│   ├── useChatPanel.ts               # AI 对话面板逻辑：消息发送/采纳/清空/预设/多模态图像
 │   └── __tests__/
-│       └── usePointerInteraction.test.tsx  # 交互 hook 测试（单击选中/拖拽/双击编辑）
+│       ├── usePointerInteraction.test.tsx  # 交互 hook 测试（单击选中/拖拽/双击编辑）
+│       └── useBoxImageImport.test.tsx      # 图像导入 hook 测试（拖放/过滤）
 ├── components/
 │   ├── layout/
 │   │   ├── App.tsx                   # 根组件：HeaderControls + MainContent
@@ -48,15 +51,16 @@ src/
 │   ├── canvas/
 │   │   ├── Artboard.tsx              # 画板容器：固定视口、滚轮缩放+中键平移、缩放控件
 │   │   ├── CanvasArea.tsx            # 交互式画布（Pointer Events）+ ChatPanel 渲染
-│   │   ├── BoundingBox.tsx           # 边界框：文字标签 + inline 编辑 input + ChatBubbleButton + resize
+│   │   ├── BoundingBox.tsx           # 边界框：文字标签 + inline 编辑 input + 背景图像 + 悬浮删除按钮 + resize
 │   │   ├── ChatBubbleButton.tsx      # ✨ 按钮：选中 box 时在右上角边框，编辑时在 input 内部右侧
 │   │   └── __tests__/
-│   │       └── BoundingBox.test.tsx  # BoundingBox 组件测试（文字/编辑/sparkle 按钮）
+│   │       └── BoundingBox.test.tsx  # BoundingBox 组件测试（文字/编辑/sparkle/背景图像 按钮）
 │   ├── panels/
 │   │   ├── GlobalSettingsPanel.tsx    # 全局设置：模式/描述/美学/光照/媒介/背景/调色板
 │   │   ├── BoxPropertiesPanel.tsx     # 边界框属性：模式/文本/描述/调色板/删除
 │   │   ├── ColorPalette.tsx          # 可复用颜色选择器 + 色板组件
-│   │   └── GlowGrid.tsx             # 装饰性交互式发光点阵背景容器
+│   │   ├── GlowGrid.tsx             # 装饰性交互式发光点阵背景容器
+│   │   └── RightPanelContainer.tsx   # 右列 Tab 导航容器（全局/边界框/LLM 三 tab）
 │   ├── json/
 │   │   └── JsonToolbar.tsx           # 生成 JSON / 从粘贴加载
 │   ├── comfyui/
@@ -68,15 +72,19 @@ src/
 │       ├── types.ts                  # LlmProvider, ProviderKind 类型 + 常量
 │       └── api.ts                    # LLM 提供商 CRUD（localStorage）+ 模型 API 调用
 │   └── chat/
-│       ├── ChatPanel.tsx             # AI 对话浮动面板（createPortal→body），rAF 平滑跟随 box 移动
-│       └── ChatMessage.tsx           # 用户/AI 消息气泡 + 采纳/忽略按钮
+│       ├── ChatPanel.tsx             # AI 对话浮动面板（createPortal→body），预设选择/语言选择/模型选择
+│       ├── ChatMessage.tsx           # 用户/AI 消息气泡 + 采纳/忽略按钮
+│       └── PresetManagerPanel.tsx    # 预设管理模态框：搜索/标签筛选/CRUD/变量参考
 ├── utils/
 │   ├── coordinates.ts               # 坐标归一化/反归一化（0-1000 ↔ 像素）
-│   ├── json-serializer.ts           # generateJSON() + parseBoxesFromJSON()
+│   ├── json-serializer.ts           # generateJSON() + parseBoxesFromJSON()，可选 image_data 导出
+│   ├── resolveTemplate.ts           # 模板变量替换：{box_text}/{box_desc}/{box_colors}/{box_mode}
 │   ├── png-metadata.ts              # 从 PNG tEXt chunk 提取 prompt/workflow 元数据
 │   └── comfyui-api.ts               # 轮询 ComfyUI /history 端点
 ├── services/
-│   └── llm-chat.ts                  # sendChatMessage() 多提供商 LLM API 调用（OpenAI/Anthropic/Gemini/OpenAI_compat）
+│   ├── llm-chat.ts                  # sendChatMessage() 多提供商 LLM + 多模态图像支持
+│   └── __tests__/
+│       └── llm-chat.test.ts         # 多模态消息格式测试（OpenAI/Anthropic/Gemini）
 └── workflow/
     ├── comfyui-workflow.ts           # 静态 ComfyUI workflow JSON 模板
     └── workflow-mutator.ts           # 向模板注入 prompt/width/height/seed
@@ -90,14 +98,14 @@ src/
 2. 单击 box 选中，双击 box 进入文字内联编辑模式（Enter 保存 / Escape 取消）
 3. 点击 ✨ 按钮（选中 box 右上角，或编辑时在 input 内部右侧）打开 AI 对话面板
 4. 画布置于 `Artboard` 画板容器中，支持滚轮缩放（以鼠标位置为中心）和中键拖拽平移
-3. 每个 box 存储为对象：`{ id, x, y, w, h, mode, text, desc, colors }`
+3. 每个 box 存储为对象：`{ id, x, y, w, h, mode, text, desc, colors, imageDataUrl, imageRole }`
 4. 全局状态存储在 Zustand store（`useEditorStore`）中
-5. `generateJSON()` 将 boxes 坐标归一化到 0-1000 范围，合并全局设置，输出 JSON
+5. `generateJSON()` 将 boxes 坐标归一化到 0-1000 范围，合并全局设置，输出 JSON（可选导出图像 Data URL）
 6. `generateImage()` 将 JSON 注入 ComfyUI workflow 模板，调用 ComfyUI API 生成图片
 
 ### 关键 Store 字段
 
-- `boxes[]` — 所有边界框的状态数组
+- `boxes[]` — 所有边界框的状态数组（每个含 `imageDataUrl` 和 `imageRole` 字段用于参考图）
 - `globalPalette[]` — 全局调色板（最多 16 色）
 - `photoArtStyleMode` — `MODE_PHOTO`(0) 或 `MODE_ARTSTYLE`(1)
 - `canvasW / canvasH` — 画布尺寸（256-4096）
@@ -108,6 +116,8 @@ src/
 - `isChatOpen` — AI 对话面板是否打开
 - `chatHistories` — 每个 box 的对话历史（`Record<string, ChatMessage[]>`）
 - `chatModel` — 选中的 LLM 模型标识（格式 `providerId:modelName`，持久化 localStorage `ideogram4-chat-model`）
+- `chatPresets[]` — 聊天提示词预设列表（持久化 localStorage `ideogram4-chat-presets`）
+- `chatResponseLang` — LLM 回复语言偏好（`'auto' | 'en' | 'zh'`，持久化 localStorage `ideogram4-chat-lang`）
 
 ### 坐标系统
 
