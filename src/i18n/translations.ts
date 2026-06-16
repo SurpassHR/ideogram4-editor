@@ -1,5 +1,3 @@
-export type Lang = 'en' | 'zh';
-
 export interface Translations {
   header: {
     width: string;
@@ -104,6 +102,15 @@ export interface Translations {
       fetchedModels: string;
       fetchFailed: string;
     };
+  };
+  optimize: {
+    optimizing: string;
+    aiSuggestion: string;
+    adopt: string;
+    dismiss: string;
+    noProvider: string;
+    failed: string;
+    sparkleTooltip: string;
   };
   common: {
     imageDropError: string;
@@ -219,6 +226,15 @@ const en: Translations = {
       fetchFailed: 'Failed to fetch models: {error}',
     },
   },
+  optimize: {
+    optimizing: 'AI is optimizing...',
+    aiSuggestion: 'AI Suggestion:',
+    adopt: 'Adopt',
+    dismiss: 'Dismiss',
+    noProvider: 'No LLM provider available. Please configure one first.',
+    failed: 'Optimization failed: {error}',
+    sparkleTooltip: 'AI optimize this field',
+  },
   common: {
     imageDropError: 'Please drop an image file.',
   },
@@ -332,6 +348,15 @@ const zh: Translations = {
       fetchedModels: '获取到 {count} 个模型',
       fetchFailed: '获取模型失败：{error}',
     },
+  },
+  optimize: {
+    optimizing: 'AI 正在优化...',
+    aiSuggestion: 'AI 建议：',
+    adopt: '采纳',
+    dismiss: '忽略',
+    noProvider: '暂无可用的 LLM 提供商，请先配置。',
+    failed: '优化失败：{error}',
+    sparkleTooltip: 'AI 优化此字段',
   },
   common: {
     imageDropError: '请拖放图像文件。',

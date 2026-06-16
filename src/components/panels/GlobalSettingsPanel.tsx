@@ -3,6 +3,7 @@ import { MODE_PHOTO, MODE_ARTSTYLE } from '../../types';
 import { useI18n } from '../../i18n/context';
 import ColorPalette from './ColorPalette';
 import GlowGrid from './GlowGrid';
+import OptimizableInput from './OptimizableInput';
 
 export default function GlobalSettingsPanel() {
   const highLevelDescription = useEditorStore(s => s.highLevelDescription);
@@ -47,59 +48,49 @@ export default function GlobalSettingsPanel() {
         </label>
       </div>
 
-      <div className="input-group">
-        <label>{t('panels.globalSettings.highLevelDescription')}</label>
-        <input
-          type="text"
-          value={highLevelDescription}
-          onChange={e => setGlobalSetting('highLevelDescription', e.target.value)}
-        />
-      </div>
+      <OptimizableInput
+        label={t('panels.globalSettings.highLevelDescription')}
+        fieldKey="highLevelDescription"
+        value={highLevelDescription}
+        onChange={v => setGlobalSetting('highLevelDescription', v)}
+      />
 
-      <div className="input-group">
-        <label>{t('panels.globalSettings.aesthetics')}</label>
-        <input
-          type="text"
-          value={aesthetics}
-          onChange={e => setGlobalSetting('aesthetics', e.target.value)}
-        />
-      </div>
+      <OptimizableInput
+        label={t('panels.globalSettings.aesthetics')}
+        fieldKey="aesthetics"
+        value={aesthetics}
+        onChange={v => setGlobalSetting('aesthetics', v)}
+      />
 
-      <div className="input-group">
-        <label>{t('panels.globalSettings.lighting')}</label>
-        <input
-          type="text"
-          value={lighting}
-          onChange={e => setGlobalSetting('lighting', e.target.value)}
-        />
-      </div>
+      <OptimizableInput
+        label={t('panels.globalSettings.lighting')}
+        fieldKey="lighting"
+        value={lighting}
+        onChange={v => setGlobalSetting('lighting', v)}
+      />
 
-      <div className="input-group">
-        <label>{t('panels.globalSettings.medium')}</label>
-        <input
-          type="text"
-          value={medium}
-          disabled={isPhoto}
-          onChange={e => setGlobalSetting('medium', e.target.value)}
-        />
-      </div>
+      <OptimizableInput
+        label={t('panels.globalSettings.medium')}
+        fieldKey="medium"
+        value={medium}
+        disabled={isPhoto}
+        onChange={v => setGlobalSetting('medium', v)}
+      />
 
-      <div className="input-group">
-        <label>{artStyleLabel}</label>
-        <input
-          type="text"
-          value={artStyle}
-          onChange={e => setGlobalSetting('artStyle', e.target.value)}
-        />
-      </div>
+      <OptimizableInput
+        label={artStyleLabel}
+        fieldKey="artStyle"
+        value={artStyle}
+        onChange={v => setGlobalSetting('artStyle', v)}
+      />
 
-      <div className="input-group">
-        <label>{t('panels.globalSettings.background')}</label>
-        <textarea
-          value={background}
-          onChange={e => setGlobalSetting('background', e.target.value)}
-        />
-      </div>
+      <OptimizableInput
+        label={t('panels.globalSettings.background')}
+        fieldKey="background"
+        value={background}
+        onChange={v => setGlobalSetting('background', v)}
+        multiline
+      />
 
       <ColorPalette
         label={t('panels.globalSettings.globalColorPalette')}

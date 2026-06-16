@@ -670,3 +670,138 @@ input[type="color"]::-webkit-color-swatch {
   background: var(--primary);
   color: white;
 }
+
+/* Sparkle (AI optimize) button */
+.sparkle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--text-muted);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.15s;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.sparkle-btn:hover:not(:disabled) {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-muted);
+}
+
+.sparkle-btn:disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+}
+
+/* Suggestion bar */
+.suggestion-bar {
+  margin-top: 8px;
+  background: var(--surface-raised);
+  border: 1px solid var(--primary);
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+
+.suggestion-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.suggestion-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--text-muted);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: suggestion-spin 0.6s linear infinite;
+}
+
+@keyframes suggestion-spin {
+  to { transform: rotate(360deg); }
+}
+
+.suggestion-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.suggestion-icon {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.suggestion-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.suggestion-content {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.5;
+  margin-bottom: 10px;
+}
+
+.suggestion-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.suggestion-btn {
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  border: none;
+  font-family: 'Inter', sans-serif;
+}
+
+.suggestion-btn.adopt {
+  background: var(--primary);
+  color: white;
+}
+
+.suggestion-btn.adopt:hover {
+  background: var(--primary-hover);
+}
+
+.suggestion-btn.dismiss {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+
+.suggestion-btn.dismiss:hover {
+  border-color: var(--text-muted);
+  color: var(--text);
+}
+
+/* Optimize toast */
+.optimize-toast {
+  margin-top: 6px;
+  padding: 6px 10px;
+  background: var(--danger);
+  color: white;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}

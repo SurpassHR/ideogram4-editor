@@ -32,6 +32,7 @@ Ideogram4 Editor 是一个基于 Web 的可视化编辑器，专为 [Ideogram 4]
 - 🔌 **ComfyUI 集成** — 直接调用本地 ComfyUI API 生成图片，支持种子控制和质量预设（Quality/Default/Turbo）
 - 🤖 **LLM 辅助** — 配置多个 LLM 提供商（OpenAI、Anthropic、Gemini、OpenAI 兼容），为 prompt 优化提供 AI 辅助
 - 💬 **AI 对话** — 选中边界框后打开 AI 对话面板，生成/优化 box 描述，支持多轮对话与一键采纳
+- ✨ **AI 优化提示词** — 全局设置面板每个输入框旁的 ✨ 按钮，一键调用 LLM 优化描述/美学/光照等字段，可采纳或忽略建议
 - 🎭 **黑暗主题** — 精心设计的深色 UI，自定义 CSS 变量驱动的设计系统，零外部 UI 组件库依赖
 - ✨ **发光点阵背景** — 交互式 CSS Masking + JS 坐标映射的动态发光点阵装饰效果
 
@@ -81,7 +82,9 @@ src/
 │   │   ├── CanvasArea.tsx                # 交互式画布（Pointer Events）
 │   │   └── BoundingBox.tsx               # 单个边界框覆盖层 + resize handle
 │   ├── panels/
-│   │   ├── GlobalSettingsPanel.tsx        # 全局设置：模式/描述/美学/光照/媒介/背景/调色板
+│   │   ├── GlobalSettingsPanel.tsx        # 全局设置：OptimizableInput 驱动的 AI 优化字段
+│   │   ├── OptimizableInput.tsx           # 可优化输入框：input/textarea + ✨ AI 优化按钮 + SuggestionBar
+│   │   ├── SuggestionBar.tsx              # AI 建议条：loading 动画 / 建议内容 + 采纳/忽略
 │   │   ├── BoxPropertiesPanel.tsx         # 边界框属性：模式/文本/描述/调色板/删除
 │   │   ├── ColorPalette.tsx              # 可复用颜色选择器 + 色板组件
 │   │   └── GlowGrid.tsx                 # 装饰性交互式发光点阵背景容器
@@ -95,13 +98,13 @@ src/
 │       ├── LlmConfigPanel.tsx            # LLM 配置模态框：CRUD + 模型拉取
 │       ├── types.ts                      # LlmProvider, ProviderKind 类型 + 常量
 │       └── api.ts                        # LLM 提供商 CRUD（localStorage）+ 模型 API 调用
+├── services/
+│   └── llm-chat.ts                       # LLM 对话与优化服务：sendChatMessage + optimizeText + provider/model 持久化
 ├── utils/
 │   ├── coordinates.ts                    # 坐标归一化/反归一化（0-1000 ↔ 像素）
 │   ├── json-serializer.ts               # generateJSON() + parseBoxesFromJSON()
 │   ├── png-metadata.ts                   # 从 PNG tEXt chunk 提取 prompt/workflow 元数据
 │   └── comfyui-api.ts                    # 轮询 ComfyUI /history 端点
-├── services/
-│   └── llm-chat.ts                       # LLM 对话服务：sendChatMessage + optimizeText，按 provider.kind 分发 API 调用
 └── workflow/
     ├── comfyui-workflow.ts               # 静态 ComfyUI workflow JSON 模板
     └── workflow-mutator.ts               # 向模板注入 prompt/width/height/seed
@@ -294,6 +297,16 @@ apiUrl: 'http://your-comfyui-host:8188'
 LLM 配置完全存储在浏览器本地（localStorage），包括：
 - 提供商列表及其连接参数
 - API Key（⚠️ 注意：API Key 以明文存储在 localStorage，请确保浏览器环境安全）
+
+### AI 优化提示词
+
+全局设置面板的每个输入字段旁都有一个 ✨ 按钮，点击后可调用配置的 LLM 对当前文本进行优化：
+
+- **触发方式**：点击输入框旁的 ✨ 按钮（仅在文本不为空时启用）
+- **优化流程**：✨ → loading 状态（输入框禁用 + 半透明） → 展示 AI 建议条 → 采纳/忽略
+- **字段专属提示词**：每个字段（高层描述、美学、光照、媒介、风格、背景）有针对性的系统提示词
+- **Provider 选择**：自动使用上次优化的 provider+model，持久化到 localStorage
+- **快捷键提示**：点击 ✨ 按钮时可查看 tooltip「AI 优化此字段」
 
 ---
 

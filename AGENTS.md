@@ -43,7 +43,9 @@ src/
 │   │   ├── CanvasArea.tsx            # 交互式画布（Pointer Events）
 │   │   └── BoundingBox.tsx           # 单个边界框覆盖层 + resize handle
 │   ├── panels/
-│   │   ├── GlobalSettingsPanel.tsx    # 全局设置：模式/描述/美学/光照/媒介/背景/调色板
+│   │   ├── GlobalSettingsPanel.tsx    # 全局设置：OptimizableInput 驱动的 AI 优化字段
+│   │   ├── OptimizableInput.tsx       # 可优化输入框：input/textarea + ✨ AI 优化按钮 + SuggestionBar
+│   │   ├── SuggestionBar.tsx          # AI 建议条：loading 动画 / 建议内容 + 采纳/忽略
 │   │   ├── BoxPropertiesPanel.tsx     # 边界框属性：模式/文本/描述/调色板/删除
 │   │   ├── ColorPalette.tsx          # 可复用颜色选择器 + 色板组件
 │   │   └── GlowGrid.tsx             # 装饰性交互式发光点阵背景容器
@@ -57,6 +59,8 @@ src/
 │       ├── LlmConfigPanel.tsx        # LLM 配置模态框：CRUD + 模型拉取
 │       ├── types.ts                  # LlmProvider, ProviderKind 类型 + 常量
 │       └── api.ts                    # LLM 提供商 CRUD（localStorage）+ 模型 API 调用
+├── services/
+│   └── llm-chat.ts                   # LLM 聊天：optimizeText() + provider/model 持久化
 ├── utils/
 │   ├── coordinates.ts               # 坐标归一化/反归一化（0-1000 ↔ 像素）
 │   ├── json-serializer.ts           # generateJSON() + parseBoxesFromJSON()
@@ -106,6 +110,14 @@ src/
 - 节点 `98:27`/`98:28`：画布宽高
 - 节点 `98:18`（RandomNoise）：seed 值
 - 节点 `98:156`（CustomCombo）：Quality/Default/Turbo 预设
+
+### AI 优化提示词
+
+- `OptimizableInput` 组件包装 input/textarea + ✨ 按钮，替代 `GlobalSettingsPanel` 中所有输入字段
+- 点击 ✨ → 调用 `services/llm-chat.ts` 的 `optimizeText(provider, model, text, fieldKey)`
+- 每个字段（highLevelDescription, aesthetics, lighting, medium, artStyle, background）有专属的系统提示词
+- `SuggestionBar` 展示 AI 建议：loading 动画 → 建议内容 + 采纳/忽略按钮
+- 上次使用的 provider+model 持久化到 localStorage key `ideogram4-optimize-provider`
 
 ### 国际化（i18n）
 

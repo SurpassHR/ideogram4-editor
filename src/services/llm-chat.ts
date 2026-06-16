@@ -2,10 +2,12 @@
  * LLM 对话与优化服务 — 纯函数，无状态副作用。
  *
  * - sendChatMessage: 按 provider.kind 分发 API 调用，30s 超时，非流式
- * - optimizeText: 构造单轮对话，调用 sendChatMessage，返回优化后的文本
+ * - optimizeText: 构造单轮对话，调用 sendChatMessage，返回 ChatResult
+ * - OptimizeSelection 持久化：localStorage 存储/读取上次优化的 provider+model
  */
 
 import type { LlmProvider } from '../components/llm/types';
+import { DEFAULT_BASE_URLS } from '../components/llm/types';
 import type { ChatMessage } from '../types/chat';
 import { messagesToApiFormat } from '../types/chat';
 
@@ -23,6 +25,9 @@ export const OPTIMIZE_PROMPTS: Record<string, string> = {
   artStyle: `You are an expert prompt writer for the Ideogram 4 image generation model. The user has written a brief art style description. Expand it into a rich art style specification (e.g., "impressionist oil painting style with visible brushstrokes, influenced by Claude Monet's water lilies series"). Output only the improved description, nothing else.`,
   background: `You are an expert prompt writer for the Ideogram 4 image generation model. The user has written a brief background description. Expand it into a detailed environment description with atmosphere and depth (e.g., "a serene misty forest clearing with towering ancient oaks, moss-covered stones, and a gentle stream winding through fern-lined banks"). Output only the improved description, nothing else.`,
 };
+
+const DEFAULT_OPTIMIZE_PROMPT =
+  'You are an expert prompt writer for the Ideogram 4 image generation model. Optimize the following text to be more vivid, specific, and descriptive. Output only the improved text, nothing else.';
 
 // ─── 通用返回结构 ──────────────────────────────────────────────────
 
@@ -165,10 +170,11 @@ export async function sendChatMessage(
   systemPrompt: string,
 ): Promise<ChatResult> {
   const apiMessages = messagesToApiFormat(messages);
+  const baseUrl = provider.base_url || DEFAULT_BASE_URLS[provider.kind];
 
   try {
     const content = await Promise.race([
-      dispatchCall(provider, model, systemPrompt, apiMessages),
+      dispatchCall(provider.kind, baseUrl, provider.api_key, model, systemPrompt, apiMessages),
       timeoutPromise(),
     ]);
     return { ok: true, content };
@@ -180,27 +186,27 @@ export async function sendChatMessage(
 
 /** 按 provider.kind 分发到对应的 API 调用 */
 function dispatchCall(
-  provider: LlmProvider,
+  kind: string,
+  baseUrl: string,
+  apiKey: string,
   model: string,
   systemPrompt: string,
   apiMessages: { role: string; content: string }[],
 ): Promise<string> {
-  const { kind, api_key, base_url } = provider;
-
   switch (kind) {
     case 'openai':
     case 'openai_compat':
       // OpenAI 格式：system 拼到 messages 队首
       return callOpenAI(
-        base_url,
-        api_key,
+        baseUrl,
+        apiKey,
         model,
         [{ role: 'system', content: systemPrompt }, ...apiMessages],
       );
     case 'anthropic':
-      return callAnthropic(base_url, api_key, model, systemPrompt, apiMessages);
+      return callAnthropic(baseUrl, apiKey, model, systemPrompt, apiMessages);
     case 'gemini':
-      return callGemini(base_url, api_key, model, systemPrompt, apiMessages);
+      return callGemini(baseUrl, apiKey, model, systemPrompt, apiMessages);
     default:
       throw new Error(`Unknown provider kind: ${kind}`);
   }
@@ -216,7 +222,7 @@ export async function optimizeText(
   currentText: string,
   fieldKey: string,
 ): Promise<ChatResult> {
-  const systemPrompt = OPTIMIZE_PROMPTS[fieldKey] || OPTIMIZE_PROMPTS.highLevelDescription;
+  const systemPrompt = OPTIMIZE_PROMPTS[fieldKey] || DEFAULT_OPTIMIZE_PROMPT;
 
   const messages: ChatMessage[] = [
     {
@@ -228,4 +234,26 @@ export async function optimizeText(
   ];
 
   return sendChatMessage(provider, model, messages, systemPrompt);
+}
+
+// ─── 持久化上次优化使用的 provider+model ────────────────────────────
+
+const OPTIMIZE_STORAGE_KEY = 'ideogram4-optimize-provider';
+
+export interface OptimizeSelection {
+  providerId: string;
+  model: string;
+}
+
+export function loadOptimizeSelection(): OptimizeSelection | null {
+  try {
+    const raw = localStorage.getItem(OPTIMIZE_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveOptimizeSelection(selection: OptimizeSelection): void {
+  localStorage.setItem(OPTIMIZE_STORAGE_KEY, JSON.stringify(selection));
 }
