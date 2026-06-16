@@ -106,7 +106,8 @@ clearBoxImage: (boxId: string) => void;
 - 在 `.bounding-box` 内部渲染 `<img>` 作为背景层
 - CSS: `position: absolute; inset: 0; z-index: 0; opacity: 0.6; object-fit: cover`
 - 文字标签和编辑 input 在 `z-index: 1` 层
-- 选中 box 有图像时，`BoxPropertiesPanel` 显示缩略图预览 + 清除按钮
+- 鼠标悬停在 box 上时，图像区域右上角显示小 ✕ 按钮（`z-index: 2`），点击调用 `clearBoxImage()` 删除图像
+- 删除按钮仅在 hover 时可见，使用 `opacity` 过渡动画
 
 ### 3.3 图像传入 AI（多模态）
 
