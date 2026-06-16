@@ -26,7 +26,8 @@ src/
 ├── store/
 │   └── index.ts                      # Zustand store（useEditorStore），单一数据源
 ├── types/
-│   └── index.ts                      # Box, IdeogramOutput, GenerationStatus 等类型
+│   ├── index.ts                      # Box, IdeogramOutput, GenerationStatus 等类型
+│   └── chat.ts                       # ChatMessage 类型 + 消息构造/转换辅助函数
 ├── hooks/
 │   ├── usePointerInteraction.ts      # 画布 Pointer Events：绘制/拖拽/缩放 boxes
 │   ├── useImageDrop.ts               # 图片拖放导入，PNG 元数据提取
@@ -61,6 +62,8 @@ src/
 │   ├── json-serializer.ts           # generateJSON() + parseBoxesFromJSON()
 │   ├── png-metadata.ts              # 从 PNG tEXt chunk 提取 prompt/workflow 元数据
 │   └── comfyui-api.ts               # 轮询 ComfyUI /history 端点
+├── services/
+│   └── llm-chat.ts                  # LLM 对话服务：sendChatMessage + optimizeText，按 provider.kind 分发 API 调用
 └── workflow/
     ├── comfyui-workflow.ts           # 静态 ComfyUI workflow JSON 模板
     └── workflow-mutator.ts           # 向模板注入 prompt/width/height/seed
@@ -85,6 +88,9 @@ src/
 - `canvasW / canvasH` — 画布尺寸（256-4096）
 - `generationStatus` — `'idle' | 'generating' | 'polling' | 'done' | 'error'`
 - `apiUrl` — ComfyUI API 地址（默认 `http://localhost:8188`）
+- `chatHistories` — `Record<boxId, ChatMessage[]>` 各 box 的 AI 对话历史
+- `activeChatBoxId` — 当前打开对话面板的 box ID（`null` 时面板关闭）
+- `isChatOpen` — 对话面板可见性标志
 
 ### 坐标系统
 

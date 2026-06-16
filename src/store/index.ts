@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { Box, IdeogramOutput, GenerationStatus, PhotoArtStyleMode } from '../types';
 import { MODE_ARTSTYLE, MODE_PHOTO } from '../types';
+import type { ChatMessage } from '../types/chat';
 
 interface EditorStore {
   canvasW: number;
@@ -44,6 +45,21 @@ interface EditorStore {
 
   generateJSON: () => IdeogramOutput;
   loadFromJSON: (json: IdeogramOutput) => void;
+
+  /** 各 box 的对话历史，key 为 boxId */
+  chatHistories: Record<string, ChatMessage[]>;
+  /** 当前打开对话面板的 box ID */
+  activeChatBoxId: string | null;
+  /** 对话面板是否可见 */
+  isChatOpen: boolean;
+  /** 打开指定 box 的对话面板 */
+  openChat: (boxId: string) => void;
+  /** 关闭对话面板 */
+  closeChat: () => void;
+  /** 向指定 box 的对话历史追加一条消息 */
+  addChatMessage: (boxId: string, msg: ChatMessage) => void;
+  /** 清空指定 box 的对话历史 */
+  clearChatHistory: (boxId: string) => void;
 }
 
 export const useEditorStore = create<EditorStore>((set, get) => ({
@@ -243,4 +259,26 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       photoArtStyleMode: mode,
     });
   },
+
+  chatHistories: {},
+  activeChatBoxId: null,
+  isChatOpen: false,
+
+  openChat: (boxId) => set({ activeChatBoxId: boxId, isChatOpen: true }),
+
+  closeChat: () => set({ isChatOpen: false, activeChatBoxId: null }),
+
+  addChatMessage: (boxId, msg) => set(state => ({
+    chatHistories: {
+      ...state.chatHistories,
+      [boxId]: [...(state.chatHistories[boxId] || []), msg],
+    },
+  })),
+
+  clearChatHistory: (boxId) => set(state => ({
+    chatHistories: {
+      ...state.chatHistories,
+      [boxId]: [],
+    },
+  })),
 }));

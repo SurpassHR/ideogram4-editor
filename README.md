@@ -31,6 +31,7 @@ Ideogram4 Editor 是一个基于 Web 的可视化编辑器，专为 [Ideogram 4]
 - 🖼️ **图片拖放导入** — 拖入 PNG 图片自动设置画布尺寸并显示底图；如果 PNG 包含 ComfyUI 元数据，自动提取并加载嵌入的 prompt
 - 🔌 **ComfyUI 集成** — 直接调用本地 ComfyUI API 生成图片，支持种子控制和质量预设（Quality/Default/Turbo）
 - 🤖 **LLM 辅助** — 配置多个 LLM 提供商（OpenAI、Anthropic、Gemini、OpenAI 兼容），为 prompt 优化提供 AI 辅助
+- 💬 **AI 对话** — 选中边界框后打开 AI 对话面板，生成/优化 box 描述，支持多轮对话与一键采纳
 - 🎭 **黑暗主题** — 精心设计的深色 UI，自定义 CSS 变量驱动的设计系统，零外部 UI 组件库依赖
 - ✨ **发光点阵背景** — 交互式 CSS Masking + JS 坐标映射的动态发光点阵装饰效果
 
@@ -63,7 +64,8 @@ src/
 ├── store/
 │   └── index.ts                          # Zustand store（useEditorStore），单一数据源
 ├── types/
-│   └── index.ts                          # Box, IdeogramOutput, GenerationStatus 等类型
+│   ├── index.ts                          # Box, IdeogramOutput, GenerationStatus 等类型
+│   └── chat.ts                           # ChatMessage 类型 + 消息构造/转换辅助函数
 ├── hooks/
 │   ├── usePointerInteraction.ts          # 画布 Pointer Events：绘制/拖拽/缩放 boxes
 │   ├── useImageDrop.ts                   # 图片拖放导入，PNG 元数据提取
@@ -98,6 +100,8 @@ src/
 │   ├── json-serializer.ts               # generateJSON() + parseBoxesFromJSON()
 │   ├── png-metadata.ts                   # 从 PNG tEXt chunk 提取 prompt/workflow 元数据
 │   └── comfyui-api.ts                    # 轮询 ComfyUI /history 端点
+├── services/
+│   └── llm-chat.ts                       # LLM 对话服务：sendChatMessage + optimizeText，按 provider.kind 分发 API 调用
 └── workflow/
     ├── comfyui-workflow.ts               # 静态 ComfyUI workflow JSON 模板
     └── workflow-mutator.ts               # 向模板注入 prompt/width/height/seed
@@ -140,6 +144,9 @@ POST /api/prompt → 轮询 /history/{id} → 显示生成图片
 | `seed` | `42` | 生成随机种子 |
 | `generationStatus` | `'idle'` | 生成状态：`idle | generating | polling | done | error` |
 | `generatedImageUrl` | `null` | 生成图像的 URL |
+| `chatHistories` | `{}` | 各 box 的 AI 对话历史（`Record<boxId, ChatMessage[]>`） |
+| `activeChatBoxId` | `null` | 当前打开对话面板的 box ID |
+| `isChatOpen` | `false` | 对话面板可见性标志 |
 
 ### 坐标系统
 

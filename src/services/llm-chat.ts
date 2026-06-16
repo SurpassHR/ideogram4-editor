@@ -1,0 +1,231 @@
+/**
+ * LLM 对话与优化服务 — 纯函数，无状态副作用。
+ *
+ * - sendChatMessage: 按 provider.kind 分发 API 调用，30s 超时，非流式
+ * - optimizeText: 构造单轮对话，调用 sendChatMessage，返回优化后的文本
+ */
+
+import type { LlmProvider } from '../components/llm/types';
+import type { ChatMessage } from '../types/chat';
+import { messagesToApiFormat } from '../types/chat';
+
+// ─── System Prompt 常量 ────────────────────────────────────────────
+
+/** AI 对话面板的系统提示词 */
+export const BOX_CHAT_SYSTEM_PROMPT = `You are an expert prompt writer for the Ideogram 4 image generation model. The user is describing the content of a specific region in an image. Based on their description, generate a more detailed and precise English prompt suitable for direct use in Ideogram 4 image generation. Your response should include rich visual details (color, material, lighting, posture, scene details, etc.). The user may converse in Chinese or English, but your response must always be an English prompt.`;
+
+/** 各全局设置字段的优化提示词 */
+export const OPTIMIZE_PROMPTS: Record<string, string> = {
+  highLevelDescription: `You are an expert prompt writer for the Ideogram 4 image generation model. The user has written a high-level description of the image they want to create. Rewrite it with more vivid visual details, compositional hints, and mood cues. Output only the improved English description, nothing else.`,
+  aesthetics: `You are an expert prompt writer for the Ideogram 4 image generation model. The user has written a brief aesthetics description. Transform it into a precise, evocative English aesthetics specification (e.g., "dreamy ethereal atmosphere with soft pastel tones and delicate bokeh overlays"). Output only the improved description, nothing else.`,
+  lighting: `You are an expert prompt writer for the Ideogram 4 image generation model. The user has written a brief lighting description. Expand it into a detailed lighting scenario (e.g., "warm golden hour sunlight streaming through a stained glass window, casting multicolored shadows on the marble floor"). Output only the improved description, nothing else.`,
+  medium: `You are an expert prompt writer for the Ideogram 4 image generation model. The user has written a brief medium description. Refine it into a precise medium specification (e.g., "high-resolution digital photograph shot on a Canon EOS R5 with a 85mm f/1.4 lens"). Output only the improved description, nothing else.`,
+  artStyle: `You are an expert prompt writer for the Ideogram 4 image generation model. The user has written a brief art style description. Expand it into a rich art style specification (e.g., "impressionist oil painting style with visible brushstrokes, influenced by Claude Monet's water lilies series"). Output only the improved description, nothing else.`,
+  background: `You are an expert prompt writer for the Ideogram 4 image generation model. The user has written a brief background description. Expand it into a detailed environment description with atmosphere and depth (e.g., "a serene misty forest clearing with towering ancient oaks, moss-covered stones, and a gentle stream winding through fern-lined banks"). Output only the improved description, nothing else.`,
+};
+
+// ─── 通用返回结构 ──────────────────────────────────────────────────
+
+export interface ChatResult {
+  ok: boolean;
+  content?: string;
+  error?: string;
+}
+
+const TIMEOUT_MS = 30_000;
+
+function timeoutPromise(): Promise<never> {
+  return new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('Request timeout (30s)')), TIMEOUT_MS),
+  );
+}
+
+// ─── Provider 分发 ─────────────────────────────────────────────────
+
+/** OpenAI / OpenAI Compatible 调用 */
+async function callOpenAI(
+  baseUrl: string,
+  apiKey: string,
+  model: string,
+  apiMessages: { role: string; content: string }[],
+): Promise<string> {
+  const url = `${baseUrl}/chat/completions`;
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      messages: apiMessages,
+      stream: false,
+    }),
+  });
+
+  if (!resp.ok) {
+    const body = await resp.text().catch(() => '');
+    throw new Error(`API error ${resp.status}: ${body.slice(0, 200)}`);
+  }
+
+  const data = await resp.json();
+  const choice = data.choices?.[0];
+  if (!choice?.message?.content) {
+    throw new Error('No content in API response');
+  }
+  return choice.message.content;
+}
+
+/** Anthropic 调用 */
+async function callAnthropic(
+  baseUrl: string,
+  apiKey: string,
+  model: string,
+  systemPrompt: string,
+  apiMessages: { role: string; content: string }[],
+): Promise<string> {
+  const url = `${baseUrl}/messages`;
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: 1024,
+      system: systemPrompt,
+      messages: apiMessages,
+    }),
+  });
+
+  if (!resp.ok) {
+    const body = await resp.text().catch(() => '');
+    throw new Error(`API error ${resp.status}: ${body.slice(0, 200)}`);
+  }
+
+  const data = await resp.json();
+  const block = data.content?.[0];
+  if (!block?.text) {
+    throw new Error('No content in API response');
+  }
+  return block.text;
+}
+
+/** Gemini 调用 */
+async function callGemini(
+  baseUrl: string,
+  apiKey: string,
+  model: string,
+  systemPrompt: string,
+  apiMessages: { role: string; content: string }[],
+): Promise<string> {
+  const url = `${baseUrl}/models/${model}:generateContent?key=${apiKey}`;
+
+  // Gemini 格式：systemInstruction + contents[]
+  const contents = apiMessages.map(m => ({
+    role: m.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: m.content }],
+  }));
+
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: systemPrompt }] },
+      contents,
+    }),
+  });
+
+  if (!resp.ok) {
+    const body = await resp.text().catch(() => '');
+    throw new Error(`API error ${resp.status}: ${body.slice(0, 200)}`);
+  }
+
+  const data = await resp.json();
+  const candidate = data.candidates?.[0];
+  const part = candidate?.content?.parts?.[0];
+  if (!part?.text) {
+    throw new Error('No content in API response');
+  }
+  return part.text;
+}
+
+// ─── 核心 API ──────────────────────────────────────────────────────
+
+/**
+ * 发送对话消息到 LLM，按 provider.kind 自动分发。
+ * 非流式，30s 超时。
+ */
+export async function sendChatMessage(
+  provider: LlmProvider,
+  model: string,
+  messages: ChatMessage[],
+  systemPrompt: string,
+): Promise<ChatResult> {
+  const apiMessages = messagesToApiFormat(messages);
+
+  try {
+    const content = await Promise.race([
+      dispatchCall(provider, model, systemPrompt, apiMessages),
+      timeoutPromise(),
+    ]);
+    return { ok: true, content };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { ok: false, error: msg };
+  }
+}
+
+/** 按 provider.kind 分发到对应的 API 调用 */
+function dispatchCall(
+  provider: LlmProvider,
+  model: string,
+  systemPrompt: string,
+  apiMessages: { role: string; content: string }[],
+): Promise<string> {
+  const { kind, api_key, base_url } = provider;
+
+  switch (kind) {
+    case 'openai':
+    case 'openai_compat':
+      // OpenAI 格式：system 拼到 messages 队首
+      return callOpenAI(
+        base_url,
+        api_key,
+        model,
+        [{ role: 'system', content: systemPrompt }, ...apiMessages],
+      );
+    case 'anthropic':
+      return callAnthropic(base_url, api_key, model, systemPrompt, apiMessages);
+    case 'gemini':
+      return callGemini(base_url, api_key, model, systemPrompt, apiMessages);
+    default:
+      throw new Error(`Unknown provider kind: ${kind}`);
+  }
+}
+
+/**
+ * 优化全局设置文本 — 内部构造单轮对话调用 sendChatMessage。
+ * fieldKey 用于选取 OPTIMIZE_PROMPTS 中对应的系统提示词。
+ */
+export async function optimizeText(
+  provider: LlmProvider,
+  model: string,
+  currentText: string,
+  fieldKey: string,
+): Promise<ChatResult> {
+  const systemPrompt = OPTIMIZE_PROMPTS[fieldKey] || OPTIMIZE_PROMPTS.highLevelDescription;
+
+  const messages: ChatMessage[] = [
+    {
+      id: `opt_${Date.now()}`,
+      role: 'user',
+      content: currentText,
+      timestamp: Date.now(),
+    },
+  ];
+
+  return sendChatMessage(provider, model, messages, systemPrompt);
+}
