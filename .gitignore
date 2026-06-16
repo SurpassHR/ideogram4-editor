@@ -15,6 +15,7 @@ dist/
 .cline/
 .codegraph/
 .mcp.json
+.superpowers/
 
 # Playwright
 .playwright-cli/
