@@ -6,9 +6,6 @@ export interface Translations {
     height: string;
     resetCanvas: string;
   };
-  main: {
-    instruction: string;
-  };
   panels: {
     globalSettings: {
       title: string;
@@ -176,9 +173,6 @@ const en: Translations = {
     height: 'Height:',
     resetCanvas: 'Reset Canvas',
   },
-  main: {
-    instruction: 'Click and drag on the canvas to create a bounding box. Drag and drop a PNG to import.',
-  },
   panels: {
     globalSettings: {
       title: 'Global Settings',
@@ -345,9 +339,6 @@ const zh: Translations = {
     width: '宽度：',
     height: '高度：',
     resetCanvas: '重置画布',
-  },
-  main: {
-    instruction: '在画布上拖拽以创建边界框。拖放 PNG 文件以导入。',
   },
   panels: {
     globalSettings: {
