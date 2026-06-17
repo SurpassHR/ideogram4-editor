@@ -150,17 +150,17 @@ export default function CanvasArea({ zoom, panX, panY, screenToCanvas, onFitToAr
       { label: t('contextMenu.paste'), shortcut: 'Ctrl+V', onClick: () => pasteBox(canvasX, canvasY) },
       { label: t('contextMenu.importBackgroundImage'), onClick: async () => {
         const dataUrl = await pickImageFile();
-        if (dataUrl) {
+        if (!dataUrl) return;
+        // 先读取图片尺寸，再同步设置画布大小和背景图
+        const img = new Image();
+        img.onload = () => {
+          const clampDim = (n: number) => Math.max(256, Math.min(4096, Math.round(n / 16) * 16));
+          setCanvasDimensions(clampDim(img.naturalWidth), clampDim(img.naturalHeight));
+          setCanvasRatio('custom');
           setCanvasBackgroundUrl(dataUrl);
-          // 读取图片尺寸，自动调整画布大小
-          const img = new Image();
-          img.onload = () => {
-            const clampDim = (n: number) => Math.max(256, Math.min(4096, Math.round(n / 16) * 16));
-            setCanvasDimensions(clampDim(img.naturalWidth), clampDim(img.naturalHeight));
-            setCanvasRatio('custom');
-          };
-          img.src = dataUrl;
-        }
+        };
+        img.onerror = () => setCanvasBackgroundUrl(dataUrl);
+        img.src = dataUrl;
       }},
     ];
 

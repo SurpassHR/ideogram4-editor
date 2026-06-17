@@ -197,15 +197,15 @@ export default function CanvasPage() {
       </GlowGrid>
 
       {/* Main Content: 画板 + JSON + 生成 + 右侧面板 */}
-      <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px', minWidth: 0, overflow: 'hidden' }}>
+      <div style={{ display: 'flex', gap: '20px', flex: 1, minHeight: 0 }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px', minWidth: 0, minHeight: 0, overflow: 'hidden' }}>
           <Artboard />
           <JsonToolbar />
           <ComfyUIControls />
           <ImagePreview />
         </div>
 
-        <div style={{ width: '320px', flexShrink: 0 }}>
+        <div style={{ width: '320px', flexShrink: 0, overflowY: 'auto' }}>
           <RightPanelContainer />
         </div>
       </div>
