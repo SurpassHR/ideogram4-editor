@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useEditorStore } from '../index';
 import { PRESETS_STORAGE_KEY } from '../../types/presets';
+import type { ChatMessage } from '../../types/chat';
+import type { IdeogramOutput } from '../../types';
 
 describe('EditorStore', () => {
   beforeEach(() => {
@@ -180,6 +182,170 @@ describe('EditorStore', () => {
       const parsed = JSON.parse(stored!);
       expect(parsed).toHaveLength(1);
       expect(parsed[0].name).toBe('持久化测试');
+    });
+  });
+
+  // ─── Canvas Chat Actions ──────────────────────────────────────
+
+  describe('Canvas Chat actions', () => {
+    beforeEach(() => {
+      useEditorStore.setState({
+        isCanvasChatOpen: false,
+        canvasChatMessages: [],
+        pendingIdeogramOutput: null,
+      });
+    });
+
+    describe('setCanvasChatOpen', () => {
+      it('应设置 isCanvasChatOpen 为 true', () => {
+        const { setCanvasChatOpen } = useEditorStore.getState();
+        setCanvasChatOpen(true);
+        expect(useEditorStore.getState().isCanvasChatOpen).toBe(true);
+      });
+
+      it('应设置 isCanvasChatOpen 为 false', () => {
+        useEditorStore.setState({ isCanvasChatOpen: true });
+        const { setCanvasChatOpen } = useEditorStore.getState();
+        setCanvasChatOpen(false);
+        expect(useEditorStore.getState().isCanvasChatOpen).toBe(false);
+      });
+    });
+
+    describe('addCanvasChatMessage', () => {
+      it('应将消息追加到 canvasChatMessages', () => {
+        const { addCanvasChatMessage } = useEditorStore.getState();
+        const msg: ChatMessage = {
+          id: 'msg_1',
+          role: 'user',
+          content: 'Design a garden scene',
+          timestamp: 1000,
+        };
+        addCanvasChatMessage(msg);
+
+        const state = useEditorStore.getState();
+        expect(state.canvasChatMessages).toHaveLength(1);
+        expect(state.canvasChatMessages[0]).toEqual(msg);
+      });
+
+      it('应支持追加多条消息', () => {
+        const { addCanvasChatMessage } = useEditorStore.getState();
+        const msg1: ChatMessage = {
+          id: 'msg_1',
+          role: 'user',
+          content: 'First',
+          timestamp: 1000,
+        };
+        const msg2: ChatMessage = {
+          id: 'msg_2',
+          role: 'assistant',
+          content: 'Response',
+          timestamp: 1001,
+        };
+        addCanvasChatMessage(msg1);
+        addCanvasChatMessage(msg2);
+
+        const state = useEditorStore.getState();
+        expect(state.canvasChatMessages).toHaveLength(2);
+        expect(state.canvasChatMessages[0].content).toBe('First');
+        expect(state.canvasChatMessages[1].content).toBe('Response');
+      });
+    });
+
+    describe('setPendingIdeogramOutput', () => {
+      it('应设置 pendingIdeogramOutput', () => {
+        const { setPendingIdeogramOutput } = useEditorStore.getState();
+        const output: IdeogramOutput = {
+          high_level_description: 'Test scene',
+          style_description: {
+            aesthetics: 'Minimal',
+            lighting: 'Soft',
+            medium: 'digital art',
+            art_style: 'flat',
+            color_palette: ['#FF0000'],
+          },
+          compositional_deconstruction: {
+            background: 'White',
+            elements: [
+              { type: 'obj', bbox: [0, 0, 500, 500], desc: 'A red box' },
+            ],
+          },
+        };
+        setPendingIdeogramOutput(output);
+
+        const state = useEditorStore.getState();
+        expect(state.pendingIdeogramOutput).not.toBeNull();
+        expect(state.pendingIdeogramOutput!.high_level_description).toBe('Test scene');
+      });
+
+      it('应能将 pendingIdeogramOutput 设为 null', () => {
+        const { setPendingIdeogramOutput } = useEditorStore.getState();
+        const output: IdeogramOutput = {
+          high_level_description: 'Test scene',
+          style_description: {
+            aesthetics: 'Minimal',
+            lighting: 'Soft',
+            color_palette: [],
+          },
+          compositional_deconstruction: {
+            background: 'White',
+            elements: [],
+          },
+        };
+        setPendingIdeogramOutput(output);
+        setPendingIdeogramOutput(null);
+
+        expect(useEditorStore.getState().pendingIdeogramOutput).toBeNull();
+      });
+    });
+
+    describe('clearCanvasChat', () => {
+      it('应清空 canvasChatMessages 和 pendingIdeogramOutput', () => {
+        const { addCanvasChatMessage, setPendingIdeogramOutput, clearCanvasChat } =
+          useEditorStore.getState();
+
+        addCanvasChatMessage({ id: 'msg_1', role: 'user', content: 'Hello', timestamp: 1000 });
+        setPendingIdeogramOutput({
+          high_level_description: 'Test',
+          style_description: { aesthetics: '', lighting: '', color_palette: [] },
+          compositional_deconstruction: { background: '', elements: [] },
+        });
+        clearCanvasChat();
+
+        const state = useEditorStore.getState();
+        expect(state.canvasChatMessages).toHaveLength(0);
+        expect(state.pendingIdeogramOutput).toBeNull();
+      });
+
+      it('初始状态下 clearCanvasChat 应为 no-op', () => {
+        const { clearCanvasChat } = useEditorStore.getState();
+        clearCanvasChat();
+
+        const state = useEditorStore.getState();
+        expect(state.canvasChatMessages).toHaveLength(0);
+        expect(state.pendingIdeogramOutput).toBeNull();
+      });
+
+      it('不应影响其他 store 字段', () => {
+        const { addCanvasChatMessage, setPendingIdeogramOutput, clearCanvasChat } =
+          useEditorStore.getState();
+
+        addCanvasChatMessage({ id: 'msg_1', role: 'user', content: 'Hello', timestamp: 1000 });
+        setPendingIdeogramOutput({
+          high_level_description: 'Test',
+          style_description: { aesthetics: '', lighting: '', color_palette: [] },
+          compositional_deconstruction: { background: '', elements: [] },
+        });
+
+        // 设置一些其他字段
+        useEditorStore.setState({ boxes: [{ id: 'box_0', x: 0, y: 0, w: 100, h: 100, mode: 'obj', text: '', desc: '', colors: [], imageDataUrl: null, imageRole: 'both' }] });
+
+        clearCanvasChat();
+
+        const state = useEditorStore.getState();
+        expect(state.canvasChatMessages).toHaveLength(0);
+        expect(state.pendingIdeogramOutput).toBeNull();
+        expect(state.boxes).toHaveLength(1); // boxes 不受影响
+      });
     });
   });
 });
