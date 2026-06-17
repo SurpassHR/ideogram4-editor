@@ -48,7 +48,7 @@ src/
 │   ├── layout/
 │   │   ├── App.tsx                   # 根组件：Hash 路由（#/ → CanvasPage, #/settings → SettingsPage）+ Header
 │   │   ├── HeaderControls.tsx        # 全局 Header：Logo 左侧 + 居中 Canvas/Settings 导航 + 右侧语言切换
-│   │   ├── MainContent.tsx           # CanvasPage：画布宽高控件 + 左列（Artboard+JSON+生成）右列（面板）
+│   │   ├── MainContent.tsx           # CanvasPage：比例+倍数画布控件（SelectMenu 比例下拉 + 倍数滑块 + 实时尺寸） + 左列（Artboard+JSON+生成）右列（面板）
 │   │   └── SettingsPage.tsx          # 设置页：左右两栏（LLM 提供商管理 + 提示词预设管理）
 │   ├── canvas/
 │   │   ├── Artboard.tsx              # 画板容器：固定视口、滚轮缩放+中键平移、缩放控件
@@ -125,7 +125,7 @@ src/
 
 ### 坐标系统
 
-- 画布实际像素：`canvasW × canvasH`（slider 控制，256-4096）
+- 画布实际像素：`canvasW × canvasH`（通过比例下拉框 + 倍数滑块控制，基数 256，scale 1-16，roundTo16 约束）
 - 画板视口：`Artboard` 组件提供固定视口，`useArtboardZoom` hook 管理 zoom（10%~500%）和 pan（中键拖拽）
 - 坐标转换：`screenToCanvas(sx, sy)` 将屏幕坐标转换为画布坐标，公式 `(sx - artboardRect.left - panX) / zoom`
 - JSON 输出坐标：归一化到 0-1000（`Math.round((val / max) * 1000)`）

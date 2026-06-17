@@ -436,7 +436,66 @@ body {
   box-shadow: 0 0 0 3px var(--primary-muted);
 }
 
-/* Slider row: horizontal layout for range + number input */
+/* Canvas Controls Row — 比例 + 倍数 + 实时尺寸 */
+.canvas-controls-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.canvas-controls-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.canvas-ratio-select {
+  flex-shrink: 0;
+}
+
+.canvas-ratio-select .select-menu-trigger {
+  width: auto;
+  min-width: 130px;
+}
+
+.canvas-custom-ratio {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.canvas-custom-ratio-sep {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin: 0 1px;
+}
+
+.canvas-scale-slider {
+  flex: 1;
+  min-width: 100px;
+  max-width: 200px;
+}
+
+.canvas-dims-display {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-width: 80px;
+  text-align: right;
+}
+
+/* Slider row */
 .slider-row {
   display: flex;
   align-items: center;

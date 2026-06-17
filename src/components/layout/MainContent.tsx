@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useEditorStore } from '../../store';
 import { useI18n } from '../../i18n/context';
 import Artboard from '../canvas/Artboard';
@@ -7,7 +7,45 @@ import ComfyUIControls from '../comfyui/ComfyUIControls';
 import ImagePreview from '../comfyui/ImagePreview';
 import RightPanelContainer from '../panels/RightPanelContainer';
 import GlowGrid from '../panels/GlowGrid';
+import SelectMenu from '../chat/SelectMenu';
 import { useImageDrop } from '../../hooks/useImageDrop';
+
+// ─── 比例预设 ────────────────────────────────────────────────
+
+const RATIO_KEYS = ['1:1', '16:9', '9:16', '4:3', '3:2', '2:1', 'custom'] as const;
+type RatioKey = typeof RATIO_KEYS[number];
+
+const RATIO_BASES: Record<RatioKey, { baseW: number; baseH: number }> = {
+  '1:1': { baseW: 256, baseH: 256 },
+  '16:9': { baseW: 256, baseH: 144 },
+  '9:16': { baseW: 144, baseH: 256 },
+  '4:3': { baseW: 256, baseH: 192 },
+  '3:2': { baseW: 240, baseH: 160 },
+  '2:1': { baseW: 256, baseH: 128 },
+  custom: { baseW: 256, baseH: 256 },
+};
+
+const roundTo16 = (n: number) => Math.round(n / 16) * 16;
+const clampDim = (n: number) => Math.max(256, Math.min(4096, roundTo16(n)));
+
+/** 根据比例 + 倍数 + 自定义宽高比计算实际画布尺寸 */
+function computeCanvasDims(ratio: RatioKey, scale: number, customW: number, customH: number) {
+  let baseW: number;
+  let baseH: number;
+  if (ratio === 'custom') {
+    const maxDim = Math.max(customW, customH, 1);
+    baseW = (256 * customW) / maxDim;
+    baseH = (256 * customH) / maxDim;
+  } else {
+    const bases = RATIO_BASES[ratio];
+    baseW = bases.baseW;
+    baseH = bases.baseH;
+  }
+  return {
+    w: clampDim(baseW * scale),
+    h: clampDim(baseH * scale),
+  };
+}
 
 export default function CanvasPage() {
   useImageDrop();
@@ -18,77 +56,140 @@ export default function CanvasPage() {
   const setCanvasDimensions = useEditorStore(s => s.setCanvasDimensions);
   const resetCanvas = useEditorStore(s => s.resetCanvas);
 
-  const [wDisplay, setWDisplay] = useState(String(canvasW).padStart(4, '0'));
-  const [hDisplay, setHDisplay] = useState(String(canvasH).padStart(4, '0'));
+  // ─── 比例 + 倍数 状态 ──────────────────────────────────────
+
+  const [selectedRatio, setSelectedRatio] = useState<RatioKey>('1:1');
+  const [scale, setScale] = useState(4);
+  const [customW, setCustomW] = useState(16);
+  const [customH, setCustomH] = useState(9);
+
+  const applyDimensions = useCallback(
+    (ratio: RatioKey, s: number, cw: number, ch: number) => {
+      const { w, h } = computeCanvasDims(ratio, s, cw, ch);
+      setCanvasDimensions(w, h);
+    },
+    [setCanvasDimensions],
+  );
+
+  // 首次挂载时同步初始尺寸（1:1, scale=4 → 1024×1024）
+  const initialized = useRef(false);
+  useEffect(() => {
+    if (!initialized.current) {
+      initialized.current = true;
+      applyDimensions('1:1', 4, 16, 9);
+    }
+  }, [applyDimensions]);
+
+  // ─── 事件处理 ──────────────────────────────────────────────
+
+  const handleRatioChange = useCallback(
+    (v: string) => {
+      const ratio = v as RatioKey;
+      setSelectedRatio(ratio);
+      applyDimensions(ratio, scale, customW, customH);
+    },
+    [scale, customW, customH, applyDimensions],
+  );
+
+  const handleScaleChange = useCallback(
+    (s: number) => {
+      setScale(s);
+      applyDimensions(selectedRatio, s, customW, customH);
+    },
+    [selectedRatio, customW, customH, applyDimensions],
+  );
+
+  const handleCustomChange = useCallback(
+    (cw: number, ch: number) => {
+      setCustomW(cw);
+      setCustomH(ch);
+      applyDimensions('custom', scale, cw, ch);
+    },
+    [scale, applyDimensions],
+  );
+
+  // ─── Ratio 选项（从 i18n 获取标签） ────────────────────────
+
+  const ratioOptions = RATIO_KEYS.map(k => ({
+    value: k,
+    label: t(`header.ratios.${k}` as Parameters<typeof t>[0]),
+  }));
 
   return (
     <>
-      {/* Canvas Controls: 宽高滑块 + 重置按钮 */}
+      {/* Canvas Controls: 比例 + 倍数 + 实时尺寸 */}
       <GlowGrid style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
-        <div className="input-group" style={{ margin: 0, flex: 1, minWidth: 200 }}>
-          <label>{t('header.width')} <span>{wDisplay}</span></label>
-          <div className="slider-row">
+        <div className="canvas-controls-row">
+          <span className="canvas-controls-label">{t('header.ratio')}</span>
+          <SelectMenu
+            options={ratioOptions}
+            value={selectedRatio}
+            onChange={handleRatioChange}
+            className="canvas-ratio-select"
+          />
+
+          {selectedRatio === 'custom' && (
+            <div className="canvas-custom-ratio">
+              <input
+                type="number"
+                className="slider-number"
+                style={{ width: 52 }}
+                min={1}
+                max={32}
+                value={customW}
+                onChange={e => {
+                  const v = Math.max(1, Math.min(32, parseInt(e.target.value) || 1));
+                  handleCustomChange(v, customH);
+                }}
+              />
+              <span className="canvas-custom-ratio-sep">:</span>
+              <input
+                type="number"
+                className="slider-number"
+                style={{ width: 52 }}
+                min={1}
+                max={32}
+                value={customH}
+                onChange={e => {
+                  const v = Math.max(1, Math.min(32, parseInt(e.target.value) || 1));
+                  handleCustomChange(customW, v);
+                }}
+              />
+            </div>
+          )}
+
+          <span className="canvas-controls-label">{t('header.scale')}</span>
+          <div className="slider-row canvas-scale-slider">
             <input
               type="range"
-              min={256}
-              max={4096}
-              step={16}
-              value={canvasW}
+              min={1}
+              max={16}
+              step={1}
+              value={scale}
               onChange={e => {
-                const w = parseInt(e.target.value);
-                setWDisplay(e.target.value.padStart(4, '0'));
-                setCanvasDimensions(w, canvasH);
+                const v = parseInt(e.target.value);
+                handleScaleChange(v);
               }}
             />
             <input
               type="number"
               className="slider-number"
-              min={256}
-              max={4096}
-              step={16}
-              value={canvasW}
+              style={{ width: 52 }}
+              min={1}
+              max={16}
+              value={scale}
               onChange={e => {
                 const raw = parseInt(e.target.value);
                 if (isNaN(raw)) return;
-                const w = Math.max(256, Math.min(4096, Math.round(raw / 16) * 16));
-                setWDisplay(String(w).padStart(4, '0'));
-                setCanvasDimensions(w, canvasH);
+                const v = Math.max(1, Math.min(16, Math.round(raw)));
+                handleScaleChange(v);
               }}
             />
           </div>
+
+          <span className="canvas-dims-display">{canvasW} × {canvasH}</span>
         </div>
-        <div className="input-group" style={{ margin: 0, flex: 1, minWidth: 200 }}>
-          <label>{t('header.height')} <span>{hDisplay}</span></label>
-          <div className="slider-row">
-            <input
-              type="range"
-              min={256}
-              max={4096}
-              step={16}
-              value={canvasH}
-              onChange={e => {
-                const h = parseInt(e.target.value);
-                setHDisplay(e.target.value.padStart(4, '0'));
-                setCanvasDimensions(canvasW, h);
-              }}
-            />
-            <input
-              type="number"
-              className="slider-number"
-              min={256}
-              max={4096}
-              step={16}
-              value={canvasH}
-              onChange={e => {
-                const raw = parseInt(e.target.value);
-                if (isNaN(raw)) return;
-                const h = Math.max(256, Math.min(4096, Math.round(raw / 16) * 16));
-                setHDisplay(String(h).padStart(4, '0'));
-                setCanvasDimensions(canvasW, h);
-              }}
-            />
-          </div>
-        </div>
+
         <button className="btn" onClick={resetCanvas}>{t('header.resetCanvas')}</button>
       </GlowGrid>
 

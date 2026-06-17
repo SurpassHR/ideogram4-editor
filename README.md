@@ -80,7 +80,7 @@ src/
 │   ├── layout/
 │   │   ├── App.tsx                       # 根组件：Hash 路由（#/ → CanvasPage, #/settings → SettingsPage）
 │   │   ├── HeaderControls.tsx            # 全局 Header：Logo + Canvas/Settings 导航 + 语言切换
-│   │   ├── MainContent.tsx               # CanvasPage：画布宽高控件 + 主布局
+│   │   ├── MainContent.tsx               # CanvasPage：比例+倍数画布控件 + 主布局
 │   │   └── SettingsPage.tsx              # 设置页：左右两栏（LLM 提供商 + 提示词预设）
 │   ├── canvas/
 │   │   ├── Artboard.tsx                  # 画板容器：固定视口、滚轮缩放+中键平移、缩放控件
@@ -148,7 +148,7 @@ POST /api/prompt → 轮询 /history/{id} → 显示生成图片
 
 | 字段 | 默认值 | 说明 |
 |------|--------|------|
-| `canvasW / canvasH` | `1024 / 1024` | 画布尺寸（像素，256-4096） |
+| `canvasW / canvasH` | `1024 / 1024` | 画布尺寸（像素，通过比例下拉框 + 倍数滑块控制，256-4096） |
 | `boxes[]` | `[]` | 所有边界框的状态数组 |
 | `selectedBoxId` | `null` | 当前选中的边界框 ID |
 | `globalPalette[]` | `[]` | 全局调色板（最多 16 色） |

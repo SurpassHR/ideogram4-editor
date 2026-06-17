@@ -2,9 +2,18 @@ export type Lang = 'en' | 'zh';
 
 export interface Translations {
   header: {
-    width: string;
-    height: string;
+    ratio: string;
+    scale: string;
     resetCanvas: string;
+    ratios: {
+      '1:1': string;
+      '16:9': string;
+      '9:16': string;
+      '4:3': string;
+      '3:2': string;
+      '2:1': string;
+      custom: string;
+    };
   };
   nav: {
     canvas: string;
@@ -180,9 +189,18 @@ export interface Translations {
 
 const en: Translations = {
   header: {
-    width: 'Width:',
-    height: 'Height:',
+    ratio: 'Ratio:',
+    scale: '×',
     resetCanvas: 'Reset Canvas',
+    ratios: {
+      '1:1': '1:1 (Square)',
+      '16:9': '16:9 (Widescreen)',
+      '9:16': '9:16 (Portrait)',
+      '4:3': '4:3 (Classic)',
+      '3:2': '3:2 (Photography)',
+      '2:1': '2:1 (Panorama)',
+      custom: 'Custom',
+    },
   },
   nav: {
     canvas: '🎨 Canvas',
@@ -358,9 +376,18 @@ const en: Translations = {
 
 const zh: Translations = {
   header: {
-    width: '宽度：',
-    height: '高度：',
+    ratio: '比例：',
+    scale: '×',
     resetCanvas: '重置画布',
+    ratios: {
+      '1:1': '1:1 (方形)',
+      '16:9': '16:9 (宽屏)',
+      '9:16': '9:16 (竖屏)',
+      '4:3': '4:3 (经典)',
+      '3:2': '3:2 (摄影)',
+      '2:1': '2:1 (全景)',
+      custom: '自定义',
+    },
   },
   nav: {
     canvas: '🎨 画布',
