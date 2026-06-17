@@ -330,13 +330,14 @@ body {
 .bounding-box-label {
   font-size: 12px;
   color: var(--text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-y: auto;
   flex: 1;
   min-width: 0;
-  line-height: 1.2;
+  line-height: 1.35;
   pointer-events: none;
+  max-height: 100%;
 }
 
 .bounding-box-input {
@@ -351,12 +352,17 @@ body {
   box-sizing: border-box;
   line-height: 1.4;
   font-family: inherit;
+  resize: none;
+  overflow-y: auto;
 }
 
 .bounding-box-input-wrapper {
-  position: relative;
+  display: flex;
+  align-items: flex-start;
   flex: 1;
   min-width: 0;
+  max-height: 100%;
+  overflow: hidden;
 }
 
 .bounding-box-input-wrapper .bounding-box-input {
@@ -365,9 +371,8 @@ body {
 
 .bounding-box-input-wrapper .chat-bubble-btn {
   position: absolute;
-  top: 50%;
+  top: 2px;
   right: 2px;
-  transform: translateY(-50%);
   width: 18px;
   height: 18px;
   font-size: 10px;

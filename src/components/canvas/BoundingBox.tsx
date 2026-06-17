@@ -19,19 +19,29 @@ export default function BoundingBox({ box, isSelected, boxRef, interactionMode, 
   const clearBoxImage = useEditorStore(s => s.clearBoxImage);
   const isEditing = editingBoxId === box.id;
   const [editText, setEditText] = useState(box.text);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // 进入编辑模式时，聚焦 input 并初始化文本
+  // 进入编辑模式时，聚焦 textarea 并初始化文本
   useEffect(() => {
-    if (isEditing && inputRef.current) {
+    if (isEditing && textareaRef.current) {
       setEditText(box.text);
-      inputRef.current.focus();
-      inputRef.current.select();
+      const ta = textareaRef.current;
+      ta.focus();
+      ta.select();
     }
   }, [isEditing, box.text]);
 
+  // 自动调整 textarea 高度
+  useEffect(() => {
+    const ta = textareaRef.current;
+    if (ta && isEditing) {
+      ta.style.height = 'auto';
+      ta.style.height = ta.scrollHeight + 'px';
+    }
+  }, [editText, isEditing]);
+
   const handleInputKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
+    if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       updateBox(box.id, { text: editText });
       setEditingBoxId(null);
@@ -91,9 +101,10 @@ export default function BoundingBox({ box, isSelected, boxRef, interactionMode, 
       <div className="bounding-box-content">
         {isEditing ? (
           <div className="bounding-box-input-wrapper">
-            <input
-              ref={inputRef}
+            <textarea
+              ref={textareaRef}
               className="bounding-box-input"
+              rows={1}
               value={editText}
               onChange={e => setEditText(e.target.value)}
               onKeyDown={handleInputKeyDown}
