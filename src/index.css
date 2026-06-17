@@ -1429,6 +1429,7 @@ input[type="color"]::-webkit-color-swatch {
 /* ─── Chat Message Cards ────────────────────────────────────────────── */
 
 .chat-msg-card {
+  flex-shrink: 0;
   border-radius: 8px;
   overflow: hidden;
   animation: chat-msg-in 0.2s ease-out;
