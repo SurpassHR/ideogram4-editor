@@ -166,3 +166,33 @@ npm run preview  # 预览生产构建
 ```
 
 需要本地 ComfyUI 实例（默认 `http://localhost:8188`）才能使用图片生成功能。LLM 配置存储在浏览器 localStorage 中。
+
+## Agent 工作流规则
+
+### 1. 使用 CodeGraph 阅读代码
+
+优先使用 CodeGraph MCP 工具来阅读和理解代码，而非直接 `Read` 文件或 `Bash grep`。CodeGraph 提供结构化代码分析能力：
+
+- `codegraph_get_ai_context` — 获取指定模块/函数的 AI 上下文，用于理解代码结构
+- `codegraph_get_curated_context` — 获取精选上下文，比直接读文件更高效
+- `codegraph_get_symbol_info` — 查询符号（函数/类/变量）的详细信息
+- `codegraph_get_call_graph` — 获取调用图，分析函数调用关系
+- `codegraph_find_by_imports` — 通过导入关系查找引用
+- `codegraph_find_by_signature` — 通过函数签名查找实现
+- `codegraph_search_by_pattern` — 代码模式搜索（替代 grep）
+- `codegraph_get_module_summary` — 获取模块摘要
+
+**适用场景**：理解代码结构、查找函数定义、分析调用链、搜索模式时优先用 CodeGraph。直接读文件仅用于需要查看完整文件内容或精确修改的场景。
+
+### 2. 使用弱模型 Subagent 并行任务
+
+在需要并行执行多个独立任务时，使用 `haiku` 或 `sonnet` 模型启动 subagent，避免使用 `opus` 模型浪费 token：
+
+- **探索/搜索类任务** — 使用 `haiku` 模型（如 Explore agent），适用于代码搜索、文件定位、模式匹配
+- **一般编码任务** — 使用 `sonnet` 模型，适用于实现、修复、重构等需要一定推理能力的任务
+- **复杂架构/设计任务** — 使用 `opus` 模型，仅用于需要深度推理的架构设计或复杂问题分析
+
+**并行策略**：
+- 3 个及以下独立任务 → 同时启动 subagent，使用 `haiku` 或 `sonnet` 模型
+- 4+ 独立任务 → 分批启动，每批最多 3 个
+- 被依赖的任务先完成，再启动依赖方
