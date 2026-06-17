@@ -198,11 +198,13 @@ export default function CanvasPage() {
 
       {/* Main Content: 画板 + JSON + 生成 + 右侧面板 */}
       <div style={{ display: 'flex', gap: '20px', flex: 1, minHeight: 0 }}>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px', minWidth: 0, minHeight: 0, overflow: 'hidden' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px', minWidth: 0, minHeight: 0 }}>
           <Artboard />
-          <JsonToolbar />
-          <ComfyUIControls />
-          <ImagePreview />
+          <div style={{ overflowY: 'auto', minHeight: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <JsonToolbar />
+            <ComfyUIControls />
+            <ImagePreview />
+          </div>
         </div>
 
         <div style={{ width: '320px', flexShrink: 0, overflowY: 'auto' }}>
