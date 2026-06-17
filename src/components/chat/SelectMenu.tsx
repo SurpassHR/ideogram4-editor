@@ -1,36 +1,43 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 
-export interface SelectOption {
+interface Option {
   value: string;
   label: string;
 }
 
 interface SelectMenuProps {
+  options: Option[];
   value: string;
   onChange: (value: string) => void;
-  options: SelectOption[];
-  className?: string;
   placeholder?: string;
-  buttonClassName?: string;
+  className?: string;
+  /** 可选的特殊选项列表（如打开管理器），渲染在列表顶部并用分隔线隔开 */
+  specialOptions?: { value: string; label: string }[];
+  onSpecialSelect?: (value: string) => void;
 }
 
+/** 紧凑型自定义下拉菜单 — createPortal 渲染 dropdown 以逃逸 overflow: hidden 裁剪 */
 export default function SelectMenu({
+  options,
   value,
   onChange,
-  options,
-  className = '',
   placeholder,
-  buttonClassName = '',
+  className = '',
+  specialOptions,
+  onSpecialSelect,
 }: SelectMenuProps) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
 
-  const selectedLabel = options.find(o => o.value === value)?.label ?? placeholder ?? '';
+  const currentLabel =
+    options.find(o => o.value === value)?.label ||
+    placeholder ||
+    '';
 
-  // 计算 dropdown 位置
+  // 计算 dropdown 相对于触发按钮的屏幕坐标
   const updatePosition = useCallback(() => {
     const btn = buttonRef.current;
     if (!btn) return;
@@ -43,39 +50,30 @@ export default function SelectMenu({
     });
   }, []);
 
-  const handleOpen = useCallback(() => {
-    updatePosition();
-    setIsOpen(true);
-  }, [updatePosition]);
+  const handleToggle = useCallback(() => {
+    if (!open) updatePosition();
+    setOpen(v => !v);
+  }, [open, updatePosition]);
 
-  const handleSelect = useCallback(
-    (val: string) => {
-      onChange(val);
-      setIsOpen(false);
-    },
-    [onChange],
-  );
-
-  // 点击 dropdown 外部关闭
+  // 点击外部关闭（捕获阶段避免 stopPropagation 冲突）
   useEffect(() => {
-    if (!isOpen) return;
-    const handleClick = (e: MouseEvent) => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
       if (
         buttonRef.current?.contains(e.target as Node) ||
         dropdownRef.current?.contains(e.target as Node)
       ) {
         return;
       }
-      setIsOpen(false);
+      setOpen(false);
     };
-    // 使用 mousedown 而非 click，避免与 button 的 click 竞争
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [isOpen]);
+    document.addEventListener('mousedown', handler, true);
+    return () => document.removeEventListener('mousedown', handler, true);
+  }, [open]);
 
-  // 打开时跟随滚动/resize 更新位置
+  // 打开时跟随滚动 / resize 更新位置
   useEffect(() => {
-    if (!isOpen) return;
+    if (!open) return;
     const handleUpdate = () => updatePosition();
     window.addEventListener('scroll', handleUpdate, true);
     window.addEventListener('resize', handleUpdate);
@@ -83,36 +81,56 @@ export default function SelectMenu({
       window.removeEventListener('scroll', handleUpdate, true);
       window.removeEventListener('resize', handleUpdate);
     };
-  }, [isOpen, updatePosition]);
+  }, [open, updatePosition]);
 
   // Escape 关闭
   useEffect(() => {
-    if (!isOpen) return;
+    if (!open) return;
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setIsOpen(false);
+      if (e.key === 'Escape') setOpen(false);
     };
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
-  }, [isOpen]);
+  }, [open]);
 
-  const dropdown = isOpen && (
+  const handleSelect = useCallback((v: string) => {
+    if (specialOptions?.find(s => s.value === v) && onSpecialSelect) {
+      onSpecialSelect(v);
+    } else {
+      onChange(v);
+    }
+    setOpen(false);
+  }, [onChange, specialOptions, onSpecialSelect]);
+
+  const dropdown = open && (
     <div
       ref={dropdownRef}
       className="select-menu-dropdown"
       style={dropdownStyle}
     >
-      {options.length === 0 ? (
+      {specialOptions?.map(opt => (
+        <div
+          key={opt.value}
+          className="select-menu-option special"
+          onClick={() => handleSelect(opt.value)}
+        >
+          {opt.label}
+        </div>
+      ))}
+      {specialOptions && specialOptions.length > 0 && options.length > 0 && (
+        <div className="select-menu-divider" />
+      )}
+      {options.map(opt => (
+        <div
+          key={opt.value}
+          className={`select-menu-option${opt.value === value ? ' selected' : ''}`}
+          onClick={() => handleSelect(opt.value)}
+        >
+          {opt.label}
+        </div>
+      ))}
+      {options.length === 0 && (!specialOptions || specialOptions.length === 0) && (
         <div className="select-menu-empty">—</div>
-      ) : (
-        options.map(opt => (
-          <div
-            key={opt.value}
-            className={`select-menu-option${opt.value === value ? ' selected' : ''}`}
-            onClick={() => handleSelect(opt.value)}
-          >
-            {opt.label}
-          </div>
-        ))
       )}
     </div>
   );
@@ -121,11 +139,11 @@ export default function SelectMenu({
     <div className={`select-menu-wrapper ${className}`}>
       <button
         ref={buttonRef}
-        className={`select-menu-trigger ${buttonClassName}`}
-        onClick={handleOpen}
+        className="select-menu-trigger"
+        onClick={handleToggle}
         type="button"
       >
-        <span className="select-menu-label">{selectedLabel}</span>
+        <span className="select-menu-label">{currentLabel}</span>
         <span className="select-menu-arrow">▾</span>
       </button>
       {createPortal(dropdown, document.body)}

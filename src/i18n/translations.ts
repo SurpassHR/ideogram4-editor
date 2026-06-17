@@ -129,6 +129,9 @@ export interface Translations {
     adopt: string;
     dismiss: string;
     adopted: string;
+    you: string;
+    copy: string;
+    copied: string;
     clearHistory: string;
     loading: string;
     error: string;
@@ -296,6 +299,9 @@ const en: Translations = {
     adopt: 'Adopt',
     dismiss: 'Dismiss',
     adopted: 'Adopted ✓',
+    you: 'You',
+    copy: 'Copy',
+    copied: 'Copied!',
     clearHistory: 'Clear',
     loading: 'AI is thinking...',
     error: 'Error: {error}',
@@ -463,6 +469,9 @@ const zh: Translations = {
     adopt: '采纳',
     dismiss: '忽略',
     adopted: '已采纳 ✓',
+    you: '你',
+    copy: '复制',
+    copied: '已复制！',
     clearHistory: '清空',
     loading: 'AI 正在思考...',
     error: '错误：{error}',
