@@ -200,7 +200,7 @@ export default function CanvasPage() {
       <div style={{ display: 'flex', gap: '20px', flex: 1, minHeight: 0 }}>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px', minWidth: 0, minHeight: 0 }}>
           <Artboard />
-          <div style={{ overflowY: 'auto', minHeight: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div style={{ overflowY: 'auto', maxHeight: '50%', minHeight: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <JsonToolbar />
             <ComfyUIControls />
             <ImagePreview />
