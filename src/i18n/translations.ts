@@ -135,6 +135,22 @@ export interface Translations {
     fitToArtboard: string;
     resetView: string;
   };
+  contextMenu: {
+    duplicate: string;
+    cut: string;
+    copy: string;
+    delete: string;
+    bringToFront: string;
+    sendToBack: string;
+    importReferenceImage: string;
+    clearReferenceImage: string;
+    openAiChat: string;
+    paste: string;
+    importBackgroundImage: string;
+    clearBackgroundImage: string;
+    clearAllBoxes: string;
+    fitToArtboard: string;
+  };
   chat: {
     title: string;
     boxBadge: string;
@@ -322,6 +338,22 @@ const en: Translations = {
     fitToArtboard: 'Fit to artboard',
     resetView: 'Reset view',
   },
+  contextMenu: {
+    duplicate: '📋 Duplicate',
+    cut: '✂️ Cut',
+    copy: '📄 Copy',
+    delete: '🗑️ Delete',
+    bringToFront: '⬆ Bring to Front',
+    sendToBack: '⬇ Send to Back',
+    importReferenceImage: '🖼 Import Reference Image',
+    clearReferenceImage: '🧹 Clear Reference Image',
+    openAiChat: '✨ Open AI Chat',
+    paste: '📋 Paste',
+    importBackgroundImage: '🖼 Import Background Image',
+    clearBackgroundImage: '🧹 Clear Background Image',
+    clearAllBoxes: '🧹 Clear All Boxes',
+    fitToArtboard: '📐 Fit to Artboard',
+  },
   chat: {
     title: '✨ AI Chat',
     boxBadge: 'box: {name}',
@@ -508,6 +540,22 @@ const zh: Translations = {
   artboard: {
     fitToArtboard: '适应画板',
     resetView: '重置视图',
+  },
+  contextMenu: {
+    duplicate: '📋 复制框',
+    cut: '✂️ 剪切',
+    copy: '📄 复制',
+    delete: '🗑️ 删除',
+    bringToFront: '⬆ 置于顶层',
+    sendToBack: '⬇ 置于底层',
+    importReferenceImage: '🖼 导入参考图像',
+    clearReferenceImage: '🧹 清除参考图像',
+    openAiChat: '✨ 打开 AI 对话',
+    paste: '📋 粘贴',
+    importBackgroundImage: '🖼 导入背景图像',
+    clearBackgroundImage: '🧹 清除背景图像',
+    clearAllBoxes: '🧹 清除所有框',
+    fitToArtboard: '📐 适应画板',
   },
   chat: {
     title: '✨ AI 对话',

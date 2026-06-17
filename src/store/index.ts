@@ -5,6 +5,9 @@ import type { PromptPreset } from '../types/presets';
 import { PRESETS_STORAGE_KEY, createBuiltinPresets } from '../types/presets';
 import { MODE_ARTSTYLE, MODE_PHOTO } from '../types';
 
+// ─── 内部剪贴板（模块级变量，非 OS 剪贴板）──────────────────────────
+let internalClipboard: Box | null = null;
+
 // ─── 预设持久化辅助 ────────────────────────────────────────────
 
 /** 从 localStorage 加载预设，首次使用自动初始化内置预设 */
@@ -99,6 +102,18 @@ interface EditorStore {
   addPreset: (preset: Omit<PromptPreset, 'id' | 'createdAt' | 'updatedAt'>) => void;
   updatePreset: (id: string, updates: Partial<Omit<PromptPreset, 'id'>>) => void;
   deletePreset: (id: string) => void;
+
+  // 画布背景图
+  canvasBackgroundUrl: string | null;
+  setCanvasBackgroundUrl: (url: string | null) => void;
+
+  // 框操作（右键菜单 + 键盘快捷键）
+  duplicateBox: (boxId: string) => void;
+  cutBox: (boxId: string) => void;
+  copyBox: (boxId: string) => void;
+  pasteBox: (x?: number, y?: number) => void;
+  bringToFront: (boxId: string) => void;
+  sendToBack: (boxId: string) => void;
 }
 
 export const useEditorStore = create<EditorStore>((set, get) => ({
@@ -310,6 +325,92 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     const newPresets = state.chatPresets.filter(p => p.id !== id);
     savePresetsToStorage(newPresets);
     set({ chatPresets: newPresets });
+  },
+
+  // ─── 画布背景图 ─────────────────────────────────────────────
+  canvasBackgroundUrl: null,
+  setCanvasBackgroundUrl: (url) => set({ canvasBackgroundUrl: url }),
+
+  // ─── 框操作（右键菜单 + 键盘快捷键）────────────────────────
+
+  duplicateBox: (boxId) => {
+    const state = get();
+    const box = state.boxes.find(b => b.id === boxId);
+    if (!box) return;
+    const newId = `box_${state.boxCounter}`;
+    const newBox: Box = {
+      ...box,
+      id: newId,
+      x: box.x + 20,
+      y: box.y + 20,
+    };
+    set({
+      boxes: [...state.boxes, newBox],
+      selectedBoxId: newId,
+      boxCounter: state.boxCounter + 1,
+    });
+  },
+
+  cutBox: (boxId) => {
+    const state = get();
+    const box = state.boxes.find(b => b.id === boxId);
+    if (!box) return;
+    internalClipboard = { ...box };
+    const newHistories = { ...state.chatHistories };
+    delete newHistories[boxId];
+    set({
+      boxes: state.boxes.filter(b => b.id !== boxId),
+      selectedBoxId: state.selectedBoxId === boxId ? null : state.selectedBoxId,
+      activeChatBoxId: state.activeChatBoxId === boxId ? null : state.activeChatBoxId,
+      isChatOpen: state.activeChatBoxId === boxId ? false : state.isChatOpen,
+      chatHistories: newHistories,
+    });
+  },
+
+  copyBox: (boxId) => {
+    const state = get();
+    const box = state.boxes.find(b => b.id === boxId);
+    if (!box) return;
+    internalClipboard = { ...box };
+  },
+
+  pasteBox: (x, y) => {
+    if (!internalClipboard) return;
+    const state = get();
+    const newId = `box_${state.boxCounter}`;
+    const newBox: Box = {
+      ...internalClipboard,
+      id: newId,
+      x: x ?? internalClipboard.x + 20,
+      y: y ?? internalClipboard.y + 20,
+    };
+    set({
+      boxes: [...state.boxes, newBox],
+      selectedBoxId: newId,
+      boxCounter: state.boxCounter + 1,
+    });
+  },
+
+  bringToFront: (boxId) => {
+    set(state => {
+      const idx = state.boxes.findIndex(b => b.id === boxId);
+      if (idx === -1 || idx === state.boxes.length - 1) return state;
+      const newBoxes = [...state.boxes];
+      const [box] = newBoxes.splice(idx, 1);
+      newBoxes.push(box);
+      return { boxes: newBoxes };
+    });
+  },
+
+  sendToBack: (boxId) => {
+    set(state => {
+      const idx = state.boxes.findIndex(b => b.id === boxId);
+      if (idx === -1 || idx === 0) return state;
+      const newBoxes = [...state.boxes];
+      const [box] = newBoxes.splice(idx, 1);
+      newBoxes.unshift(box);
+      return { boxes: newBoxes };
+    });
   },
 
   generateJSON: () => {

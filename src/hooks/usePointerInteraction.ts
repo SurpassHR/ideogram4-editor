@@ -220,6 +220,58 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
     };
   }, [screenToCanvas, addBox, updateBox, setEditingBoxId]);
 
+  // ─── 全局键盘快捷键 ──────────────────────────────────────────
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // 不拦截输入框中的按键
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT' ||
+        target.isContentEditable
+      ) return;
+
+      const store = useEditorStore.getState();
+      const { selectedBoxId } = store;
+
+      if (e.ctrlKey || e.metaKey) {
+        switch (e.key.toLowerCase()) {
+          case 'd':
+            if (selectedBoxId) {
+              e.preventDefault();
+              store.duplicateBox(selectedBoxId);
+            }
+            break;
+          case 'x':
+            if (selectedBoxId) {
+              e.preventDefault();
+              store.cutBox(selectedBoxId);
+            }
+            break;
+          case 'c':
+            if (selectedBoxId) {
+              e.preventDefault();
+              store.copyBox(selectedBoxId);
+            }
+            break;
+          case 'v':
+            e.preventDefault();
+            store.pasteBox();
+            break;
+        }
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selectedBoxId) {
+          e.preventDefault();
+          store.removeBox(selectedBoxId);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   return {
     boxRefs,
     registerBoxRef,

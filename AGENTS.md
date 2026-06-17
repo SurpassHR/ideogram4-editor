@@ -24,7 +24,7 @@ src/
 ├── test-setup.ts                     # 测试 setup（@testing-library/jest-dom 导入）
 ├── i18n/
 │   ├── context.tsx                   # I18nProvider + useI18n() hook（t() 函数 + 插值）
-│   └── translations.ts              # 中英双语字典（~90 条目），按 UI 区域组织
+│   └── translations.ts              # 中英双语字典（~120 条目），按 UI 区域组织
 ├── store/
 │   ├── index.ts                      # Zustand store（useEditorStore），单一数据源
 │   └── __tests__/
@@ -34,7 +34,7 @@ src/
 │   ├── chat.ts                       # ChatMessage 类型（id, role, content, timestamp, adopted）
 │   └── presets.ts                    # PromptPreset 接口 + 4 个内置预设模板
 ├── hooks/
-│   ├── usePointerInteraction.ts      # 画布 Pointer Events：绘制/拖拽/缩放 boxes + 单击/双击检测
+│   ├── usePointerInteraction.ts      # 画布 Pointer Events：绘制/拖拽/缩放 boxes + 单击/双击检测 + 全局键盘快捷键（Ctrl+D/C/X/V, Delete）
 │   ├── useImageDrop.ts               # 图片拖放导入，PNG 元数据提取
 │   ├── useBoxImageImport.ts          # Box 图像导入：拖放/上传/粘贴 → FileReader → Data URL
 │   ├── useComfyUIGeneration.ts       # ComfyUI 生成流程编排
@@ -52,8 +52,9 @@ src/
 │   │   └── SettingsPage.tsx          # 设置页：左右两栏（LLM 提供商管理 + 提示词预设管理）
 │   ├── canvas/
 │   │   ├── Artboard.tsx              # 画板容器：固定视口、滚轮缩放+中键平移、缩放控件
-│   │   ├── CanvasArea.tsx            # 交互式画布（Pointer Events）+ ChatPanel 渲染
-│   │   ├── BoundingBox.tsx           # 边界框：文字标签 + inline 编辑 input + 背景图像 + 悬浮删除按钮 + resize
+│   │   ├── CanvasArea.tsx            # 交互式画布（Pointer Events）+ 右键上下文菜单 + ChatPanel 渲染
+│   │   ├── BoundingBox.tsx           # 边界框：文字标签 + inline 编辑 input + 背景图像 + 悬浮删除按钮 + resize + 右键菜单
+│   │   ├── ContextMenu.tsx           # 通用右键上下文菜单（createPortal→body），支持分隔线/危险项/边界检测/Escape 关闭
 │   │   ├── ChatBubbleButton.tsx      # ✨ 按钮：选中 box 时在右上角边框，编辑时在 input 内部右侧
 │   │   └── __tests__/
 │   │       └── BoundingBox.test.tsx  # BoundingBox 组件测试（文字/编辑/sparkle/背景图像 按钮）
@@ -104,8 +105,9 @@ src/
 5. 画布置于 `Artboard` 画板容器中，支持滚轮缩放（以鼠标位置为中心）和中键拖拽平移
 6. 每个 box 存储为对象：`{ id, x, y, w, h, mode, text, desc, colors, imageDataUrl, imageRole }`
 7. 全局状态存储在 Zustand store（`useEditorStore`）中
-8. `generateJSON()` 将 boxes 坐标归一化到 0-1000 范围，合并全局设置，输出 JSON（可选导出图像 Data URL）
-9. `generateImage()` 将 JSON 注入 ComfyUI workflow 模板，调用 ComfyUI API 生成图片
+8. 右键 box 弹出框上下文菜单（Duplicate/Cut/Copy/Delete/层级/图像/AI Chat），右键画布空白弹出画布菜单（Paste/背景图/清除/Fit）；键盘快捷键 Ctrl+D/Ctrl+X/Ctrl+C/Ctrl+V/Delete 全局生效
+9. `generateJSON()` 将 boxes 坐标归一化到 0-1000 范围，合并全局设置，输出 JSON（可选导出图像 Data URL）
+10. `generateImage()` 将 JSON 注入 ComfyUI workflow 模板，调用 ComfyUI API 生成图片
 
 ### 关键 Store 字段
 
@@ -113,6 +115,7 @@ src/
 - `globalPalette[]` — 全局调色板（最多 16 色）
 - `photoArtStyleMode` — `MODE_PHOTO`(0) 或 `MODE_ARTSTYLE`(1)
 - `canvasW / canvasH` — 画布尺寸（256-4096）
+- `canvasBackgroundUrl` — 画布级背景参考图 Data URL（`null` 表示无背景图），渲染在 boxes 下方，opacity 0.5
 - `generationStatus` — `'idle' | 'generating' | 'polling' | 'done' | 'error'`
 - `apiUrl` — ComfyUI API 地址（默认 `http://localhost:8188`）
 - `editingBoxId` — 当前正在内联编辑的 box ID（`null` 表示无编辑），双击 box 进入编辑模式
@@ -122,6 +125,8 @@ src/
 - `chatModel` — 选中的 LLM 模型标识（格式 `providerId:modelName`，持久化 localStorage `ideogram4-chat-model`）
 - `chatPresets[]` — 聊天提示词预设列表（持久化 localStorage `ideogram4-chat-presets`）
 - `chatResponseLang` — LLM 回复语言偏好（`'auto' | 'en' | 'zh'`，持久化 localStorage `ideogram4-chat-lang`）
+- `duplicateBox / cutBox / copyBox / pasteBox / bringToFront / sendToBack` — 框操作（右键菜单 + 键盘快捷键），内部剪贴板（模块级变量，非 OS 剪贴板）
+- `setCanvasBackgroundUrl(url)` — 设置/清除画布背景图
 
 ### 坐标系统
 

@@ -62,7 +62,7 @@ export default function Artboard() {
           transformOrigin: 'top left',
         }}
       >
-        <CanvasArea zoom={zoom} panX={panX} panY={panY} screenToCanvas={screenToCanvas} />
+        <CanvasArea zoom={zoom} panX={panX} panY={panY} screenToCanvas={screenToCanvas} onFitToArtboard={fitToArtboard} />
       </div>
     </div>
   );

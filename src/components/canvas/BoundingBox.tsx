@@ -9,9 +9,10 @@ interface BoundingBoxProps {
   isSelected: boolean;
   boxRef: (el: HTMLDivElement | null) => void;
   interactionMode: InteractionMode;
+  onContextMenu?: (e: React.MouseEvent, boxId: string) => void;
 }
 
-export default function BoundingBox({ box, isSelected, boxRef, interactionMode }: BoundingBoxProps) {
+export default function BoundingBox({ box, isSelected, boxRef, interactionMode, onContextMenu }: BoundingBoxProps) {
   const editingBoxId = useEditorStore(s => s.editingBoxId);
   const setEditingBoxId = useEditorStore(s => s.setEditingBoxId);
   const updateBox = useEditorStore(s => s.updateBox);
@@ -63,6 +64,11 @@ export default function BoundingBox({ box, isSelected, boxRef, interactionMode }
         top: box.y,
         width: box.w,
         height: box.h,
+      }}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onContextMenu?.(e, box.id);
       }}
     >
       {box.imageDataUrl && (
