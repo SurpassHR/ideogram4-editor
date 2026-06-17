@@ -3,6 +3,7 @@ import { useEditorStore } from '../../store';
 import { useArtboardZoom } from '../../hooks/useArtboardZoom';
 import { useI18n } from '../../i18n/context';
 import CanvasArea from './CanvasArea';
+import CanvasChatPanel from './CanvasChatPanel';
 
 export default function Artboard() {
   const artboardRef = useRef<HTMLDivElement>(null);
@@ -64,6 +65,8 @@ export default function Artboard() {
       >
         <CanvasArea zoom={zoom} panX={panX} panY={panY} screenToCanvas={screenToCanvas} onFitToArtboard={fitToArtboard} />
       </div>
+
+      <CanvasChatPanel />
     </div>
   );
 }

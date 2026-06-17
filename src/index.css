@@ -2765,3 +2765,218 @@ input[type="color"]::-webkit-color-swatch {
   pointer-events: none;
   z-index: 0;
 }
+
+/* ─── Canvas Chat Panel (Artboard 底部，不随 zoom/pan) ────────────── */
+
+.canvas-chat-trigger {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 32px;
+  background: rgba(22, 22, 48, 0.78);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: none;
+  border-top: 1px solid rgba(124, 92, 252, 0.22);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background 0.2s, color 0.2s;
+  z-index: 55;
+}
+
+.canvas-chat-trigger:hover {
+  background: rgba(30, 30, 58, 0.85);
+  color: var(--text);
+}
+
+.canvas-chat-panel {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-height: 280px;
+  background: rgba(22, 22, 48, 0.78);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-top: 1px solid rgba(124, 92, 252, 0.22);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 55;
+  animation: canvas-chat-in 0.2s ease-out;
+}
+
+@keyframes canvas-chat-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.canvas-chat-panel .chat-messages {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.canvas-chat-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-bottom: 1px solid rgba(124, 92, 252, 0.18);
+  background: rgba(30, 30, 58, 0.5);
+  flex-shrink: 0;
+}
+
+.canvas-chat-header-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+/* ─── Canvas Chat Input ───────────────────────────────────────────── */
+
+.canvas-chat-input-area {
+  border-top: 1px solid rgba(124, 92, 252, 0.18);
+  background: rgba(30, 30, 58, 0.4);
+  flex-shrink: 0;
+}
+
+.canvas-chat-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-bottom: 1px solid rgba(124, 92, 252, 0.1);
+}
+
+.canvas-chat-input-row {
+  display: flex;
+  gap: 6px;
+  padding: 8px 10px;
+  align-items: flex-end;
+}
+
+.canvas-chat-input-area .chat-input {
+  flex: 1;
+  min-height: 48px;
+}
+
+.canvas-chat-input-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.canvas-chat-apply-btn {
+  padding: 5px 12px;
+  border: none;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #000;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: 'Inter', sans-serif;
+  white-space: nowrap;
+}
+
+.canvas-chat-apply-btn:hover:not(:disabled) {
+  background: #00e8bb;
+  box-shadow: 0 2px 10px rgba(0, 212, 170, 0.3);
+}
+
+.canvas-chat-apply-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ─── Canvas Chat Spinner ──────────────────────────────────────────── */
+
+.canvas-chat-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--text-muted);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: canvas-chat-spin 0.6s linear infinite;
+  vertical-align: middle;
+}
+
+@keyframes canvas-chat-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ─── Canvas Chat Toast ────────────────────────────────────────────── */
+
+.canvas-chat-toast {
+  padding: 8px 14px;
+  background: var(--accent);
+  color: #000;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+/* ─── Canvas Chat Apply Confirm Modal ───────────────────────────────── */
+
+.canvas-chat-confirm {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  width: 90vw;
+  max-width: 440px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+}
+
+.canvas-chat-confirm h3 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.canvas-chat-confirm-desc {
+  margin: 0 0 16px 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.canvas-chat-confirm-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.canvas-chat-confirm-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.canvas-chat-confirm-item input[type="checkbox"] {
+  margin-top: 2px;
+  accent-color: var(--primary);
+  flex-shrink: 0;
+}
+
+.canvas-chat-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
