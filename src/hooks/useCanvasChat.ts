@@ -49,10 +49,8 @@ export function useCanvasChat() {
 
   // 加载提供商列表
   useEffect(() => {
-    if (isCanvasChatOpen) {
-      getLlmProviders().then(setProviders);
-    }
-  }, [isCanvasChatOpen]);
+    getLlmProviders().then(setProviders);
+  }, []);
 
   const messages = canvasChatMessages;
 

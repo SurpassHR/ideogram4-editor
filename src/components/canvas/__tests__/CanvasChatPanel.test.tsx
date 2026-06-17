@@ -19,20 +19,18 @@ vi.mock('../../../components/llm/api', () => ({
   ]),
 }));
 
-/** 渲染折叠态 CanvasChatPanel */
-function renderFolded() {
+/** 渲染 CanvasChatPanel */
+function renderPanel() {
   return render(<I18nProvider><CanvasChatPanel /></I18nProvider>);
 }
 
-/** 渲染展开态（设置 isCanvasChatOpen=true + chatModel），等待异步 providers 加载 */
-async function renderExpanded(pendingOutput?: IdeogramOutput) {
+/** 渲染展开态（设置 chatModel），等待异步 providers 加载 */
+async function renderWithPending(pendingOutput?: IdeogramOutput) {
   useEditorStore.setState({
-    isCanvasChatOpen: true,
     chatModel: 'mock:gpt-4',
     pendingIdeogramOutput: pendingOutput ?? null,
   });
   const result = render(<I18nProvider><CanvasChatPanel /></I18nProvider>);
-  // 让 useEffect 中的 getLlmProviders mock 完成
   await act(() => new Promise(r => setTimeout(r, 50)));
   return result;
 }
@@ -68,65 +66,52 @@ describe('CanvasChatPanel', () => {
     });
   });
 
-  // ─── 折叠态 ────────────────────────────────────────────────────
+  // ─── 底部横杠 ────────────────────────────────────────────────────
 
-  it('折叠态应渲染触发条', () => {
-    renderFolded();
-    const toggle = document.querySelector('.canvas-chat-trigger');
-    expect(toggle).not.toBeNull();
-    expect(toggle!.textContent).toContain('AI Compose');
+  it('应渲染底部横杠 handle', () => {
+    renderPanel();
+    const handle = document.querySelector('.canvas-chat-handle');
+    expect(handle).not.toBeNull();
   });
 
-  it('点击触发条应展开面板', () => {
-    renderFolded();
-    const toggle = document.querySelector('.canvas-chat-trigger')!;
-    fireEvent.click(toggle);
-    expect(useEditorStore.getState().isCanvasChatOpen).toBe(true);
+  it('应渲染面板容器（始终渲染，hover 控制显示）', () => {
+    renderPanel();
+    const wrapper = document.querySelector('.canvas-chat-handle-wrapper');
+    expect(wrapper).not.toBeNull();
+    const panel = wrapper!.querySelector('.canvas-chat-panel');
+    expect(panel).not.toBeNull();
   });
 
-  // ─── 展开态 ────────────────────────────────────────────────────
+  // ─── 面板内容 ────────────────────────────────────────────────────
 
-  describe('展开态', () => {
-    it('展开后应显示面板', async () => {
-      await renderExpanded();
-      const panel = document.querySelector('.canvas-chat-panel');
-      expect(panel).not.toBeNull();
-    });
-
-    it('展开后应显示 header 标题', async () => {
-      await renderExpanded();
+  describe('面板内容', () => {
+    it('应显示 header 标题', async () => {
+      await renderWithPending();
       const header = document.querySelector('.canvas-chat-header-title');
       expect(header).not.toBeNull();
       expect(header!.textContent).toContain('Canvas AI Compose');
     });
 
     it('pendingIdeogramOutput 为 null 时不应显示 Apply 按钮', async () => {
-      await renderExpanded(null);
+      await renderWithPending(null);
       const applyBtn = document.querySelector('.canvas-chat-apply-btn');
       expect(applyBtn).toBeNull();
     });
 
     it('pendingIdeogramOutput 非 null 时应显示 Apply 按钮', async () => {
-      await renderExpanded(makePendingOutput());
+      await renderWithPending(makePendingOutput());
       const applyBtn = document.querySelector('.canvas-chat-apply-btn');
       expect(applyBtn).not.toBeNull();
       expect(applyBtn!.textContent).toContain('Apply');
     });
 
     it('点击 Apply 按钮应弹出确认弹窗', async () => {
-      await renderExpanded(makePendingOutput());
+      await renderWithPending(makePendingOutput());
       const applyBtn = document.querySelector('.canvas-chat-apply-btn')!;
       fireEvent.click(applyBtn);
       const dialog = document.querySelector('.canvas-chat-confirm');
       expect(dialog).not.toBeNull();
       expect(dialog!.textContent).toContain('Apply Composition');
-    });
-
-    it('点击折叠按钮应将面板折叠', async () => {
-      await renderExpanded();
-      const closeBtn = document.querySelector('.chat-close-btn')!;
-      fireEvent.click(closeBtn);
-      expect(useEditorStore.getState().isCanvasChatOpen).toBe(false);
     });
   });
 
@@ -134,7 +119,7 @@ describe('CanvasChatPanel', () => {
 
   describe('Apply 确认弹窗', () => {
     async function openConfirmDialog() {
-      await renderExpanded(makePendingOutput());
+      await renderWithPending(makePendingOutput());
       const applyBtn = document.querySelector('.canvas-chat-apply-btn')!;
       fireEvent.click(applyBtn);
     }
