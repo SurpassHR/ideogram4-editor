@@ -23,14 +23,25 @@
   --box-selected-fill: rgba(124, 92, 252, 0.12);
 }
 
+html {
+  height: 100%;
+}
+
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background-color: var(--bg);
   color: var(--text);
   margin: 0;
   padding: 20px;
+  height: 100%;
+  box-sizing: border-box;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  height: 100%;
+  overflow: hidden;
 }
 
 .panel {
