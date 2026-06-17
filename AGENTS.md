@@ -213,3 +213,30 @@ xvfb-run --server-args="-screen 0 1280x1024x24" "$PWCLI" open http://localhost:5
 - 3 个及以下独立任务 → 同时启动 subagent，使用 `haiku` 或 `sonnet` 模型
 - 4+ 独立任务 → 分批启动，每批最多 3 个
 - 被依赖的任务先完成，再启动依赖方
+
+### 3. 使用 Kanban 管理任务链
+
+多步骤实施建议使用 Kanban CLI 管理任务和依赖链，但必须注意以下规则：
+
+**分支规则**：
+- 创建任务时必须显式传 `--base-ref main`，避免 Kanban 创建 detached HEAD worktree 导致提交不在任何分支上
+- 禁止仅传 `--project-path` 而不传 `--base-ref`——fallback 行为不稳定
+- 依赖链（`task link`）中的任务会自动启动，无需手动 `task start`
+
+**正确示例**：
+```bash
+kanban task create --title "Task 1" --prompt "..." --base-ref main --project-path /path/to/project
+kanban task create --title "Task 2" --prompt "..." --base-ref main --project-path /path/to/project
+kanban task link --task-id <id2> --linked-task-id <id1> --project-path /path/to/project
+```
+
+**错误示例**：
+```bash
+# ❌ 缺少 --base-ref，可能创建 detached HEAD worktree
+kanban task create --title "Task 1" --prompt "..." --project-path /path/to/project
+```
+
+**故障处理**：
+- 如果任务完成但代码未合并到 main：在 main 上用 `git cherry-pick <commit>` 手动合并
+- 并行任务出现冲突时（多个 worktree 同时操作同一文件）：优先采用最后完成的任务代码，再手动修复
+- 任务 worktree 可在 `~/.cline/worktrees/<task-id>/` 找到
