@@ -1,14 +1,13 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useCanvasChat, type ApplySelections } from '../../hooks/useCanvasChat';
-import { useEditorStore } from '../../store';
 import ChatMessage from '../chat/ChatMessage';
 import SelectMenu from '../chat/SelectMenu';
 import { useI18n } from '../../i18n/context';
+import { useEditorStore } from '../../store';
 
 export default function CanvasChatPanel() {
   const {
-    isCanvasChatOpen,
     messages,
     pendingIdeogramOutput,
     isLoading,
@@ -19,11 +18,12 @@ export default function CanvasChatPanel() {
     applyOutput,
     applySelections,
     setApplySelections,
-    handleClose,
     handleSelectModel,
     setChatResponseLang,
     hasProviders,
   } = useCanvasChat();
+
+  const isCanvasChatOpen = useEditorStore(s => s.isCanvasChatOpen);
   const setCanvasChatOpen = useEditorStore(s => s.setCanvasChatOpen);
 
   const { t } = useI18n();
@@ -32,6 +32,33 @@ export default function CanvasChatPanel() {
   const [showApplyConfirm, setShowApplyConfirm] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesRef = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  // 点击画布空白区关闭面板
+  useEffect(() => {
+    if (!isCanvasChatOpen) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setCanvasChatOpen(false);
+      }
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [isCanvasChatOpen, setCanvasChatOpen]);
+
+  // Escape 关闭面板
+  useEffect(() => {
+    if (!isCanvasChatOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setCanvasChatOpen(false);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [isCanvasChatOpen, setCanvasChatOpen]);
+
+  const handleToggle = useCallback(() => {
+    setCanvasChatOpen(!isCanvasChatOpen);
+  }, [isCanvasChatOpen, setCanvasChatOpen]);
 
   // 新消息自动滚到底部
   useEffect(() => {
@@ -45,11 +72,10 @@ export default function CanvasChatPanel() {
     if (applyToast) {
       const timer = setTimeout(() => {
         setApplyToast(null);
-        handleClose();
       }, 2000);
       return () => clearTimeout(timer);
     }
-  }, [applyToast, handleClose]);
+  }, [applyToast]);
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputText(e.target.value);
@@ -88,118 +114,114 @@ export default function CanvasChatPanel() {
     setApplySelections(prev => ({ ...prev, [key]: !prev[key] }));
   }, [setApplySelections]);
 
-  // ─── 折叠态 ────────────────────────────────────────────────────
-  if (!isCanvasChatOpen) {
-    return (
-      <button className="canvas-chat-trigger" onClick={() => setCanvasChatOpen(true)}>
-        🤖 AI Compose — 输入主题意象，让 AI 帮你构图
-      </button>
-    );
-  }
-
-  // ─── 展开态 ────────────────────────────────────────────────────
+  // ─── 始终渲染：底部横杠可点击 toggle + JS 状态驱动面板 ──────
   return (
     <>
-      <div className="canvas-chat-panel">
-        {/* Header */}
-        <div className="canvas-chat-header">
-          <span className="canvas-chat-header-title">🤖 Canvas AI Compose</span>
-          <span className="chat-header-spacer" />
-          <button className="chat-close-btn" onClick={handleClose} title="Collapse">✕</button>
-        </div>
-
-        {/* 无 LLM 配置提示 */}
-        {!hasProviders && (
-          <div className="chat-no-provider">
-            <p>{t('chat.noProvider')}</p>
+      <div
+        ref={wrapperRef}
+        className={`canvas-chat-handle-wrapper${isCanvasChatOpen ? ' open' : ''}`}
+      >
+        <div className="canvas-chat-panel">
+          {/* Header */}
+          <div className="canvas-chat-header">
+            <span className="canvas-chat-header-title">🤖 Canvas AI Compose</span>
+            <span className="chat-header-spacer" />
           </div>
-        )}
 
-        {/* Messages */}
-        {hasProviders && (
-          <div className="chat-messages" ref={messagesRef}>
-            {messages.length === 0 && !isLoading && (
-              <div className="chat-empty-hint">{t('chat.emptyHint')}</div>
-            )}
-            {messages.map(msg => (
-              <ChatMessage
-                key={msg.id}
-                message={msg}
-                dismissed={false}
-              />
-            ))}
-            {isLoading && (
-              <div className="chat-loading">
-                <span className="canvas-chat-spinner" />
-                {' '}{t('chat.loading')}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Input Area */}
-        {hasProviders && (
-          <div className="canvas-chat-input-area">
-            <div className="canvas-chat-toolbar">
-              <SelectMenu
-                className="chat-model-select"
-                options={modelOptions.map(opt => ({ value: opt.value, label: opt.label }))}
-                value={chatModel}
-                onChange={handleSelectModel}
-                placeholder={t('chat.modelSelect')}
-              />
-              <SelectMenu
-                className="chat-lang-select"
-                options={[
-                  { value: 'auto', label: '🌐 Auto' },
-                  { value: 'en', label: 'EN' },
-                  { value: 'zh', label: '中文' },
-                ]}
-                value={chatResponseLang}
-                onChange={setChatResponseLang}
-              />
-              <span className="chat-header-spacer" />
+          {/* 无 LLM 配置提示 */}
+          {!hasProviders && (
+            <div className="chat-no-provider">
+              <p>{t('chat.noProvider')}</p>
             </div>
-            <div className="canvas-chat-input-row">
-              <textarea
-                ref={textareaRef}
-                className="chat-input"
-                rows={2}
-                value={inputText}
-                onChange={handleInputChange}
-                onKeyDown={handleKeyDown}
-                placeholder="Describe the scene you want to compose..."
-                disabled={isLoading}
-              />
-              <div className="canvas-chat-input-actions">
-                <button
-                  className="chat-send-btn"
-                  onClick={handleSend}
-                  disabled={isLoading || !inputText.trim()}
-                  title={t('chat.send')}
-                >
-                  {isLoading ? (
-                    <span className="canvas-chat-spinner" />
-                  ) : '➤'}
-                </button>
-                {pendingIdeogramOutput !== null && (
+          )}
+
+          {/* Messages */}
+          {hasProviders && (
+            <div className="chat-messages" ref={messagesRef}>
+              {messages.length === 0 && !isLoading && (
+                <div className="chat-empty-hint">{t('chat.emptyHint')}</div>
+              )}
+              {messages.map(msg => (
+                <ChatMessage
+                  key={msg.id}
+                  message={msg}
+                  dismissed={false}
+                />
+              ))}
+              {isLoading && (
+                <div className="chat-loading">
+                  <span className="canvas-chat-spinner" />
+                  {' '}{t('chat.loading')}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Input Area */}
+          {hasProviders && (
+            <div className="canvas-chat-input-area">
+              <div className="canvas-chat-toolbar">
+                <SelectMenu
+                  className="chat-model-select"
+                  options={modelOptions.map(opt => ({ value: opt.value, label: opt.label }))}
+                  value={chatModel}
+                  onChange={handleSelectModel}
+                  placeholder={t('chat.modelSelect')}
+                />
+                <SelectMenu
+                  className="chat-lang-select"
+                  options={[
+                    { value: 'auto', label: '🌐 Auto' },
+                    { value: 'en', label: 'EN' },
+                    { value: 'zh', label: '中文' },
+                  ]}
+                  value={chatResponseLang}
+                  onChange={setChatResponseLang}
+                />
+                <span className="chat-header-spacer" />
+              </div>
+              <div className="canvas-chat-input-row">
+                <textarea
+                  ref={textareaRef}
+                  className="chat-input"
+                  rows={2}
+                  value={inputText}
+                  onChange={handleInputChange}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Describe the scene you want to compose..."
+                  disabled={isLoading}
+                />
+                <div className="canvas-chat-input-actions">
                   <button
-                    className="canvas-chat-apply-btn"
-                    onClick={handleApply}
-                    disabled={isLoading}
+                    className="chat-send-btn"
+                    onClick={handleSend}
+                    disabled={isLoading || !inputText.trim()}
+                    title={t('chat.send')}
                   >
-                    Apply
+                    {isLoading ? (
+                      <span className="canvas-chat-spinner" />
+                    ) : '➤'}
                   </button>
-                )}
+                  {pendingIdeogramOutput !== null && (
+                    <button
+                      className="canvas-chat-apply-btn"
+                      onClick={handleApply}
+                      disabled={isLoading}
+                    >
+                      Apply
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Apply 成功 Toast */}
-        {applyToast && (
-          <div className="canvas-chat-toast">{applyToast}</div>
-        )}
+          {/* Apply 成功 Toast */}
+          {applyToast && (
+            <div className="canvas-chat-toast">{applyToast}</div>
+          )}
+        </div>
+        <div className="canvas-chat-handle" onClick={handleToggle} title="Toggle Canvas AI Compose" />
       </div>
 
       {/* Apply 确认弹窗 (createPortal → body) */}

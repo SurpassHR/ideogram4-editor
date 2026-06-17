@@ -2766,61 +2766,77 @@ input[type="color"]::-webkit-color-swatch {
   z-index: 0;
 }
 
-/* ─── Canvas Chat Panel (Artboard 底部，不随 zoom/pan) ────────────── */
+/* ─── Canvas Chat Panel (Artboard 居中悬浮，JS toggle) ────────── */
 
-.canvas-chat-trigger {
+.canvas-chat-handle-wrapper {
   position: absolute;
   bottom: 0;
-  left: 0;
-  right: 0;
-  height: 32px;
-  background: rgba(22, 22, 48, 0.78);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: none;
-  border-top: 1px solid rgba(124, 92, 252, 0.22);
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-family: 'Inter', sans-serif;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  transition: background 0.2s, color 0.2s;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 55;
+  width: 420px;
+  /* 覆盖 panel 最大高度 + handle 区域，提供完整的交互热区 */
+  height: 420px;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding-bottom: 8px;
 }
 
-.canvas-chat-trigger:hover {
-  background: rgba(30, 30, 58, 0.85);
-  color: var(--text);
+.canvas-chat-handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.22);
+  transition: background 0.25s, width 0.25s;
+  pointer-events: auto;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.canvas-chat-handle-wrapper.open .canvas-chat-handle,
+.canvas-chat-handle-wrapper:hover .canvas-chat-handle {
+  background: rgba(255, 255, 255, 0.45);
+  width: 48px;
 }
 
 .canvas-chat-panel {
   position: absolute;
-  bottom: 0;
+  bottom: 32px;
   left: 0;
   right: 0;
-  max-height: 280px;
-  background: rgba(22, 22, 48, 0.78);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-top: 1px solid rgba(124, 92, 252, 0.22);
+  max-height: 380px;
+  background: rgba(22, 22, 48, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(124, 92, 252, 0.25);
+  border-radius: 12px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  z-index: 55;
-  animation: canvas-chat-in 0.2s ease-out;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(124, 92, 252, 0.08);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(12px);
+  transition: opacity 0.2s ease-out, transform 0.2s ease-out;
 }
 
-@keyframes canvas-chat-in {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
+.canvas-chat-handle-wrapper.open .canvas-chat-panel {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
 }
 
 .canvas-chat-panel .chat-messages {
-  max-height: 200px;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
 }
 
 .canvas-chat-header {
