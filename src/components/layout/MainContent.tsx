@@ -53,15 +53,18 @@ export default function CanvasPage() {
 
   const canvasW = useEditorStore(s => s.canvasW);
   const canvasH = useEditorStore(s => s.canvasH);
+  const canvasRatio = useEditorStore(s => s.canvasRatio);
   const setCanvasDimensions = useEditorStore(s => s.setCanvasDimensions);
+  const setCanvasRatio = useEditorStore(s => s.setCanvasRatio);
   const resetCanvas = useEditorStore(s => s.resetCanvas);
 
   // ─── 比例 + 倍数 状态 ──────────────────────────────────────
 
-  const [selectedRatio, setSelectedRatio] = useState<RatioKey>('1:1');
   const [scale, setScale] = useState(4);
   const [customW, setCustomW] = useState(16);
   const [customH, setCustomH] = useState(9);
+
+  const selectedRatio = canvasRatio as RatioKey;
 
   const applyDimensions = useCallback(
     (ratio: RatioKey, s: number, cw: number, ch: number) => {
@@ -85,10 +88,10 @@ export default function CanvasPage() {
   const handleRatioChange = useCallback(
     (v: string) => {
       const ratio = v as RatioKey;
-      setSelectedRatio(ratio);
+      setCanvasRatio(ratio);
       applyDimensions(ratio, scale, customW, customH);
     },
-    [scale, customW, customH, applyDimensions],
+    [scale, customW, customH, applyDimensions, setCanvasRatio],
   );
 
   const handleScaleChange = useCallback(

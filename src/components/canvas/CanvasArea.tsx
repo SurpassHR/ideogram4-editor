@@ -75,6 +75,8 @@ export default function CanvasArea({ zoom, panX, panY, screenToCanvas, onFitToAr
   const generatedImageUrl = useEditorStore(s => s.generatedImageUrl);
   const canvasBackgroundUrl = useEditorStore(s => s.canvasBackgroundUrl);
   const setCanvasBackgroundUrl = useEditorStore(s => s.setCanvasBackgroundUrl);
+  const setCanvasDimensions = useEditorStore(s => s.setCanvasDimensions);
+  const setCanvasRatio = useEditorStore(s => s.setCanvasRatio);
 
   // Store actions
   const duplicateBox = useEditorStore(s => s.duplicateBox);
@@ -148,7 +150,17 @@ export default function CanvasArea({ zoom, panX, panY, screenToCanvas, onFitToAr
       { label: t('contextMenu.paste'), shortcut: 'Ctrl+V', onClick: () => pasteBox(canvasX, canvasY) },
       { label: t('contextMenu.importBackgroundImage'), onClick: async () => {
         const dataUrl = await pickImageFile();
-        if (dataUrl) setCanvasBackgroundUrl(dataUrl);
+        if (dataUrl) {
+          setCanvasBackgroundUrl(dataUrl);
+          // 读取图片尺寸，自动调整画布大小
+          const img = new Image();
+          img.onload = () => {
+            const clampDim = (n: number) => Math.max(256, Math.min(4096, Math.round(n / 16) * 16));
+            setCanvasDimensions(clampDim(img.naturalWidth), clampDim(img.naturalHeight));
+            setCanvasRatio('custom');
+          };
+          img.src = dataUrl;
+        }
       }},
     ];
 

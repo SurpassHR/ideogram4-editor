@@ -35,7 +35,9 @@ function savePresetsToStorage(presets: PromptPreset[]): void {
 interface EditorStore {
   canvasW: number;
   canvasH: number;
+  canvasRatio: string;
   setCanvasDimensions: (w: number, h: number) => void;
+  setCanvasRatio: (ratio: string) => void;
   resetCanvas: () => void;
 
   boxes: Box[];
@@ -119,11 +121,14 @@ interface EditorStore {
 export const useEditorStore = create<EditorStore>((set, get) => ({
   canvasW: 1024,
   canvasH: 1024,
+  canvasRatio: '1:1',
 
   setCanvasDimensions: (w, h) => set({
     canvasW: w,
     canvasH: h,
   }),
+
+  setCanvasRatio: (ratio) => set({ canvasRatio: ratio }),
 
   resetCanvas: () => set({
     boxes: [],
