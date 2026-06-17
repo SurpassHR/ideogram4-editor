@@ -91,6 +91,15 @@ interface EditorStore {
   setChatModel: (model: string) => void;
   setEditingBoxId: (id: string | null) => void;
 
+  // Canvas Chat 状态（画布级 AI 构图对话）
+  isCanvasChatOpen: boolean;
+  canvasChatMessages: ChatMessage[];
+  pendingIdeogramOutput: IdeogramOutput | null;
+  setCanvasChatOpen: (open: boolean) => void;
+  addCanvasChatMessage: (message: ChatMessage) => void;
+  setPendingIdeogramOutput: (output: IdeogramOutput | null) => void;
+  clearCanvasChat: () => void;
+
   // LLM 回复语言偏好（persist）
   chatResponseLang: string;
   setChatResponseLang: (lang: string) => void;
@@ -281,6 +290,24 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   },
 
   setEditingBoxId: (id) => set({ editingBoxId: id }),
+
+  // Canvas Chat 状态（画布级 AI 构图对话）
+  isCanvasChatOpen: false,
+  canvasChatMessages: [],
+  pendingIdeogramOutput: null,
+
+  setCanvasChatOpen: (open) => set({ isCanvasChatOpen: open }),
+
+  addCanvasChatMessage: (message) => set(state => ({
+    canvasChatMessages: [...state.canvasChatMessages, message],
+  })),
+
+  setPendingIdeogramOutput: (output) => set({ pendingIdeogramOutput: output }),
+
+  clearCanvasChat: () => set({
+    canvasChatMessages: [],
+    pendingIdeogramOutput: null,
+  }),
 
   // LLM 回复语言偏好
   chatResponseLang: localStorage.getItem('ideogram4-chat-lang') || 'auto',

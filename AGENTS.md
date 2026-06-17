@@ -87,6 +87,7 @@ src/
 │   └── comfyui-api.ts               # 轮询 ComfyUI /history 端点
 ├── services/
 │   ├── llm-chat.ts                  # sendChatMessage() 多提供商 LLM + 多模态图像支持
+  │   ├── llm-canvas-chat.ts           # Canvas Chat system prompt + JSON 提取验证 + 上下文构建
 │   └── __tests__/
 │       └── llm-chat.test.ts         # 多模态消息格式测试（OpenAI/Anthropic/Gemini）
 └── workflow/
@@ -125,6 +126,9 @@ src/
 - `chatModel` — 选中的 LLM 模型标识（格式 `providerId:modelName`，持久化 localStorage `ideogram4-chat-model`）
 - `chatPresets[]` — 聊天提示词预设列表（持久化 localStorage `ideogram4-chat-presets`）
 - `chatResponseLang` — LLM 回复语言偏好（`'auto' | 'en' | 'zh'`，持久化 localStorage `ideogram4-chat-lang`）
+- `isCanvasChatOpen` — 画布级 AI 构图对话面板展开/折叠状态（独立于 per-box ChatPanel）
+- `canvasChatMessages` — 画布级对话历史（`ChatMessage[]`，不绑定任何 box）
+- `pendingIdeogramOutput` — 最新 AI 回复中提取的待 Apply 的 `IdeogramOutput`，null 表示无有效 JSON
 - `duplicateBox / cutBox / copyBox / pasteBox / bringToFront / sendToBack` — 框操作（右键菜单 + 键盘快捷键），内部剪贴板（模块级变量，非 OS 剪贴板）
 - `setCanvasBackgroundUrl(url)` — 设置/清除画布背景图
 

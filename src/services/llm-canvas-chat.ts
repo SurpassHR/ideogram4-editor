@@ -1,0 +1,199 @@
+/**
+ * Canvas AI Chat 服务 — 画布级 AI 构图的 system prompt 构建 + JSON 提取/验证。
+ *
+ * - CANVAS_CHAT_SYSTEM_PROMPT: 完整的 system prompt，含 IdeogramOutput JSON Schema 与构图约束
+ * - buildCanvasChatContext: 接受当前 store 状态，返回 generateJSON() 结果字符串作为上下文
+ * - extractAndValidateIdeogramJSON: 从 AI 回复中提取 ```json 代码块并验证结构
+ */
+
+import type { IdeogramOutput } from '../types';
+import { generateJSON } from '../utils/json-serializer';
+
+// ─── System Prompt ──────────────────────────────────────────────────
+
+export const CANVAS_CHAT_SYSTEM_PROMPT = `You are an expert image composition designer for the Ideogram 4 image generation model.
+
+Your task: given a user's thematic description and the current canvas state (as a JSON prompt), design a complete visual composition. Return your composition as a valid IdeogramOutput JSON object inside a \`\`\`json code block.
+
+## JSON Schema
+
+The IdeogramOutput object has the following structure:
+
+{
+  "high_level_description": string,       // 1-2 sentence overall scene description
+  "style_description": {
+    "aesthetics": string,                  // visual aesthetic direction
+    "lighting": string,                    // lighting description
+    "color_palette": string[],             // max 16 global colors, 6-char hex uppercase (e.g., "#FF5733")
+    "medium": string,                      // artistic medium (for MODE_ARTSTYLE) or photograph
+    "art_style": string,                   // art style name (for MODE_ARTSTYLE) — do NOT include if "photo" is present
+    "photo": string                        // photo style description (for MODE_PHOTO) — do NOT include if "art_style" is present
+  },
+  "compositional_deconstruction": {
+    "background": string,                  // background description
+    "elements": [
+      {
+        "type": "obj" | "text",           // element type: "obj" for object region, "text" for text region
+        "bbox": [y1, x1, y2, x2],         // bounding box in 0-1000 normalized coordinates (y before x!)
+        "desc": string,                    // detailed English visual description of this element
+        "text": string,                    // required ONLY when type === "text" — the text content to render
+        "color_palette": string[]          // optional, max 5 colors per element, 6-char hex uppercase
+      }
+    ]
+  }
+}
+
+Important: "style_description" must use EITHER "art_style" + "medium" (art style mode) OR "photo" + "medium" (photo mode). Never include both "art_style" and "photo" in the same object.
+
+## Constraints
+
+- Elements: 1-8 boxes total. Design a balanced composition — not too sparse, not too crowded.
+- Each element must have:
+  - type: one of "obj" or "text"
+  - bbox: exactly 4 numbers [y1, x1, y2, x2], each in the range 0-1000, representing the normalized bounding box
+  - desc: a non-empty English string with detailed visual description (colors, materials, lighting, shape, texture, mood)
+- For "text" type elements, include the "text" field with the exact text to render.
+- Colors in color_palette must be 6-character hex uppercase strings (e.g., "#FF5733").
+- Elements should not overlap excessively — leave room for background and overall composition balance.
+- bbox coordinates: y1 < y2 and x1 < x2 must hold (valid rectangle).
+- high_level_description: 1-2 sentences summarizing the entire scene.
+
+## Output Format
+
+Always wrap your final JSON output in a \`\`\`json code block. You may briefly explain your design choices before or after the code block, but the valid JSON must be inside \`\`\`json ... \`\`\`.
+
+Example response format:
+
+Here's the composition I designed for your scene:
+
+\`\`\`json
+{
+  "high_level_description": "...",
+  "style_description": { ... },
+  "compositional_deconstruction": { ... }
+}
+\`\`\`
+
+If the user asks for revisions, adjust the JSON accordingly and return the updated version in a new \`\`\`json block.
+`;
+
+// ─── 上下文构建 ─────────────────────────────────────────────────────
+
+/** 构造画布级 Chat 所需的状态片段 */
+export interface CanvasChatStoreSnapshot {
+  boxes: Array<{
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    mode: 'obj' | 'text';
+    text: string;
+    desc: string;
+    colors: string[];
+    imageDataUrl: string | null;
+    imageRole: string;
+  }>;
+  canvasW: number;
+  canvasH: number;
+  globalPalette: string[];
+  highLevelDescription: string;
+  aesthetics: string;
+  lighting: string;
+  medium: string;
+  artStyle: string;
+  background: string;
+  photoArtStyleMode: 0 | 1;
+}
+
+/**
+ * 根据当前 store 状态构建画布上下文字符串。
+ * 调用 generateJSON() 获取当前画布的完整 JSON 表示，作为 LLM 的上下文输入。
+ */
+export function buildCanvasChatContext(snapshot: CanvasChatStoreSnapshot): string {
+  const json = generateJSON(
+    snapshot.boxes.map((b, i) => ({
+      id: `box_${i}`,
+      ...b,
+    })),
+    snapshot.canvasW,
+    snapshot.canvasH,
+    snapshot.globalPalette,
+    snapshot.highLevelDescription,
+    snapshot.aesthetics,
+    snapshot.lighting,
+    snapshot.medium,
+    snapshot.artStyle,
+    snapshot.background,
+    snapshot.photoArtStyleMode,
+  );
+
+  return JSON.stringify(json, null, 2);
+}
+
+// ─── JSON 提取与验证 ────────────────────────────────────────────────
+
+/**
+ * 从 AI 回复文本中提取第一个 ```json 代码块，解析并验证为 IdeogramOutput。
+ *
+ * 验证规则：
+ * 1. compositional_deconstruction.elements 存在且为非空数组
+ * 2. 每个 element.type ∈ ['obj', 'text']
+ * 3. 每个 element.bbox 恰好 4 个值，范围 0-1000
+ * 4. 每个 element.desc 为非空字符串
+ *
+ * @returns 验证通过的 IdeogramOutput，或 null（提取/解析/验证任一失败）
+ */
+export function extractAndValidateIdeogramJSON(text: string): IdeogramOutput | null {
+  // 1. 提取 ```json ... ``` 代码块
+  const jsonBlockMatch = text.match(/```json\s*([\s\S]*?)```/);
+  if (!jsonBlockMatch || !jsonBlockMatch[1]) return null;
+
+  const jsonStr = jsonBlockMatch[1].trim();
+
+  // 2. JSON.parse
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(jsonStr);
+  } catch {
+    return null;
+  }
+
+  // 3. 类型收窄：必须有 compositional_deconstruction.elements
+  if (
+    typeof parsed !== 'object' ||
+    parsed === null ||
+    Array.isArray(parsed)
+  ) {
+    return null;
+  }
+
+  const obj = parsed as Record<string, unknown>;
+  const cd = obj.compositional_deconstruction;
+  if (typeof cd !== 'object' || cd === null) return null;
+
+  const cdObj = cd as Record<string, unknown>;
+  const elements = cdObj.elements;
+  if (!Array.isArray(elements) || elements.length === 0) return null;
+
+  // 4. 验证每个 element
+  for (const el of elements) {
+    if (typeof el !== 'object' || el === null) return null;
+    const e = el as Record<string, unknown>;
+
+    // type ∈ ['obj', 'text']
+    if (e.type !== 'obj' && e.type !== 'text') return null;
+
+    // bbox: 恰好 4 个值，范围 0-1000
+    const bbox = e.bbox;
+    if (!Array.isArray(bbox) || bbox.length !== 4) return null;
+    for (const v of bbox) {
+      if (typeof v !== 'number' || Number.isNaN(v)) return null;
+      if (v < 0 || v > 1000) return null;
+    }
+
+    // desc: 非空字符串
+    if (typeof e.desc !== 'string' || e.desc.trim().length === 0) return null;
+  }
+
+  return parsed as IdeogramOutput;
+}
