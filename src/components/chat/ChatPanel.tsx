@@ -5,6 +5,8 @@ import { useChatPanel } from '../../hooks/useChatPanel';
 import ChatMessage from './ChatMessage';
 import LlmConfigPanel from '../llm/LlmConfigPanel';
 import PresetManagerPanel from './PresetManagerPanel';
+import SelectMenu from './SelectMenu';
+import type { SelectOption } from './SelectMenu';
 import { computeChatPanelPosition } from '../../utils/panelPosition';
 import { resolveTemplate } from '../../utils/resolveTemplate';
 
@@ -139,8 +141,7 @@ export default function ChatPanel() {
   }, []);
 
   // 选中预设：将模板文本填入输入框
-  const handlePresetChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
-    const presetId = e.target.value;
+  const handlePresetChange = useCallback((presetId: string) => {
     if (!presetId) {
       handleSelectPreset(null);
       return;
@@ -178,52 +179,6 @@ export default function ChatPanel() {
             ✕
           </button>
         </div>
-
-        {/* Controls row */}
-        {hasProviders && (
-          <div className="chat-header-controls">
-            {chatPresets.length > 0 && (
-              <select
-                className="chat-preset-select"
-                value={selectedPreset?.id || ''}
-                onChange={handlePresetChange}
-              >
-                <option value="">预设</option>
-                {chatPresets.map(p => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
-            )}
-
-            <select
-              className="chat-model-select"
-              value={chatModel}
-              onChange={e => handleSelectModel(e.target.value)}
-            >
-              {!chatModel && <option value="">{t('chat.modelSelect')}</option>}
-              {modelOptions.map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-
-            <select
-              className="chat-lang-select"
-              value={chatResponseLang}
-              onChange={e => setChatResponseLang(e.target.value)}
-            >
-              <option value="auto">🌐</option>
-              <option value="en">EN</option>
-              <option value="zh">中</option>
-            </select>
-
-            <button className="chat-preset-mgr-btn" onClick={() => setShowPresetManager(true)} title={t('chat.presets.manage')}>
-              ⚙
-            </button>
-            <button className="chat-clear-btn" onClick={handleClearHistory} title={t('chat.clearHistory')}>
-              🗑
-            </button>
-          </div>
-        )}
       </div>
 
       {/* 无 LLM 配置提示 */}
@@ -256,14 +211,66 @@ export default function ChatPanel() {
         </div>
       )}
 
+      {/* Toolbar: preset/model/lang selects + action buttons */}
+      {hasProviders && (
+        <div className="chat-toolbar">
+          {chatPresets.length > 0 && (
+            <SelectMenu
+              value={selectedPreset?.id || ''}
+              onChange={handlePresetChange}
+              options={[
+                { value: '', label: '预设' },
+                ...chatPresets.map(p => ({ value: p.id, label: p.name })),
+                { value: '__new__', label: '+ 管理预设' },
+              ]}
+              buttonClassName="chat-preset-select"
+            />
+          )}
+
+          <SelectMenu
+            value={chatModel}
+            onChange={handleSelectModel}
+            options={
+              chatModel
+                ? modelOptions.map(opt => ({ value: opt.value, label: opt.label }))
+                : [{ value: '', label: '选择模型' }, ...modelOptions.map(opt => ({ value: opt.value, label: opt.label }))]
+            }
+            buttonClassName="chat-model-select"
+          />
+
+          <SelectMenu
+            value={chatResponseLang}
+            onChange={setChatResponseLang}
+            options={[
+              { value: 'auto', label: '🌐' },
+              { value: 'en', label: 'EN' },
+              { value: 'zh', label: '中' },
+            ]}
+            buttonClassName="chat-lang-select"
+          />
+
+          <button className="chat-preset-mgr-btn" onClick={() => setShowPresetManager(true)} title={t('chat.presets.manage')}>
+            ⚙
+          </button>
+          <button className="chat-clear-btn" onClick={handleClearHistory} title={t('chat.clearHistory')}>
+            🗑
+          </button>
+        </div>
+      )}
+
       {/* Input */}
       {hasProviders && (
         <div className="chat-input-area">
-          <input
+          <textarea
             className="chat-input"
-            type="text"
+            rows={1}
             value={inputText}
-            onChange={e => setInputText(e.target.value)}
+            onChange={e => {
+              setInputText(e.target.value);
+              // 自动撑高：先重置再设为 scrollHeight
+              e.target.style.height = 'auto';
+              e.target.style.height = `${e.target.scrollHeight}px`;
+            }}
             onKeyDown={handleKeyDown}
             placeholder={t('chat.inputPlaceholder')}
             disabled={isLoading}

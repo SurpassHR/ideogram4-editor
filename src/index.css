@@ -975,14 +975,13 @@ input[type="color"]::-webkit-color-swatch {
 /* Chat Panel */
 .chat-panel {
   position: fixed;
-  width: 320px;
+  width: 370px;
   max-height: 400px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
   z-index: 90;
   animation: chat-panel-in 0.2s ease-out;
@@ -1043,28 +1042,19 @@ input[type="color"]::-webkit-color-swatch {
   flex-shrink: 0;
 }
 
-.chat-header-controls {
+.chat-toolbar {
   display: flex;
   align-items: center;
   gap: 4px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border-top: 1px solid var(--border);
 }
 
 .chat-model-select {
-  flex: 1;
-  min-width: 80px;
-  max-width: 160px;
-  padding: 3px 18px 3px 5px;
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  font-size: 10px;
-  background: var(--surface-raised);
-  color: var(--text);
-  cursor: pointer;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%238888aa' d='M5 7L0 2h10z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 3px center;
-  box-sizing: border-box;
+  width: 120px;
+  flex: none;
 }
 
 .chat-model-select:focus {
@@ -1228,17 +1218,26 @@ input[type="color"]::-webkit-color-swatch {
   flex-shrink: 0;
 }
 
+/* 当 toolbar 存在时（input 上方有 toolbar），避免与 toolbar 的 border-top 重复 */
+.chat-toolbar + .chat-input-area {
+  border-top: none;
+}
+
 .chat-input {
   flex: 1;
   padding: 6px 10px;
   border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 13px;
+  font-family: 'Inter', sans-serif;
   background: var(--surface-raised);
   color: var(--text);
-  font-family: 'Inter', sans-serif;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  resize: none;
+  overflow: hidden;
+  line-height: 1.5;
   box-sizing: border-box;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  min-height: 32px;
 }
 
 .chat-input:focus {
@@ -1314,16 +1313,8 @@ input[type="color"]::-webkit-color-swatch {
 /* ─── Chat: Preset Select ────────────────────────────────────────── */
 
 .chat-preset-select {
-  min-width: 80px;
-  max-width: 110px;
-  padding: 4px 6px;
-  font-size: 11px;
-  background: var(--bg);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  cursor: pointer;
-  flex-shrink: 0;
+  width: 100px;
+  flex: none;
 }
 
 .chat-preset-mgr-btn {
@@ -1349,23 +1340,103 @@ input[type="color"]::-webkit-color-swatch {
 
 /* LLM Response Language Select */
 .chat-lang-select {
+  width: 52px;
+  flex: none;
+}
+
+/* ─── SelectMenu ──────────────────────────────────────── */
+.select-menu-wrapper {
+  display: inline-flex;
+}
+
+.select-menu-trigger {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   padding: 4px 6px;
   font-size: 11px;
-  font-weight: 600;
   background: var(--bg);
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 4px;
   cursor: pointer;
-  flex-shrink: 0;
-  min-width: 50px;
+  background-image: none !important;
+  box-sizing: border-box;
+  white-space: nowrap;
 }
 
-.chat-lang-select:hover {
+.select-menu-trigger:hover {
   border-color: var(--primary);
 }
 
-/* ─── Modal (shared pattern) ─────────────────────────────────────── */
+.select-menu-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.select-menu-arrow {
+  flex-shrink: 0;
+  font-size: 8px;
+  color: var(--text-muted);
+  line-height: 1;
+  pointer-events: none;
+}
+
+.select-menu-dropdown {
+  position: fixed;
+  z-index: 200;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  padding: 4px;
+  max-height: 220px;
+  overflow-y: auto;
+  animation: select-menu-in 0.1s ease-out;
+}
+
+@keyframes select-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.select-menu-option {
+  padding: 6px 10px;
+  font-size: 11px;
+  color: var(--text);
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.1s;
+}
+
+.select-menu-option:hover {
+  background: var(--primary-muted);
+  color: var(--primary);
+}
+
+.select-menu-option.selected {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.select-menu-empty {
+  padding: 6px 10px;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* ─── Modal (shared pattern) ─────────────────────────────── */
 
 .modal-overlay {
   position: fixed;
