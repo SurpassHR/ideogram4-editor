@@ -197,7 +197,7 @@ export default function CanvasPage() {
       </GlowGrid>
 
       {/* Main Content: 画板 + JSON + 生成 + 右侧面板 */}
-      <div style={{ display: 'flex', gap: '20px', flex: 1, minHeight: 0 }}>
+      <div style={{ display: 'flex', gap: '20px', flex: 1, minHeight: 0, overflow: 'hidden' }}>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px', minWidth: 0, minHeight: 0 }}>
           <Artboard />
           <div style={{ overflowY: 'auto', maxHeight: '50%', minHeight: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -207,7 +207,7 @@ export default function CanvasPage() {
           </div>
         </div>
 
-        <div style={{ width: '320px', flexShrink: 0, overflowY: 'auto' }}>
+        <div style={{ width: '320px', flexShrink: 0 }}>
           <RightPanelContainer />
         </div>
       </div>

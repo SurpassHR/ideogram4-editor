@@ -10,7 +10,7 @@ Ideogram JSON Prompt 可视化编辑器 — 在画布上拖拽创建边界框，
 
 - React 19 + TypeScript + Vite 7
 - Zustand 5 状态管理
-- Tailwind CSS v4
+- 纯自定义 CSS（CSS 变量主题 + 语义类）
 - Vitest + @testing-library/react 测试框架
 - 零外部 UI 组件库
 - ComfyUI API 集成（`/api/prompt` + `/history/{id}` 轮询）
@@ -171,6 +171,14 @@ npm run preview  # 预览生产构建
 ```
 
 需要本地 ComfyUI 实例（默认 `http://localhost:8188`）才能使用图片生成功能。LLM 配置存储在浏览器 localStorage 中。
+
+### 视觉验证
+
+```bash
+export CODEX_HOME="${CODEX_HOME:-$HOME/.codex}" && \
+export PWCLI="$CODEX_HOME/skills/playwright/scripts/playwright_cli.sh" && \
+xvfb-run --server-args="-screen 0 1280x1024x24" "$PWCLI" open http://localhost:5173 --headed 2>&1
+```
 
 ## Agent 工作流规则
 
