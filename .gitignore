@@ -19,6 +19,7 @@ dist/
 
 # Playwright
 .playwright-cli/
+output/
 
 # OS
 .DS_Store
