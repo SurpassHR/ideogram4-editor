@@ -5,10 +5,12 @@ import { getLlmProviders, saveLlmProvider, deleteLlmProvider, fetchModels } from
 import { useI18n } from '../../i18n/context';
 
 interface Props {
-  onClose: () => void;
+  onClose?: () => void;
+  /** 内嵌模式：不渲染模态框遮罩，直接展示内容 */
+  embedded?: boolean;
 }
 
-export default function LlmConfigPanel({ onClose }: Props) {
+export default function LlmConfigPanel({ onClose, embedded }: Props) {
   const [providers, setProviders] = useState<LlmProvider[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -133,38 +135,45 @@ export default function LlmConfigPanel({ onClose }: Props) {
   };
 
   if (loading) {
+    const loadingContent = (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: embedded ? 200 : 400 }}>
+        <p style={{ color: 'var(--text-secondary)' }}>{t('llmConfig.loading')}</p>
+      </div>
+    );
+    if (embedded) return <div className="llm-config-embedded">{loadingContent}</div>;
     return (
       <div className="llm-overlay">
         <div className="llm-modal" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 400 }}>
-          <p style={{ color: 'var(--text-secondary)' }}>{t('llmConfig.loading')}</p>
+          {loadingContent}
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="llm-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="llm-modal">
-        {/* Header */}
-        <div className="llm-header">
-          <button className="btn" onClick={onClose} style={{ background: 'transparent', color: 'var(--text-secondary)', padding: '4px 8px' }}>
+  const bodyContent = (
+    <>
+      {/* Header */}
+      <div className="llm-header">
+        {!embedded && (
+          <button className="btn llm-back-btn" onClick={onClose}>
             {t('llmConfig.back')}
           </button>
-          <span style={{ fontWeight: 600, fontSize: 15 }}>{t('llmConfig.title')}</span>
-          <div style={{ width: 60 }} />
-        </div>
+        )}
+        <span className="llm-header-title">{t('llmConfig.title')}</span>
+        <div style={{ width: embedded ? 0 : 60 }} />
+      </div>
 
         {/* Body */}
-        <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+        <div className="llm-body">
           {/* Sidebar */}
           <div className="llm-sidebar">
             <div className="llm-sidebar-header">
-              <span style={{ fontWeight: 600, fontSize: 12, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('llmConfig.providers')}</span>
-              <button className="btn" onClick={startNew} style={{ padding: '3px 10px', fontSize: 11 }}>{t('llmConfig.addProvider')}</button>
+              <span className="llm-sidebar-header-label">{t('llmConfig.providers')}</span>
+              <button className="btn btn-small" onClick={startNew} style={{ padding: '3px 10px', fontSize: 11 }}>{t('llmConfig.addProvider')}</button>
             </div>
-            <div style={{ flex: 1, overflow: 'auto' }}>
+            <div className="llm-sidebar-list">
               {providers.length === 0 ? (
-                <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>
+                <div className="llm-sidebar-empty">
                   {t('llmConfig.noProviders')}
                 </div>
               ) : (
@@ -176,22 +185,21 @@ export default function LlmConfigPanel({ onClose }: Props) {
                     onMouseEnter={() => setDeleteTarget(p.id)}
                     onMouseLeave={() => setDeleteTarget(null)}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div className="llm-provider-info">
                       <span className={`llm-dot ${p.models.length > 0 ? 'active' : ''}`} />
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div className="llm-provider-name-wrap">
+                        <div className="llm-provider-name">
                           {p.name || p.id}
                         </div>
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                        <div className="llm-provider-meta">
                           {KIND_LABELS[p.kind]} · {t('llm.models', { count: p.models.length })}
                         </div>
                       </div>
                     </div>
                     {deleteTarget === p.id && (
                       <button
-                        className="btn btn-danger"
+                        className="btn btn-danger llm-provider-delete-btn"
                         onClick={e => { e.stopPropagation(); handleDelete(p.id); }}
-                        style={{ padding: '2px 6px', fontSize: 11, lineHeight: 1.4 }}
                       >
                         ✕
                       </button>
@@ -203,16 +211,16 @@ export default function LlmConfigPanel({ onClose }: Props) {
           </div>
 
           {/* Main */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+          <div className="llm-detail">
             {!selectedId && !isNew ? (
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', gap: 12 }}>
-                <div style={{ fontSize: 32 }}>⚙️</div>
-                <p style={{ fontSize: 13, margin: 0 }}>{t('llmConfig.selectOrCreate')}</p>
+              <div className="llm-detail-empty">
+                <div className="llm-detail-empty-icon">⚙️</div>
+                <p className="llm-detail-empty-text">{t('llmConfig.selectOrCreate')}</p>
                 <button className="btn" onClick={startNew} style={{ padding: '6px 16px' }}>{t('llmConfig.newProviderButton')}</button>
               </div>
             ) : (
               <>
-                <div style={{ flex: 1, overflow: 'auto', padding: '20px 24px' }}>
+                <div className="llm-detail-form">
                   {/* ID */}
                   <div className="input-group">
                     <label>{t('llmConfig.id')}</label>
@@ -225,10 +233,10 @@ export default function LlmConfigPanel({ onClose }: Props) {
                           placeholder={t('llmConfig.idPlaceholder')}
                           style={{ fontFamily: 'JetBrains Mono, monospace' }}
                         />
-                        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 3 }}>{t('llmConfig.idImmutable')}</div>
+                        <div className="llm-id-immutable-hint">{t('llmConfig.idImmutable')}</div>
                       </>
                     ) : (
-                      <div style={{ padding: '8px 10px', background: 'var(--surface-raised)', borderRadius: 6, fontSize: 13, fontFamily: 'JetBrains Mono, monospace', color: 'var(--text-secondary)' }}>
+                      <div className="llm-id-display">
                         {editing.id}
                       </div>
                     )}
@@ -248,7 +256,7 @@ export default function LlmConfigPanel({ onClose }: Props) {
                   {/* Kind */}
                   <div className="input-group">
                     <label>{t('llmConfig.protocolType')}</label>
-                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    <div className="llm-kind-buttons">
                       {(Object.keys(KIND_LABELS) as ProviderKind[]).map(kind => (
                         <button
                           key={kind}
@@ -288,7 +296,7 @@ export default function LlmConfigPanel({ onClose }: Props) {
                   {/* API Key */}
                   <div className="input-group">
                     <label>{t('llmConfig.apiKey')}</label>
-                    <div style={{ position: 'relative' }}>
+                    <div className="llm-api-key-wrapper">
                       <input
                         type={showApiKey ? 'text' : 'password'}
                         value={editing.api_key}
@@ -315,16 +323,16 @@ export default function LlmConfigPanel({ onClose }: Props) {
                       </button>
                     </div>
                     {isKeyMasked(editing.api_key) && (
-                      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 3 }}>{t('llmConfig.keyMasked')}</div>
+                      <div className="llm-key-masked-hint">{t('llmConfig.keyMasked')}</div>
                     )}
                   </div>
 
                   {/* Divider */}
-                  <div style={{ height: 1, background: 'var(--border)', margin: '16px 0' }} />
+                  <div className="llm-form-divider" />
 
                   {/* Models */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                    <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.03em', margin: 0 }}>
+                  <div className="llm-model-header">
+                    <label className="llm-model-header-label">
                       {t('llmConfig.modelList')}
                     </label>
                     <button
@@ -338,14 +346,7 @@ export default function LlmConfigPanel({ onClose }: Props) {
                   </div>
 
                   {editing.models.length === 0 ? (
-                    <div style={{
-                      border: '1px dashed var(--border)',
-                      borderRadius: 6,
-                      padding: 16,
-                      textAlign: 'center',
-                      color: 'var(--text-muted)',
-                      fontSize: 12,
-                    }}>
+                    <div className="llm-model-empty-hint">
                       {(() => {
                         if (editing.kind === 'openai_compat' && !editing.base_url) return t('llmConfig.fillBaseUrlFirst');
                         if (!editing.api_key || isKeyMasked(editing.api_key)) return t('llmConfig.fillApiKeyFirst');
@@ -354,22 +355,11 @@ export default function LlmConfigPanel({ onClose }: Props) {
                     </div>
                   ) : (
                     <>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, maxHeight: 200, overflow: 'auto' }}>
+                      <div className="llm-model-grid">
                         {editing.models.map(model => (
                           <label
                             key={model}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 6,
-                              padding: '5px 8px',
-                              background: 'var(--surface-raised)',
-                              borderRadius: 4,
-                              cursor: 'pointer',
-                              fontSize: 11,
-                              fontFamily: 'JetBrains Mono, monospace',
-                              border: '1px solid var(--border)',
-                            }}
+                            className="llm-model-checkbox-label"
                           >
                             <input
                               type="checkbox"
@@ -377,28 +367,21 @@ export default function LlmConfigPanel({ onClose }: Props) {
                               onChange={() => toggleModel(model)}
                               style={{ accentColor: 'var(--primary)' }}
                             />
-                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{model}</span>
+                            <span>{model}</span>
                           </label>
                         ))}
                       </div>
-                      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 6 }}>{t('llmConfig.uncheckToRemove')}</div>
+                      <div className="llm-model-hint">{t('llmConfig.uncheckToRemove')}</div>
                     </>
                   )}
                 </div>
 
                 {/* Bottom Action Bar */}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '12px 24px',
-                  borderTop: '1px solid var(--border)',
-                  background: 'var(--surface)',
-                }}>
-                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                <div className="llm-action-bar">
+                  <span className="llm-action-bar-status">
                     {isNew ? t('llmConfig.newProvider') : hasChanges ? t('llmConfig.unsavedChanges') : t('llmConfig.upToDate')}
                   </span>
-                  <div style={{ display: 'flex', gap: 8 }}>
+                  <div className="llm-action-bar-actions">
                     {!isNew && (
                       <button className="btn btn-danger" onClick={() => handleDelete(editing.id)}>{t('llmConfig.delete')}</button>
                     )}
@@ -418,23 +401,20 @@ export default function LlmConfigPanel({ onClose }: Props) {
 
         {/* Toast */}
         {toast && (
-          <div style={{
-            position: 'absolute',
-            bottom: 20,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            background: 'var(--primary)',
-            color: 'white',
-            padding: '8px 20px',
-            borderRadius: 6,
-            fontSize: 13,
-            fontWeight: 500,
-            zIndex: 10,
-            boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
-          }}>
+          <div className="llm-toast">
             {toast}
           </div>
         )}
+      </>
+  );
+
+  if (embedded) {
+    return <div className="llm-config-embedded">{bodyContent}</div>;
+  }
+  return (
+    <div className="llm-overlay" onClick={e => { if (e.target === e.currentTarget && onClose) onClose(); }}>
+      <div className="llm-modal">
+        {bodyContent}
       </div>
     </div>
   );

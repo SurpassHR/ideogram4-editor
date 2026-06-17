@@ -6,6 +6,14 @@ export interface Translations {
     height: string;
     resetCanvas: string;
   };
+  nav: {
+    canvas: string;
+    settings: string;
+  };
+  settings: {
+    llmProviders: string;
+    promptPresets: string;
+  };
   panels: {
     globalSettings: {
       title: string;
@@ -176,6 +184,14 @@ const en: Translations = {
     height: 'Height:',
     resetCanvas: 'Reset Canvas',
   },
+  nav: {
+    canvas: '🎨 Canvas',
+    settings: '⚙ Settings',
+  },
+  settings: {
+    llmProviders: '🤖 LLM Providers',
+    promptPresets: '📋 Prompt Presets',
+  },
   panels: {
     globalSettings: {
       title: 'Global Settings',
@@ -345,6 +361,14 @@ const zh: Translations = {
     width: '宽度：',
     height: '高度：',
     resetCanvas: '重置画布',
+  },
+  nav: {
+    canvas: '🎨 画布',
+    settings: '⚙ 设置',
+  },
+  settings: {
+    llmProviders: '🤖 LLM 提供商',
+    promptPresets: '📋 提示词预设',
   },
   panels: {
     globalSettings: {

@@ -2236,3 +2236,382 @@ input[type="color"]::-webkit-color-swatch {
   padding: 0;
   border-radius: 0;
 }
+
+/* ─── App Header (全局导航条) ──────────────────────────────────── */
+
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.app-header-logo {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  transition: color 0.15s;
+}
+
+.app-header-logo:hover {
+  color: var(--primary);
+}
+
+.app-header-spacer {
+  flex: 1;
+}
+
+.app-header-nav {
+  display: flex;
+  gap: 4px;
+  background: var(--surface-raised);
+  border-radius: 8px;
+  padding: 3px;
+}
+
+.app-header-nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 16px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: 'Inter', sans-serif;
+  white-space: nowrap;
+}
+
+.app-header-nav-btn:hover {
+  color: var(--text);
+  background: rgba(124, 92, 252, 0.08);
+}
+
+.app-header-nav-btn.active {
+  background: var(--primary);
+  color: white;
+}
+
+/* ─── Settings Page ───────────────────────────────────────────── */
+
+.settings-page {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  min-height: 0;
+}
+
+.settings-page-left,
+.settings-page-right {
+  flex: 1;
+  min-width: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  background: var(--surface-raised);
+  letter-spacing: 0.02em;
+}
+
+/* ─── LLM Config Embedded ─────────────────────────────────────── */
+
+.llm-config-embedded {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.llm-config-embedded .llm-header {
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-raised);
+  flex-shrink: 0;
+}
+
+.llm-config-embedded > div:not(.llm-header) {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+/* ─── Preset Manager Embedded ─────────────────────────────────── */
+
+.preset-manager-embedded {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.preset-manager-embedded .modal-header {
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-raised);
+  flex-shrink: 0;
+}
+
+.preset-manager-embedded .preset-toolbar {
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.preset-manager-embedded .preset-manager-body {
+  flex: 1;
+  min-height: 0;
+}
+
+/* ─── LLM Config Body ─────────────────────────────────────────── */
+
+.llm-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.llm-sidebar-list {
+  flex: 1;
+  overflow: auto;
+}
+
+.llm-sidebar-empty {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.llm-sidebar-header-label {
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.llm-provider-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.llm-provider-name-wrap {
+  min-width: 0;
+}
+
+.llm-provider-name {
+  font-size: 13px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.llm-provider-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.llm-provider-delete-btn {
+  padding: 2px 6px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+/* ─── LLM Config Detail ───────────────────────────────────────── */
+
+.llm-detail {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.llm-detail-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  gap: 12px;
+  padding: 40px 24px;
+}
+
+.llm-detail-form {
+  flex: 1;
+  overflow: auto;
+  padding: 20px 24px;
+}
+
+.llm-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.llm-action-bar-status {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.llm-action-bar-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.llm-toast {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--primary);
+  color: white;
+  padding: 8px 20px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  z-index: 10;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+/* ─── LLM Config Header ───────────────────────────────────────── */
+
+.llm-header-title {
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.llm-back-btn {
+  background: transparent;
+  color: var(--text-secondary);
+  padding: 4px 8px;
+}
+
+/* ─── LLM Config Form Elements ────────────────────────────────── */
+
+.llm-detail-empty-icon {
+  font-size: 32px;
+}
+
+.llm-detail-empty-text {
+  font-size: 13px;
+  margin: 0;
+}
+
+.llm-kind-buttons {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.llm-api-key-wrapper {
+  position: relative;
+}
+
+.llm-id-display {
+  padding: 8px 10px;
+  background: var(--surface-raised);
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text-secondary);
+}
+
+.llm-id-immutable-hint {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+
+.llm-key-masked-hint {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+
+.llm-form-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 16px 0;
+}
+
+.llm-model-empty-hint {
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  padding: 16px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.llm-model-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  max-height: 200px;
+  overflow: auto;
+}
+
+.llm-model-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  background: var(--surface-raised);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  border: 1px solid var(--border);
+}
+
+.llm-model-checkbox-label span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.llm-model-hint {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+
+.llm-model-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.llm-model-header-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin: 0;
+}

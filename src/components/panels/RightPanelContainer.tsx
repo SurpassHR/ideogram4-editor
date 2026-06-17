@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import GlobalSettingsPanel from './GlobalSettingsPanel';
 import BoxPropertiesPanel from './BoxPropertiesPanel';
-import LlmPanel from '../llm/LlmPanel';
 import { useI18n } from '../../i18n/context';
 
-type TabId = 'global' | 'box' | 'llm';
+type TabId = 'global' | 'box';
 
 interface Tab {
   id: TabId;
@@ -19,7 +18,6 @@ export default function RightPanelContainer() {
   const tabs: Tab[] = [
     { id: 'global', label: t('panels.globalSettings.title'), icon: '⚙' },
     { id: 'box', label: t('panels.boxProperties.title'), icon: '⊞' },
-    { id: 'llm', label: t('llm.tools'), icon: '🤖' },
   ];
 
   return (
@@ -43,7 +41,6 @@ export default function RightPanelContainer() {
       <div className="panel-tab-content">
         {activeTab === 'global' && <GlobalSettingsPanel />}
         {activeTab === 'box' && <BoxPropertiesPanel />}
-        {activeTab === 'llm' && <LlmPanel />}
       </div>
     </div>
   );

@@ -66,7 +66,7 @@ export function parseBoxesFromJSON(
 ): Omit<Box, 'id'>[] {
   return json.compositional_deconstruction.elements.map(el => {
     const [y1, x1, y2, x2] = el.bbox;
-    const imageDataUrl = (el as Record<string, unknown>).image_data as string | undefined;
+    const imageDataUrl = (el as unknown as Record<string, unknown>).image_data as string | undefined;
     return {
       x: denorm(x1, canvasW),
       y: denorm(y1, canvasH),

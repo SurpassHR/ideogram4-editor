@@ -40,14 +40,16 @@ src/
 │   ├── useComfyUIGeneration.ts       # ComfyUI 生成流程编排
 │   ├── useArtboardZoom.ts            # 画板缩放/平移：wheel 缩放+中键拖拽+坐标转换
 │   ├── useChatPanel.ts               # AI 对话面板逻辑：消息发送/采纳/清空/预设/多模态图像
+│   ├── useHashRoute.ts               # Hash 路由 Hook：监听 hashchange 事件，返回 { hash, navigate }
 │   └── __tests__/
 │       ├── usePointerInteraction.test.tsx  # 交互 hook 测试（单击选中/拖拽/双击编辑）
 │       └── useBoxImageImport.test.tsx      # 图像导入 hook 测试（拖放/过滤）
 ├── components/
 │   ├── layout/
-│   │   ├── App.tsx                   # 根组件：HeaderControls + MainContent
-│   │   ├── HeaderControls.tsx        # 顶部栏：画布宽高滑块 + 重置 + 语言切换
-│   │   └── MainContent.tsx           # 主布局：左列（Artboard+JSON+生成）右列（面板）
+│   │   ├── App.tsx                   # 根组件：Hash 路由（#/ → CanvasPage, #/settings → SettingsPage）+ Header
+│   │   ├── HeaderControls.tsx        # 全局 Header：Logo 左侧 + 居中 Canvas/Settings 导航 + 右侧语言切换
+│   │   ├── MainContent.tsx           # CanvasPage：画布宽高控件 + 左列（Artboard+JSON+生成）右列（面板）
+│   │   └── SettingsPage.tsx          # 设置页：左右两栏（LLM 提供商管理 + 提示词预设管理）
 │   ├── canvas/
 │   │   ├── Artboard.tsx              # 画板容器：固定视口、滚轮缩放+中键平移、缩放控件
 │   │   ├── CanvasArea.tsx            # 交互式画布（Pointer Events）+ ChatPanel 渲染
@@ -60,21 +62,22 @@ src/
 │   │   ├── BoxPropertiesPanel.tsx     # 边界框属性：模式/文本/描述/调色板/删除
 │   │   ├── ColorPalette.tsx          # 可复用颜色选择器 + 色板组件
 │   │   ├── GlowGrid.tsx             # 装饰性交互式发光点阵背景容器
-│   │   └── RightPanelContainer.tsx   # 右列 Tab 导航容器（全局/边界框/LLM 三 tab）
+│   │   └── RightPanelContainer.tsx   # 右列 Tab 导航容器（全局/边界框 两 tab）
 │   ├── json/
 │   │   └── JsonToolbar.tsx           # 生成 JSON / 从粘贴加载
 │   ├── comfyui/
 │   │   ├── ComfyUIControls.tsx       # 生成控制：种子滑块/API URL/生成按钮
 │   │   └── ImagePreview.tsx          # 生成结果图片展示
 │   └── llm/
-│       ├── LlmPanel.tsx              # LLM 工具面板：提供商列表 + 配置入口
-│       ├── LlmConfigPanel.tsx        # LLM 配置模态框：CRUD + 模型拉取
+│       ├── LlmPanel.tsx              # LLM 工具面板：提供商列表 + 配置入口（已迁移到 SettingsPage）
+│       ├── LlmConfigPanel.tsx        # LLM 配置面板（模态框 + 内嵌模式）：CRUD + 模型拉取
 │       ├── types.ts                  # LlmProvider, ProviderKind 类型 + 常量
 │       └── api.ts                    # LLM 提供商 CRUD（localStorage）+ 模型 API 调用
 │   └── chat/
-│       ├── ChatPanel.tsx             # AI 对话浮动面板（createPortal→body），预设选择/语言选择/模型选择
+│       ├── ChatPanel.tsx             # AI 对话浮动面板（createPortal→body），预设/模型/语言三个 SelectMenu
 │       ├── ChatMessage.tsx           # 用户/AI 消息气泡 + 采纳/忽略按钮
-│       └── PresetManagerPanel.tsx    # 预设管理模态框：搜索/标签筛选/CRUD/变量参考
+│       ├── PresetManagerPanel.tsx    # 预设管理面板（模态框 + 内嵌模式）：搜索/标签筛选/CRUD/变量参考
+│       └── SelectMenu.tsx            # 可复用 Portal 下拉选择菜单组件
 ├── utils/
 │   ├── coordinates.ts               # 坐标归一化/反归一化（0-1000 ↔ 像素）
 │   ├── json-serializer.ts           # generateJSON() + parseBoxesFromJSON()，可选 image_data 导出
@@ -94,14 +97,15 @@ src/
 
 ### 数据流
 
-1. 用户在画布上拖拽创建 `bounding-box`（Pointer Events 驱动，`usePointerInteraction` hook）
-2. 单击 box 选中，双击 box 进入文字内联编辑模式（Enter 保存 / Escape 取消）
-3. 点击 ✨ 按钮（选中 box 右上角，或编辑时在 input 内部右侧）打开 AI 对话面板
-4. 画布置于 `Artboard` 画板容器中，支持滚轮缩放（以鼠标位置为中心）和中键拖拽平移
-3. 每个 box 存储为对象：`{ id, x, y, w, h, mode, text, desc, colors, imageDataUrl, imageRole }`
-4. 全局状态存储在 Zustand store（`useEditorStore`）中
-5. `generateJSON()` 将 boxes 坐标归一化到 0-1000 范围，合并全局设置，输出 JSON（可选导出图像 Data URL）
-6. `generateImage()` 将 JSON 注入 ComfyUI workflow 模板，调用 ComfyUI API 生成图片
+1. `App.tsx` 使用 `useHashRoute()` hook 根据 `window.location.hash` 路由到 `CanvasPage`（`#/`）或 `SettingsPage`（`#/settings`）
+2. 用户在画布上拖拽创建 `bounding-box`（Pointer Events 驱动，`usePointerInteraction` hook）
+3. 单击 box 选中，双击 box 进入文字内联编辑模式（Enter 保存 / Escape 取消）
+4. 点击 ✨ 按钮（选中 box 右上角，或编辑时在 input 内部右侧）打开 AI 对话面板
+5. 画布置于 `Artboard` 画板容器中，支持滚轮缩放（以鼠标位置为中心）和中键拖拽平移
+6. 每个 box 存储为对象：`{ id, x, y, w, h, mode, text, desc, colors, imageDataUrl, imageRole }`
+7. 全局状态存储在 Zustand store（`useEditorStore`）中
+8. `generateJSON()` 将 boxes 坐标归一化到 0-1000 范围，合并全局设置，输出 JSON（可选导出图像 Data URL）
+9. `generateImage()` 将 JSON 注入 ComfyUI workflow 模板，调用 ComfyUI API 生成图片
 
 ### 关键 Store 字段
 
@@ -140,7 +144,7 @@ src/
 - 默认英文，语言偏好持久化到 localStorage key `ideogram4-lang`
 - `useI18n()` hook 返回 `{ lang, setLang, t }`
 - `t('section.key', { var: value })` 支持点分隔路径查找 + `{var}` 插值
-- 语言切换按钮在 `HeaderControls` 中（右上角 EN/中文）
+- 语言切换按钮在 Header 中（右上角 EN/中文）
 - 所有翻译在 `src/i18n/translations.ts`，按 UI 区域组织
 
 ### 设计系统

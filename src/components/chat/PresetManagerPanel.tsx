@@ -4,7 +4,9 @@ import { useEditorStore } from '../../store';
 import { useI18n } from '../../i18n/context';
 
 interface Props {
-  onClose: () => void;
+  onClose?: () => void;
+  /** 内嵌模式：不渲染模态框遮罩，直接展示内容 */
+  embedded?: boolean;
 }
 
 const EMPTY_FORM = {
@@ -14,7 +16,7 @@ const EMPTY_FORM = {
   tags: [] as string[],
 };
 
-export default function PresetManagerPanel({ onClose }: Props) {
+export default function PresetManagerPanel({ onClose, embedded }: Props) {
   const chatPresets = useEditorStore(s => s.chatPresets);
   const addPreset = useEditorStore(s => s.addPreset);
   const updatePreset = useEditorStore(s => s.updatePreset);
@@ -147,13 +149,14 @@ export default function PresetManagerPanel({ onClose }: Props) {
   const isEditing = editingId !== null;
   const isNew = editingId === '__new__';
 
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content preset-manager" onClick={e => e.stopPropagation()}>
-        <div className="modal-header">
-          <h3>{t('chat.presets.title')}</h3>
+  const content = (
+    <>
+      <div className="modal-header">
+        <h3>{t('chat.presets.title')}</h3>
+        {!embedded && (
           <button className="modal-close-btn" onClick={onClose}>✕</button>
-        </div>
+        )}
+      </div>
 
         {/* Toast */}
         {toast && <div className="toast">{toast}</div>}
@@ -290,6 +293,16 @@ export default function PresetManagerPanel({ onClose }: Props) {
             </div>
           )}
         </div>
+    </>
+  );
+
+  if (embedded) {
+    return <div className="preset-manager-embedded">{content}</div>;
+  }
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content preset-manager" onClick={e => e.stopPropagation()}>
+        {content}
       </div>
     </div>
   );

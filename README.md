@@ -33,7 +33,8 @@ Ideogram4 Editor 是一个基于 Web 的可视化编辑器，专为 [Ideogram 4]
 - 🤖 **LLM 辅助** — 配置多个 LLM 提供商（OpenAI、Anthropic、Gemini、OpenAI 兼容），为 prompt 优化提供 AI 辅助
 - 💬 **AI 对话面板** — 选中边界框后点击 ✨ 按钮，打开浮动 AI 对话面板，可与 LLM 对话优化描述，支持采纳/忽略 AI 回复、提示词预设模板、LLM 回复语言选择
 - 🖼️ **Box 图像参考** — 拖放/上传/粘贴图像到边界框，作为视觉背景和多模态 AI 参考图输入
-- 📑 **右侧面板 Tab 导航** — 全局设置、边界框属性、LLM 工具三个面板合并为 Tab 导航，节省垂直空间
+- 📑 **右侧面板 Tab 导航** — 全局设置、边界框属性两个面板合并为 Tab 导航，节省垂直空间
+- ⚙️ **独立设置页** — Hash 路由驱动（`/#/settings`），LLM 提供商管理和提示词预设管理统一入口
 - 🎭 **黑暗主题** — 精心设计的深色 UI，自定义 CSS 变量驱动的设计系统，零外部 UI 组件库依赖
 - ✨ **发光点阵背景** — 交互式 CSS Masking + JS 坐标映射的动态发光点阵装饰效果
 
@@ -73,12 +74,14 @@ src/
 │   ├── useImageDrop.ts                   # 图片拖放导入，PNG 元数据提取
 │   ├── useComfyUIGeneration.ts           # ComfyUI 生成流程编排
 │   ├── useArtboardZoom.ts                # 画板缩放/平移：wheel 缩放+中键拖拽+坐标转换
-│   └── useChatPanel.ts                   # AI 对话面板逻辑：消息发送/采纳/清空/模型选择
+│   ├── useChatPanel.ts                   # AI 对话面板逻辑：消息发送/采纳/清空/模型选择
+│   └── useHashRoute.ts                   # Hash 路由 Hook：监听 hashchange 事件
 ├── components/
 │   ├── layout/
-│   │   ├── App.tsx                       # 根组件：HeaderControls + MainContent
-│   │   ├── HeaderControls.tsx            # 顶部栏：画布宽高滑块 + 重置 + 语言切换
-│   │   └── MainContent.tsx               # 主布局：左列（Artboard+JSON+生成）右列（面板）
+│   │   ├── App.tsx                       # 根组件：Hash 路由（#/ → CanvasPage, #/settings → SettingsPage）
+│   │   ├── HeaderControls.tsx            # 全局 Header：Logo + Canvas/Settings 导航 + 语言切换
+│   │   ├── MainContent.tsx               # CanvasPage：画布宽高控件 + 主布局
+│   │   └── SettingsPage.tsx              # 设置页：左右两栏（LLM 提供商 + 提示词预设）
 │   ├── canvas/
 │   │   ├── Artboard.tsx                  # 画板容器：固定视口、滚轮缩放+中键平移、缩放控件
 │   │   ├── CanvasArea.tsx                # 交互式画布（Pointer Events）+ ChatPanel 渲染
@@ -88,7 +91,7 @@ src/
 │   │   ├── GlobalSettingsPanel.tsx        # 全局设置：模式/描述/美学/光照/媒介/背景/调色板
 │   │   ├── BoxPropertiesPanel.tsx         # 边界框属性：模式/文本/描述/调色板/删除
 │   │   ├── ColorPalette.tsx              # 可复用颜色选择器 + 色板组件
-│   │   └── GlowGrid.tsx                 # 装饰性交互式发光点阵背景容器
+│   │   └── RightPanelContainer.tsx       # 右列 Tab 导航容器（全局/边界框 两 tab）
 │   ├── json/
 │   │   └── JsonToolbar.tsx              # 生成 JSON / 从粘贴加载
 │   ├── comfyui/
@@ -96,11 +99,14 @@ src/
 │   │   └── ImagePreview.tsx              # 生成结果图片展示
 │   └── llm/
 │       ├── LlmPanel.tsx                  # LLM 工具面板：提供商列表 + 配置入口
-│       ├── LlmConfigPanel.tsx            # LLM 配置模态框：CRUD + 模型拉取
+│       ├── LlmConfigPanel.tsx            # LLM 配置面板（模态框 + 内嵌模式）：CRUD + 模型拉取
 │       ├── types.ts                      # LlmProvider, ProviderKind 类型 + 常量
 │       └── api.ts                        # LLM 提供商 CRUD（localStorage）+ 模型 API 调用
 │   └── chat/
-│       ├── ChatPanel.tsx                 # AI 对话浮动面板（createPortal→body），320px + 模型下拉
+│       ├── ChatPanel.tsx                 # AI 对话浮动面板（createPortal→body），预设/模型/语言 SelectMenu
+│       ├── ChatMessage.tsx               # 用户/AI 消息气泡 + 采纳/忽略按钮
+│       ├── PresetManagerPanel.tsx        # 预设管理面板（模态框 + 内嵌模式）：搜索/标签筛选/CRUD
+│       └── SelectMenu.tsx                # 可复用 Portal 下拉选择菜单组件
 │       └── ChatMessage.tsx               # 用户/AI 消息气泡 + 采纳/忽略按钮
 ├── utils/
 │   ├── coordinates.ts                    # 坐标归一化/反归一化（0-1000 ↔ 像素）
@@ -279,7 +285,7 @@ apiUrl: 'http://your-comfyui-host:8188'
 
 ## 🤖 LLM 配置说明
 
-编辑器内置 LLM 工具面板，支持配置多个 LLM 提供商用于 AI 辅助 prompt 优化。
+编辑器在独立设置页（`/#/settings`）中提供 LLM 提供商管理，支持配置多个 LLM 提供商用于 AI 辅助 prompt 优化。
 
 ### AI 对话功能
 
@@ -299,8 +305,8 @@ apiUrl: 'http://your-comfyui-host:8188'
 
 ### 配置方式
 
-1. 在编辑器界面点击 LLM 面板入口
-2. 在配置模态框中添加提供商：填写名称、API Key、Base URL
+1. 点击顶部导航栏的「⚙ Settings」进入设置页（`/#/settings`）
+2. 在左侧 LLM Providers 面板中添加提供商：填写名称、API Key、Base URL
 3. 点击「拉取模型列表」获取可用模型
 4. 所有配置存储在浏览器 localStorage 中，不会发送到外部服务器
 

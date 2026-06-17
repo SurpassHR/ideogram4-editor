@@ -4,6 +4,7 @@ import { useI18n } from '../../i18n/context';
 import { useChatPanel } from '../../hooks/useChatPanel';
 import ChatMessage from './ChatMessage';
 import SelectMenu from './SelectMenu';
+import LlmConfigPanel from '../llm/LlmConfigPanel';
 import { computeChatPanelPosition } from '../../utils/panelPosition';
 import { resolveTemplate } from '../../utils/resolveTemplate';
 
@@ -35,7 +36,6 @@ export default function ChatPanel() {
   const [inputText, setInputText] = useState('');
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
   const [showLlmConfig, setShowLlmConfig] = useState(false);
-  const [showPresetManager, setShowPresetManager] = useState(false);
   const [toolbarCollapsed, setToolbarCollapsed] = useState(false);
   const messagesRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -198,19 +198,10 @@ export default function ChatPanel() {
     refreshProviders();
   }, [refreshProviders]);
 
-  const handlePresetManagerClose = useCallback(() => {
-    setShowPresetManager(false);
-  }, []);
-
   // 选中预设：将模板文本填入输入框
   const handlePresetChange = useCallback((presetId: string) => {
     if (!presetId) {
       handleSelectPreset(null);
-      return;
-    }
-    if (presetId === '__new__') {
-      handleSelectPreset(null);
-      setShowPresetManager(true);
       return;
     }
     handleSelectPreset(presetId);
@@ -280,11 +271,6 @@ export default function ChatPanel() {
               value={selectedPreset?.id || ''}
               onChange={handlePresetChange}
               placeholder={t('chat.presets.selectPreset')}
-              specialOptions={[{ value: '__new__', label: t('chat.presets.manage') }]}
-              onSpecialSelect={(v) => {
-                handleSelectPreset(null);
-                setShowPresetManager(true);
-              }}
             />
           )}
 
@@ -309,9 +295,6 @@ export default function ChatPanel() {
 
           <span className="chat-header-spacer" />
 
-          <button className="chat-preset-mgr-btn" onClick={() => setShowPresetManager(true)} title={t('chat.presets.manage')}>
-            ⚙
-          </button>
           <button className="chat-clear-btn" onClick={handleClearHistory} title={t('chat.clearHistory')}>
             🗑
           </button>
@@ -352,9 +335,6 @@ export default function ChatPanel() {
 
       {/* LLM 配置面板 */}
       {showLlmConfig && <LlmConfigPanel onClose={handleLlmConfigClose} />}
-
-      {/* 预设管理面板 */}
-      {showPresetManager && <PresetManagerPanel onClose={handlePresetManagerClose} />}
     </div>
   );
 
