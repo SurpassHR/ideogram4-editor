@@ -237,7 +237,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   addGlobalColor: (hex) => {
     const upper = hex.toUpperCase();
     const state = get();
-    if (state.globalPalette.length >= 16) return false;
+    if (state.globalPalette.length >= 5) return false;
     if (state.globalPalette.includes(upper)) return false;
     set({ globalPalette: [...state.globalPalette, upper] });
     return true;
