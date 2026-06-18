@@ -355,6 +355,47 @@ LLM 配置完全存储在浏览器本地（localStorage），包括：
 - 提供商列表及其连接参数
 - API Key（⚠️ 注意：API Key 以明文存储在 localStorage，请确保浏览器环境安全）
 
+
+### 对话返回值格式
+
+编辑器的两种 AI 对话模式——Per-Box Chat（单个边界框对话）和 Canvas Chat（画布级构图对话）——LLM 返回不同的输出格式：
+
+#### Per-Box Chat
+
+在选中一个边界框后点击 ✨ 按钮打开的面板中，LLM 返回的是**自由文本**（无结构化 JSON 约束）：
+
+- 返回值直接作为边界框的 `desc` 字段使用
+- 通过「采纳」(Adopt) 按钮将回复内容写入当前选中 box 的描述
+- 受 `chatResponseLang`（`auto`/`en`/`zh`）控制输出语言
+- 可传入边界框参考图作为多模态输入（OpenAI/Anthropic/Gemini）
+
+#### Canvas Chat
+
+在画布级 AI 构图面板（Canvas Chat）中，LLM 返回结构化的 `IdeogramOutput` JSON，包裹在 ```json 代码块中：
+
+| JSON 路径 | 类型 | 说明 |
+|-----------|------|------|
+| `high_level_description` | `string` | 1-2 句整体场景描述 |
+| `style_description.aesthetics` | `string` | 视觉美学方向 |
+| `style_description.lighting` | `string` | 光照描述 |
+| `style_description.color_palette` | `string[]` | 全局调色板，最多 16 色，6 位大写十六进制（如 `"#FF5733"`） |
+| `style_description.medium` | `string` | 艺术媒介（MODE_ARTSTYLE）或照片类型 |
+| `style_description.art_style` | `string` | 艺术风格名称（MODE_ARTSTYLE 模式，与 `photo` 互斥） |
+| `style_description.photo` | `string` | 照片风格描述（MODE_PHOTO 模式，与 `art_style` 互斥） |
+| `compositional_deconstruction.background` | `string` | 背景描述 |
+| `compositional_deconstruction.elements[].type` | `"obj" \| "text"` | 元素类型：对象区域或文本区域 |
+| `compositional_deconstruction.elements[].bbox` | `[number,number,number,number]` | 归一化边界框 `[y1, x1, y2, x2]`，范围 0-1000（y 在前） |
+| `compositional_deconstruction.elements[].desc` | `string` | 元素详细视觉描述（颜色、材质、光照、形状、纹理、氛围） |
+| `compositional_deconstruction.elements[].text` | `string` | 仅 `type === "text"` 时需要，渲染的文本内容 |
+| `compositional_deconstruction.elements[].color_palette` | `string[]` | 可选，每元素最多 5 色，6 位大写十六进制 |
+
+**字段约束：**
+- `style_description` 必须二选一：`art_style` + `medium`（艺术风格模式）或 `photo` + `medium`（照片模式），不可同时包含
+- `compositional_deconstruction.elements` 为 1-8 个元素
+- 每个 element 的 `type` ∈ `['obj', 'text']`，`bbox` 恰好 4 个 0-1000 值，`desc` 非空
+- `bbox` 需满足 `y1 < y2` 且 `x1 < x2`
+
+**UI 反馈：** 解析成功的 `IdeogramOutput` 存储在 `pendingIdeogramOutput` store 字段中，用户通过 Apply 弹窗选择性应用（boxes/globalDesc/styleParams/globalPalette/modeSwitch）。
 ---
 
 ## 🧭 开发指南

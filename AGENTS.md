@@ -110,6 +110,8 @@ src/
 9. `generateJSON()` 将 boxes 坐标归一化到 0-1000 范围，合并全局设置，输出 JSON（可选导出图像 Data URL）
 10. `generateImage()` 将 JSON 注入 ComfyUI workflow 模板，调用 ComfyUI API 生成图片
 
+11. `IdeogramOutput` 结构：Canvas Chat 的 LLM 返回结构化 JSON（`high_level_description` + `style_description` + `compositional_deconstruction.elements[]`），解析验证后存入 `pendingIdeogramOutput`；Per-Box Chat 返回自由文本，直接采纳为 box 描述
+
 ### 关键 Store 字段
 
 - `boxes[]` — 所有边界框的状态数组（每个含 `imageDataUrl` 和 `imageRole` 字段用于参考图）
