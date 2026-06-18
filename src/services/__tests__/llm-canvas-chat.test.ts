@@ -1,3 +1,5 @@
+import { describe, it, expect } from 'vitest';
+
 import { extractAndValidateIdeogramJSON, buildCanvasChatContext, CANVAS_CHAT_SYSTEM_PROMPT, buildLayoutFeedbackPrompt } from '../llm-canvas-chat';
 
 // ─── extractAndValidateIdeogramJSON ─────────────────────────────────

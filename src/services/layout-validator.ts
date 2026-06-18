@@ -280,7 +280,7 @@ export function validateLayout(
   summaryText += `Passed: ${passLines.length > 0 ? passLines.join(', ') : '(none)'}`;
 
   const userSummary = overallPass
-    ? `布局质量良好：${elements.length} 个元素，覆盖 ${(metrics.find(m => m.field === 'coverage')?.actual ?? 0).toFixed(0)}% 画布区域，间距和边距均符合要求`
+    ? `布局质量良好：${elements.length} 个元素，覆盖 ${((metrics.find(m => m.field === 'coverage')?.actual ?? 0) as number).toFixed(0)}% 画布区域，间距和边距均符合要求`
     : `布局需要调整：${failLines.length} 项指标未通过 (${failLines.join('; ')})`;
 
   return { overallPass, metrics, summaryText, userSummary };

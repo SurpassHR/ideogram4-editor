@@ -68,6 +68,7 @@ export default function Artboard() {
         }}
       >
         <CanvasArea zoom={zoom} panX={panX} panY={panY} screenToCanvas={screenToCanvas} onFitToArtboard={fitToArtboard} onRegenerate={handleRegenerate} />
+      </div>
 
       <CanvasChatPanel />
     </div>
