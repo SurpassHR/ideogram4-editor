@@ -238,11 +238,9 @@ export function useCanvasChat() {
           const qualityReport = validateLayout(normElements, normCw, normCh);
           if (!qualityReport.overallPass) {
             setPendingQualityReport(qualityReport);
-            setIsLoading(false);
-            return;  // 等待用户决定
+          } else {
+            setPendingQualityReport(null);
           }
-          // 软校验通过 → 清除任何旧报告并继续
-          setPendingQualityReport(null);
           setIsLoading(false);
           return;
         }
