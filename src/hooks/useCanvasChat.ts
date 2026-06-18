@@ -216,18 +216,30 @@ export function useCanvasChat() {
           // 成功解析 — 添加 assistant 消息并设置输出
           addCanvasChatMessage(createAssistantMessage(aiText));
           setPendingIdeogramOutput(parsedJson);
-          // 软校验：布局质量检查
-          if (parsedJson.compositional_deconstruction.elements.length > 0) {
-            const qualityReport = validateLayout(
-              parsedJson.compositional_deconstruction.elements,
-              parsedJson.canvasW ?? canvasW,
-              parsedJson.canvasH ?? canvasH,
-            );
-            if (!qualityReport.overallPass) {
-              setPendingQualityReport(qualityReport);
-              setIsLoading(false);
-              return;  // 等待用户决定
-            }
+          // 软校验：布局质量检查（先归一化 bbox 到 0-1000）
+          const rawElements = parsedJson.compositional_deconstruction.elements;
+          const bboxSystem = detectBboxSystem(rawElements);
+          const normCw = parsedJson.canvasW ?? canvasW;
+          const normCh = parsedJson.canvasH ?? canvasH;
+          const normElements = bboxSystem === 'normalized'
+            ? rawElements
+            : rawElements.map(el => {
+                const [y1, x1, y2, x2] = el.bbox;
+                if (bboxSystem === 'fractional') {
+                  return { ...el, bbox: [y1 * 1000, x1 * 1000, y2 * 1000, x2 * 1000] as [number, number, number, number] };
+                }
+                return { ...el, bbox: [
+                  (y1 / normCh) * 1000,
+                  (x1 / normCw) * 1000,
+                  (y2 / normCh) * 1000,
+                  (x2 / normCw) * 1000,
+                ] as [number, number, number, number] };
+              });
+          const qualityReport = validateLayout(normElements, normCw, normCh);
+          if (!qualityReport.overallPass) {
+            setPendingQualityReport(qualityReport);
+            setIsLoading(false);
+            return;  // 等待用户决定
           }
           // 软校验通过 → 清除任何旧报告并继续
           setPendingQualityReport(null);
