@@ -35,8 +35,6 @@ export function useArtboardZoom(
     triggerUpdate();
   }, [artboardRef, canvasW, canvasH, triggerUpdate]);
 
-  const resetView = fitToArtboard;
-
   const screenToCanvas = useCallback(
     (sx: number, sy: number) => {
       const artboard = artboardRef.current;
@@ -130,7 +128,6 @@ export function useArtboardZoom(
     handleMouseMove,
     handleMouseUp,
     fitToArtboard,
-    resetView,
     screenToCanvas,
     isPanning,
   };

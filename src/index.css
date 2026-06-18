@@ -678,7 +678,7 @@ input[type="color"]::-webkit-color-swatch {
   pointer-events: auto;
 }
 
-.artboard-btn {
+.artboard-reset-btn {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -692,7 +692,7 @@ input[type="color"]::-webkit-color-swatch {
   transition: all 0.15s;
 }
 
-.artboard-btn:hover {
+.artboard-reset-btn:hover {
   background: var(--primary-muted);
   color: var(--text);
 }

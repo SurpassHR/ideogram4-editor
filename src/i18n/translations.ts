@@ -132,8 +132,7 @@ export interface Translations {
     imageDropError: string;
   };
   artboard: {
-    fitToArtboard: string;
-    resetView: string;
+    resetPosition: string;
   };
   contextMenu: {
     duplicate: string;
@@ -350,8 +349,7 @@ const en: Translations = {
     imageDropError: 'Please drop an image file.',
   },
   artboard: {
-    fitToArtboard: 'Fit to artboard',
-    resetView: 'Reset view',
+    resetPosition: 'Reset artboard position',
   },
   contextMenu: {
     duplicate: '📋 Duplicate',
@@ -568,8 +566,7 @@ const zh: Translations = {
     imageDropError: '请拖放图像文件。',
   },
   artboard: {
-    fitToArtboard: '适应画板',
-    resetView: '重置视图',
+    resetPosition: '重置画板位置',
   },
   contextMenu: {
     duplicate: '📋 复制框',
