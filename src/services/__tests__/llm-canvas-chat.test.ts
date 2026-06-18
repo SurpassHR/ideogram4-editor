@@ -464,16 +464,19 @@ describe('CANVAS_CHAT_SYSTEM_PROMPT', () => {
     expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Minimum gap between elements');
     expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Element aspect ratio');
     expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Recommended element count: 2-6');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).not.toContain('max 16');
   });
-
   it('应包含 Design Principles 章节', () => {
     expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('### Design Principles');
     expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Rule of thirds');
     expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Visual anchor');
     expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Breathing room');
     expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Avoid clustering');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Text language');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Spatial consistency');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Focal coherence');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Concrete descriptions');
   });
-
   it('应包含 Retry Protocol 章节', () => {
     expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('## Retry Protocol');
     expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('[Layout Feedback]');

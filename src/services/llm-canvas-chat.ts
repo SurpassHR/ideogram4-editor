@@ -26,7 +26,7 @@ The IdeogramOutput object has the following structure:
   "style_description": {
     "aesthetics": string,                  // visual aesthetic direction
     "lighting": string,                    // lighting description
-    "color_palette": string[],             // max 16 global colors, 6-char hex uppercase (e.g., "#FF5733")
+    "color_palette": string[],             // max 5 global colors, 6-char hex uppercase (e.g., "#FF5733")
     "medium": string,                      // artistic medium (for MODE_ARTSTYLE) or photograph
     "art_style": string,                   // art style name (for MODE_ARTSTYLE) — do NOT include if "photo" is present
     "photo": string                        // photo style description (for MODE_PHOTO) — do NOT include if "art_style" is present
@@ -39,7 +39,7 @@ The IdeogramOutput object has the following structure:
         "bbox": [y1, x1, y2, x2],         // bounding box in 0-1000 normalized coordinates (y before x!)
         "desc": string,                    // detailed English visual description of this element
         "text": string,                    // required ONLY when type === "text" — the text content to render
-        "color_palette": string[]          // optional, max 5 colors per element, 6-char hex uppercase
+        "color_palette": string[]          // optional, max 5 colors per element, 6-char hex uppercase (recommend 2-3)
       }
     ]
   }
@@ -62,6 +62,10 @@ Important: "style_description" must use EITHER "art_style" + "medium" (art style
 - Visual anchor: at least one element should occupy ≥ 15% of canvas area as the primary focal point
 - Breathing room: leave adequate whitespace between elements for visual clarity
 - Size rhythm: vary element sizes with a max/min ratio ≤ 8:1 for visual interest
+- Concrete descriptions only: Use concrete visual descriptions (colors, shapes, textures, lighting, positions). Avoid abstract emotional language like "壮丽感", "majestic feeling", "dramatic tension" — describe only what is physically visible in the image
+- Text language: If using type === "text", the text content MUST be in English — Ideogram renders English text most reliably. Do NOT use Chinese, Japanese, or other scripts for text regions
+- Spatial consistency: Bounding box coordinates MUST match the position described in the element's desc field (e.g., if desc says "bottom left corner", bbox must be in the lower-left quadrant of the canvas)
+- Focal coherence: Focus on 2-4 primary subject elements. Avoid adding minor tertiary elements (background crowds, small details) that fragment the viewer's attention. Fewer, larger elements produce stronger compositions
 - Avoid clustering elements in one region — spread them across the canvas
 
 ## Retry Protocol
