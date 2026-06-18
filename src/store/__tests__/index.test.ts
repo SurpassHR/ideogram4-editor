@@ -348,4 +348,42 @@ describe('EditorStore', () => {
       });
     });
   });
+
+  describe('canvasScale / canvasCustom', () => {
+    it('初始值应为默认值', () => {
+      const state = useEditorStore.getState();
+      expect(state.canvasScale).toBe(4);
+      expect(state.canvasCustomW).toBe(16);
+      expect(state.canvasCustomH).toBe(9);
+    });
+
+    it('setCanvasScale 应更新 canvasScale 和 canvasW/canvasH', () => {
+      useEditorStore.getState().setCanvasScale(2);
+      const state = useEditorStore.getState();
+      expect(state.canvasScale).toBe(2);
+      // 1:1 ratio + scale 2 → 512×512
+      expect(state.canvasW).toBe(512);
+      expect(state.canvasH).toBe(512);
+    });
+
+    it('setCanvasCustom 应更新 custom 值和 canvasW/canvasH', () => {
+      useEditorStore.getState().setCanvasCustom(3, 4);
+      const state = useEditorStore.getState();
+      expect(state.canvasCustomW).toBe(3);
+      expect(state.canvasCustomH).toBe(4);
+      expect(state.canvasW).toBeGreaterThan(0);
+      expect(state.canvasH).toBeGreaterThan(0);
+    });
+
+    it('setCanvasRatio 在 scale/custom 改变后仍正确计算尺寸', () => {
+      const store = useEditorStore;
+      store.getState().setCanvasScale(2);
+      store.getState().setCanvasRatio('16:9');
+      const state = store.getState();
+      expect(state.canvasRatio).toBe('16:9');
+      // 16:9 baseW=256, baseH=144, scale=2 → 512×288
+      expect(state.canvasW).toBe(512);
+      expect(state.canvasH).toBe(288);
+    });
+  });
 });
