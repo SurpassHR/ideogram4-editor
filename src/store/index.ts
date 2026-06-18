@@ -5,6 +5,7 @@ import type { PromptPreset } from '../types/presets';
 import { PRESETS_STORAGE_KEY, createBuiltinPresets } from '../types/presets';
 import { MODE_ARTSTYLE, MODE_PHOTO } from '../types';
 import { computeCanvasDims, type RatioKey } from '../utils/canvas-dims';
+import type { LayoutQualityReport } from '../services/layout-validator';
 
 // ─── 内部剪贴板（模块级变量，非 OS 剪贴板）──────────────────────────
 let internalClipboard: Box | null = null;
@@ -105,6 +106,10 @@ interface EditorStore {
   addCanvasChatMessage: (message: ChatMessage) => void;
   setPendingIdeogramOutput: (output: IdeogramOutput | null) => void;
   clearCanvasChat: () => void;
+
+  // 布局质量检测结果
+  pendingQualityReport: LayoutQualityReport | null;
+  setPendingQualityReport: (report: LayoutQualityReport | null) => void;
 
   // LLM 回复语言偏好（persist）
   chatResponseLang: string;
@@ -332,6 +337,10 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     canvasChatMessages: [],
     pendingIdeogramOutput: null,
   }),
+
+  // 布局质量检测结果
+  pendingQualityReport: null,
+  setPendingQualityReport: (report) => set({ pendingQualityReport: report }),
 
   // LLM 回复语言偏好
   chatResponseLang: localStorage.getItem('ideogram4-chat-lang') || 'auto',

@@ -201,6 +201,21 @@ export interface Translations {
       attachImage: string;
     };
   };
+  layoutQuality: {
+    title: string;
+    pass: string;
+    fail: string;
+    accept: string;
+    regenerate: string;
+    metric: {
+      element_area: string;
+      coverage: string;
+      spacing: string;
+      margin: string;
+      element_count: string;
+      aspect_ratio: string;
+    };
+  };
 }
 
 const en: Translations = {
@@ -404,6 +419,21 @@ const en: Translations = {
       attachImage: 'Attach image as reference',
     },
   },
+  layoutQuality: {
+    title: 'Layout Quality Check',
+    pass: 'Layout check passed.',
+    fail: 'Layout issues detected:',
+    accept: 'Accept Current Layout',
+    regenerate: 'Regenerate',
+    metric: {
+      element_area: 'Element Size',
+      coverage: 'Canvas Coverage',
+      spacing: 'Element Spacing',
+      margin: 'Canvas Margin',
+      element_count: 'Element Count',
+      aspect_ratio: 'Aspect Ratio',
+    },
+  },
 };
 
 const zh: Translations = {
@@ -605,6 +635,21 @@ const zh: Translations = {
       uploadHint: '上传图像',
       clear: '移除图像',
       attachImage: '附加图像作为参考',
+    },
+  },
+  layoutQuality: {
+    title: '布局质量检测',
+    pass: '布局质量检测通过。',
+    fail: '布局存在以下问题：',
+    accept: '接受当前布局',
+    regenerate: '重新生成',
+    metric: {
+      element_area: '元素大小',
+      coverage: '画布覆盖率',
+      spacing: '元素间距',
+      margin: '边缘距离',
+      element_count: '元素数量',
+      aspect_ratio: '宽高比',
     },
   },
 };
