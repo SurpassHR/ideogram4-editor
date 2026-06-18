@@ -347,6 +347,35 @@ describe('EditorStore', () => {
         expect(state.boxes).toHaveLength(1); // boxes 不受影响
       });
     });
+
+    describe('updateCanvasChatMessage', () => {
+      it('应按 id 更新消息的指定字段', () => {
+        const { addCanvasChatMessage, updateCanvasChatMessage } =
+          useEditorStore.getState();
+
+        addCanvasChatMessage({
+          id: 'msg_1', role: 'assistant', content: '', timestamp: 1000,
+        });
+
+        updateCanvasChatMessage('msg_1', { content: 'Hello', thinking: 'Let me think...' });
+
+        const state = useEditorStore.getState();
+        expect(state.canvasChatMessages[0].content).toBe('Hello');
+        expect(state.canvasChatMessages[0].thinking).toBe('Let me think...');
+      });
+
+      it('不存在的 id 不应影响其他消息', () => {
+        const { addCanvasChatMessage, updateCanvasChatMessage } =
+          useEditorStore.getState();
+
+        addCanvasChatMessage({
+          id: 'msg_1', role: 'user', content: 'Hi', timestamp: 1000,
+        });
+        updateCanvasChatMessage('nonexistent', { content: 'Should not appear' });
+
+        expect(useEditorStore.getState().canvasChatMessages[0].content).toBe('Hi');
+      });
+    });
   });
 
   describe('canvasScale / canvasCustom', () => {

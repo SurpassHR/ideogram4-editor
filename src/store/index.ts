@@ -109,6 +109,7 @@ interface EditorStore {
   clearCanvasChat: () => void;
   isCanvasChatLoading: boolean;
   setCanvasChatLoading: (loading: boolean) => void;
+  updateCanvasChatMessage: (messageId: string, updates: Partial<Omit<ChatMessage, 'id'>>) => void;
 
   // 布局质量检测结果
   pendingQualityReport: LayoutQualityReport | null;
@@ -342,6 +343,11 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     pendingIdeogramOutput: null,
   }),
   setCanvasChatLoading: (loading) => set({ isCanvasChatLoading: loading }),
+  updateCanvasChatMessage: (messageId, updates) => set(state => ({
+    canvasChatMessages: state.canvasChatMessages.map(m =>
+      m.id === messageId ? { ...m, ...updates } : m
+    ),
+  })),
 
   // 布局质量检测结果
   pendingQualityReport: null,
