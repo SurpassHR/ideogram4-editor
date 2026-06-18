@@ -632,6 +632,22 @@ input[type="color"]::-webkit-color-swatch {
   box-shadow: 0 0 30px rgba(124, 92, 252, 0.08);
 }
 
+.artboard-toolbar {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  pointer-events: auto;
+}
+
+.artboard-toolbar .glow-grid-container {
+  padding: 6px 14px;
+  border-radius: 8px;
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+}
+
 .artboard.is-panning {
   cursor: grabbing;
 }
