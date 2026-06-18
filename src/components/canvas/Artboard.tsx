@@ -2,6 +2,7 @@ import { useRef, useEffect } from 'react';
 import { useEditorStore } from '../../store';
 import { useArtboardZoom } from '../../hooks/useArtboardZoom';
 import { useI18n } from '../../i18n/context';
+import { useCanvasChat } from '../../hooks/useCanvasChat';
 import CanvasArea from './CanvasArea';
 import ArtboardToolbar from './ArtboardToolbar';
 import CanvasChatPanel from './CanvasChatPanel';
@@ -11,6 +12,7 @@ export default function Artboard() {
   const canvasW = useEditorStore(s => s.canvasW);
   const canvasH = useEditorStore(s => s.canvasH);
   const { t } = useI18n();
+  const { handleRegenerate } = useCanvasChat();
 
   const {
     zoom,
@@ -65,8 +67,7 @@ export default function Artboard() {
           transformOrigin: 'top left',
         }}
       >
-        <CanvasArea zoom={zoom} panX={panX} panY={panY} screenToCanvas={screenToCanvas} onFitToArtboard={fitToArtboard} />
-      </div>
+        <CanvasArea zoom={zoom} panX={panX} panY={panY} screenToCanvas={screenToCanvas} onFitToArtboard={fitToArtboard} onRegenerate={handleRegenerate} />
 
       <CanvasChatPanel />
     </div>

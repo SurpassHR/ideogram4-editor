@@ -3,6 +3,7 @@ import { useEditorStore } from '../store';
 import { getLlmProviders } from '../components/llm/api';
 import { sendChatMessage } from '../services/llm-chat';
 import { CANVAS_CHAT_SYSTEM_PROMPT, buildCanvasChatContext, buildLayoutFeedbackPrompt, extractAndValidateIdeogramJSON } from '../services/llm-canvas-chat';
+import { validateLayout } from '../services/layout-validator';
 import { generateMessageId, createUserMessage, createAssistantMessage } from '../types/chat';
 import type { LlmProvider } from '../components/llm/types';
 import type { ChatMessage } from '../types/chat';
@@ -25,11 +26,13 @@ export function useCanvasChat() {
   const setCanvasChatOpen = useEditorStore(s => s.setCanvasChatOpen);
   const addCanvasChatMessage = useEditorStore(s => s.addCanvasChatMessage);
   const setPendingIdeogramOutput = useEditorStore(s => s.setPendingIdeogramOutput);
+  const setPendingQualityReport = useEditorStore(s => s.setPendingQualityReport);
   const clearCanvasChat = useEditorStore(s => s.clearCanvasChat);
   const chatModel = useEditorStore(s => s.chatModel);
   const chatResponseLang = useEditorStore(s => s.chatResponseLang);
   const setChatModel = useEditorStore(s => s.setChatModel);
   const setChatResponseLang = useEditorStore(s => s.setChatResponseLang);
+  const pendingQualityReport = useEditorStore(s => s.pendingQualityReport);
 
   // 画布状态（用于上下文构建）
   const boxes = useEditorStore(s => s.boxes);
@@ -211,6 +214,21 @@ export function useCanvasChat() {
           // 成功解析 — 添加 assistant 消息并设置输出
           addCanvasChatMessage(createAssistantMessage(aiText));
           setPendingIdeogramOutput(parsedJson);
+          // 软校验：布局质量检查
+          if (parsedJson.compositional_deconstruction.elements.length > 0) {
+            const qualityReport = validateLayout(
+              parsedJson.compositional_deconstruction.elements,
+              parsedJson.canvasW ?? canvasW,
+              parsedJson.canvasH ?? canvasH,
+            );
+            if (!qualityReport.overallPass) {
+              setPendingQualityReport(qualityReport);
+              setIsLoading(false);
+              return;  // 等待用户决定
+            }
+          }
+          // 软校验通过 → 清除任何旧报告并继续
+          setPendingQualityReport(null);
           setIsLoading(false);
           return;
         }
@@ -339,10 +357,24 @@ export function useCanvasChat() {
     getLlmProviders().then(setProviders);
   }, []);
 
+  /** 用户点击重新生成时的处理 */
+  const handleRegenerate = useCallback(() => {
+    const report = useEditorStore.getState().pendingQualityReport;
+    if (!report) return;
+    setPendingQualityReport(null);
+    // 找到最后一条 user 消息
+    const msgs = useEditorStore.getState().canvasChatMessages;
+    const lastUserMsg = [...msgs].reverse().find(m => m.role === 'user');
+    if (!lastUserMsg) return;
+    // 用 feedback 重新调用 sendMessage
+    sendMessage(lastUserMsg.content, { feedback: report.summaryText });
+  }, [sendMessage, setPendingQualityReport]);
+
   return {
     isCanvasChatOpen,
     messages,
     pendingIdeogramOutput,
+    pendingQualityReport,
     isLoading,
     modelOptions,
     chatModel,
@@ -357,5 +389,6 @@ export function useCanvasChat() {
     setChatResponseLang,
     refreshProviders,
     hasProviders: modelOptions.length > 0,
+    handleRegenerate,
   };
 }
