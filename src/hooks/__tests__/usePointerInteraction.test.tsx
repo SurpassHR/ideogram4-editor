@@ -109,4 +109,47 @@ describe('usePointerInteraction - click vs drag', () => {
     const state = useEditorStore.getState();
     expect(state.editingBoxId).toBe('box_test');
   });
+
+  it('Alt+pointerdown 在已有 box 上应创建新 box 而非选中已有 box', () => {
+    render(<TestCanvasWithBox />);
+
+    const box = document.getElementById('box_test')!;
+
+    // 按住 Alt 在已有 box 区域内按下（坐标 100,90 命中 box_test 内部）
+    fireEvent.pointerDown(box, { clientX: 100, clientY: 90, button: 0, altKey: true });
+
+    // drawing 模式的移动由 canvas 上的 onPointerMove 处理，拖出 100x100 区域
+    const canvas = document.getElementById('canvas-wrapper')!;
+    fireEvent.pointerMove(canvas, { clientX: 200, clientY: 190 });
+
+    // 松开鼠标，触发 addBox（绘制区域 >= 10x10）
+    fireEvent.pointerUp(window, { clientX: 200, clientY: 190 });
+
+    const state = useEditorStore.getState();
+    // 新 box 已创建并位于数组末尾（最上层），总数为 2
+    expect(state.boxes).toHaveLength(2);
+    // 原 box_test 位置未变（未被选中/拖动）
+    expect(state.boxes[0]).toMatchObject({ id: 'box_test', x: 50, y: 50 });
+    // 新 box 被选中（addBox 设置 selectedBoxId），原 box_test 未被选中
+    expect(state.boxes[1].id).toBe('box_1');
+    expect(state.selectedBoxId).toBe('box_1');
+    expect(state.boxes[1]).toMatchObject({ x: 100, y: 90, w: 100, h: 100 });
+  });
+
+  it('Alt+pointerdown 后未拖动（< 10px）不应创建 box', () => {
+    render(<TestCanvasWithBox />);
+
+    const box = document.getElementById('box_test')!;
+
+    fireEvent.pointerDown(box, { clientX: 100, clientY: 90, button: 0, altKey: true });
+    // 微小移动，绘制区域不足 10x10
+    const canvas = document.getElementById('canvas-wrapper')!;
+    fireEvent.pointerMove(canvas, { clientX: 103, clientY: 92 });
+    fireEvent.pointerUp(window, { clientX: 103, clientY: 92 });
+
+    const state = useEditorStore.getState();
+    // 未达到最小尺寸阈值，不创建 box，原 box_test 也未被改动
+    expect(state.boxes).toHaveLength(1);
+    expect(state.selectedBoxId).toBeNull();
+  });
 });

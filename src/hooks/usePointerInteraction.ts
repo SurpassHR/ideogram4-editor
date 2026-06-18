@@ -33,6 +33,7 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
   const boxRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const [drawingGhost, setDrawingGhost] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const [interactionMode, setInteractionMode] = useState<InteractionMode>('idle');
+  const [altPressed, setAltPressed] = useState(false);
 
   const addBox = useEditorStore(s => s.addBox);
   const selectBox = useEditorStore(s => s.selectBox);
@@ -51,9 +52,39 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
     }
   }, []);
 
+  // 进入 drawing 模式：在按下位置创建 ghost div，由 pointermove 更新尺寸、pointerup 落盘
+  const startDrawing = useCallback((e: React.PointerEvent) => {
+    const pos = getPointerPos(e);
+    const ir = interactionRef.current;
+    ir.mode = 'drawing';
+    setInteractionMode('drawing');
+    ir.startX = pos.x;
+    ir.startY = pos.y;
+
+    const ghost = document.createElement('div');
+    ghost.className = 'bounding-box';
+    ghost.style.left = `${pos.x}px`;
+    ghost.style.top = `${pos.y}px`;
+    ghost.style.width = '0px';
+    ghost.style.height = '0px';
+    ghost.style.pointerEvents = 'none';
+    ghost.style.zIndex = '5';
+    canvasRef.current!.appendChild(ghost);
+    ir.currentBoxElement = ghost;
+
+    setDrawingGhost({ x: pos.x, y: pos.y, w: 0, h: 0 });
+  }, [canvasRef, getPointerPos]);
+
   const handleCanvasPointerDown = useCallback((e: React.PointerEvent) => {
     if (e.button !== 0) return;
     const target = e.target as HTMLElement;
+
+    // Alt 修饰键：忽略命中检测（resize-handle / bounding-box），直接进入 drawing 模式，
+    // 允许在已有 box 重叠区域绘制创建新 box（addBox 追加到 boxes 末尾即最上层）
+    if (e.altKey) {
+      startDrawing(e);
+      return;
+    }
 
     if (target.closest('.resize-handle')) {
       const boxEl = target.closest('.bounding-box') as HTMLDivElement;
@@ -96,27 +127,9 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
     }
 
     if (target === canvasRef.current || (target as HTMLElement).id === 'canvas-inner') {
-      const pos = getPointerPos(e);
-      const ir = interactionRef.current;
-      ir.mode = 'drawing';
-      setInteractionMode('drawing');
-      ir.startX = pos.x;
-      ir.startY = pos.y;
-
-      const ghost = document.createElement('div');
-      ghost.className = 'bounding-box';
-      ghost.style.left = `${pos.x}px`;
-      ghost.style.top = `${pos.y}px`;
-      ghost.style.width = '0px';
-      ghost.style.height = '0px';
-      ghost.style.pointerEvents = 'none';
-      ghost.style.zIndex = '5';
-      canvasRef.current!.appendChild(ghost);
-      ir.currentBoxElement = ghost;
-
-      setDrawingGhost({ x: pos.x, y: pos.y, w: 0, h: 0 });
+      startDrawing(e);
     }
-  }, [canvasRef, getPointerPos, selectBox]);
+  }, [canvasRef, getPointerPos, selectBox, startDrawing]);
 
   const handleCanvasPointerMove = useCallback((e: React.PointerEvent) => {
     const ir = interactionRef.current;
@@ -272,11 +285,32 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // ─── Alt 修饰键状态跟踪（用于画布光标提示） ──────────────────
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Alt') setAltPressed(true);
+    };
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Alt') setAltPressed(false);
+    };
+    // 窗口失焦时重置，防止 Alt+Tab 切换后状态卡住
+    const onBlur = () => setAltPressed(false);
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    window.addEventListener('blur', onBlur);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+      window.removeEventListener('blur', onBlur);
+    };
+  }, []);
+
   return {
     boxRefs,
     registerBoxRef,
     drawingGhost,
     interactionMode,
+    altPressed,
     handleCanvasPointerDown,
     handleCanvasPointerMove,
   };

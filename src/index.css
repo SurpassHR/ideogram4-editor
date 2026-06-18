@@ -224,6 +224,13 @@ body {
   border-radius: 4px;
 }
 
+/* Alt 创建模式：画布及 box/resize-handle 光标统一为 crosshair，提示可在重叠区域绘制新 box */
+.canvas-bg.alt-create-mode,
+.canvas-bg.alt-create-mode .bounding-box,
+.canvas-bg.alt-create-mode .resize-handle {
+  cursor: crosshair;
+}
+
 /* Color swatches */
 .color-list {
   display: flex;

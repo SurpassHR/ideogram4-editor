@@ -98,6 +98,7 @@ export default function CanvasArea({ zoom, panX, panY, screenToCanvas, onFitToAr
     registerBoxRef,
     drawingGhost,
     interactionMode,
+    altPressed,
     handleCanvasPointerDown,
     handleCanvasPointerMove,
   } = usePointerInteraction({ canvasRef, zoom, panX, panY, screenToCanvas });
@@ -179,7 +180,7 @@ export default function CanvasArea({ zoom, panX, panY, screenToCanvas, onFitToAr
     <div
       ref={canvasRef}
       id="canvas-wrapper"
-      className="canvas-bg"
+      className={`canvas-bg${altPressed ? ' alt-create-mode' : ''}`}
       style={{
         width: canvasW,
         height: canvasH,
