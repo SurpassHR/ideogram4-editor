@@ -3,6 +3,7 @@ import { useEditorStore } from '../../store';
 import { useArtboardZoom } from '../../hooks/useArtboardZoom';
 import { useI18n } from '../../i18n/context';
 import CanvasArea from './CanvasArea';
+import ArtboardToolbar from './ArtboardToolbar';
 import CanvasChatPanel from './CanvasChatPanel';
 
 export default function Artboard() {
@@ -42,6 +43,7 @@ export default function Artboard() {
       className={`artboard${isPanning ? ' is-panning' : ''}`}
       onMouseDown={handleMouseDown}
     >
+      <ArtboardToolbar />
       <div className="artboard-controls">
         <button className="artboard-btn" onClick={fitToArtboard} title={t('artboard.fitToArtboard')}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
