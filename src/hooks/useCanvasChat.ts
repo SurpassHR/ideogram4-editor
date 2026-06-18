@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useEditorStore } from '../store';
 import { getLlmProviders } from '../components/llm/api';
-import { sendChatMessage } from '../services/llm-chat';
 import { sendChatMessageStream } from '../services/llm-stream';
 import { CANVAS_CHAT_SYSTEM_PROMPT, buildCanvasChatContext, buildLayoutFeedbackPrompt, extractAndValidateIdeogramJSON } from '../services/llm-canvas-chat';
 import { validateLayout } from '../services/layout-validator';
@@ -112,7 +111,6 @@ export function useCanvasChat() {
     return providers.find(p => p.id === parsed.providerId) || null;
   }, [chatModel, providers, parseModel]);
 
-  /** 发送消息 */
   /** 构建解析失败的错误文本，用于硬重试时反馈给 LLM */
   function buildParseErrorText(aiText: string): string {
     const match = aiText.match(/```json\s*([\s\S]*?)```/);
@@ -292,7 +290,6 @@ export function useCanvasChat() {
             store.updateCanvasChatMessage(placeholderId, {
               content: (accumulatedContent.join('') || '') + `\n\n[Stream Error: ${err}]`,
             });
-            setIsLoading(false);
             resolve(false);
           },
         });
