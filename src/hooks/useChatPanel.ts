@@ -1,10 +1,12 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useEditorStore } from '../store';
 import { getLlmProviders } from '../components/llm/api';
-import { sendChatMessage, buildBoxChatSystemPrompt } from '../services/llm-chat';
+import { sendChatMessageStream } from '../services/llm-stream';
+import { buildBoxChatSystemPrompt } from '../services/llm-chat';
 import { resolveTemplate } from '../utils/resolveTemplate';
 import type { LlmProvider } from '../components/llm/types';
 import type { ChatMessage } from '../types/chat';
+import { createUserMessage } from '../types/chat';
 import type { PromptPreset } from '../types/presets';
 
 export function useChatPanel() {
@@ -35,10 +37,16 @@ export function useChatPanel() {
   const clearChatHistory = useEditorStore(s => s.clearChatHistory);
   const setChatModel = useEditorStore(s => s.setChatModel);
 
+
   const [providers, setProviders] = useState<LlmProvider[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
+
+  // 流式累积引用，避免闭包中读取过期 store 状态
+  const contentRef = useRef('');
+  const thinkingRef = useRef('');
+
 
   const currentBox = boxes.find(b => b.id === activeChatBoxId);
   const messages = activeChatBoxId ? (chatHistories[activeChatBoxId] || []) : [];
@@ -71,17 +79,11 @@ export function useChatPanel() {
     return providers.find(p => p.id === parsed.providerId) || null;
   }, [chatModel, providers, parseModel]);
 
-  // 发送消息
+  // 发送消息（流式）
   const sendMessage = useCallback(async (content: string) => {
     if (!activeChatBoxId || !currentBox) return;
 
-    const userMessage: ChatMessage = {
-      id: `msg_${Date.now()}`,
-      role: 'user',
-      content,
-      timestamp: Date.now(),
-    };
-
+    const userMessage = createUserMessage(content);
     addChatMessage(activeChatBoxId, userMessage);
     setIsLoading(true);
     setError(null);
@@ -100,6 +102,20 @@ export function useChatPanel() {
       return;
     }
 
+    // 创建占位 assistant 消息
+    const placeholderId = `msg_${Date.now()}_stream`;
+    const placeholder: ChatMessage = {
+      id: placeholderId,
+      role: 'assistant',
+      content: '',
+      timestamp: Date.now(),
+    };
+    addChatMessage(activeChatBoxId, placeholder);
+
+    // 重置累积引用
+    contentRef.current = '';
+    thinkingRef.current = '';
+
     try {
       const allMessages = [...messages, userMessage];
       const systemPrompt = buildBoxChatSystemPrompt(currentBox, {
@@ -113,24 +129,40 @@ export function useChatPanel() {
         photoArtStyleMode,
       }, chatResponseLang);
 
-      const result = await sendChatMessage(provider, parsed.modelName, allMessages, systemPrompt, canSendImage);
+      const apiMessages = allMessages.map(m => ({ role: m.role, content: m.content }));
 
-      if (!result.ok) {
-        setError(result.error || 'Unknown error');
-        return;
-      }
-
-      const assistantMessage: ChatMessage = {
-        id: `msg_${Date.now()}_ai`,
-        role: 'assistant',
-        content: result.content || '',
-        timestamp: Date.now(),
-      };
-
-      addChatMessage(activeChatBoxId, assistantMessage);
+      await sendChatMessageStream(
+        provider, parsed.modelName, apiMessages, systemPrompt, {
+          onChunk: ({ type, text }) => {
+            if (type === 'thinking') {
+              thinkingRef.current += text;
+            } else {
+              contentRef.current += text;
+            }
+            // 每次 chunk 写入完整累积内容，避免闭包中读取过期 store 状态
+            useEditorStore.getState().updateChatHistoryMessage(
+              activeChatBoxId, placeholderId,
+              { content: contentRef.current, thinking: thinkingRef.current },
+            );
+          },
+          onDone: () => {
+            setIsLoading(false);
+          },
+          onError: (err) => {
+            const errorMsg = `\n\n[Stream Error: ${err}]`;
+            contentRef.current += errorMsg;
+            useEditorStore.getState().updateChatHistoryMessage(
+              activeChatBoxId, placeholderId,
+              { content: contentRef.current },
+            );
+            setError(err);
+            setIsLoading(false);
+          },
+        },
+        canSendImage,
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
-    } finally {
       setIsLoading(false);
     }
   }, [activeChatBoxId, currentBox, messages, chatModel, getCurrentProvider, parseModel, addChatMessage, highLevelDescription, aesthetics, lighting, medium, artStyle, background, globalPalette, photoArtStyleMode, canSendImage, chatResponseLang]);

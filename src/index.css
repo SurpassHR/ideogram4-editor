@@ -3082,3 +3082,55 @@ input[type="color"]::-webkit-color-swatch {
   gap: 8px;
   justify-content: flex-end;
 }
+
+/* ─── 模型思维链折叠块 ────────────────────────────────── */
+.chat-thinking-block {
+  margin: 8px 0;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.chat-thinking-block summary {
+  cursor: pointer;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  user-select: none;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.chat-thinking-block summary::-webkit-details-marker {
+  display: none;
+}
+.chat-thinking-block summary::before {
+  content: '▶';
+  font-size: 10px;
+  transition: transform 0.15s;
+}
+.chat-thinking-block[open] summary::before {
+  content: '▼';
+}
+.chat-thinking-content {
+  padding: 0 10px 8px;
+  font-size: 12px;
+  font-style: italic;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+/* ─── 画布缩略图 ────────────────────────────────────── */
+.chat-msg-thumb-container {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+.chat-msg-canvas-thumb {
+  max-width: 120px;
+  height: auto;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(0, 0, 0, 0.3);
+}

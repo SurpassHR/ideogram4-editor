@@ -5,6 +5,7 @@ import type { PromptPreset } from '../types/presets';
 import { PRESETS_STORAGE_KEY, createBuiltinPresets } from '../types/presets';
 import { MODE_ARTSTYLE, MODE_PHOTO } from '../types';
 import { computeCanvasDims, type RatioKey } from '../utils/canvas-dims';
+import { detectBboxSystem, bboxToPixels } from '../utils/coordinates';
 import type { LayoutQualityReport } from '../services/layout-validator';
 
 // ─── 内部剪贴板（模块级变量，非 OS 剪贴板）──────────────────────────
@@ -94,6 +95,8 @@ interface EditorStore {
   closeChat: () => void;
   addChatMessage: (boxId: string, message: ChatMessage) => void;
   markChatMessageAdopted: (boxId: string, messageId: string) => void;
+  updateChatHistoryMessage: (boxId: string, messageId: string, updates: Partial<ChatMessage>) => void;
+
   clearChatHistory: (boxId: string) => void;
   setChatModel: (model: string) => void;
   setEditingBoxId: (id: string | null) => void;
@@ -108,6 +111,7 @@ interface EditorStore {
   clearCanvasChat: () => void;
   isCanvasChatLoading: boolean;
   setCanvasChatLoading: (loading: boolean) => void;
+  updateCanvasChatMessage: (messageId: string, updates: Partial<Omit<ChatMessage, 'id'>>) => void;
 
   // 布局质量检测结果
   pendingQualityReport: LayoutQualityReport | null;
@@ -237,7 +241,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   addGlobalColor: (hex) => {
     const upper = hex.toUpperCase();
     const state = get();
-    if (state.globalPalette.length >= 16) return false;
+    if (state.globalPalette.length >= 5) return false;
     if (state.globalPalette.includes(upper)) return false;
     set({ globalPalette: [...state.globalPalette, upper] });
     return true;
@@ -308,6 +312,16 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     },
   })),
 
+  updateChatHistoryMessage: (boxId, messageId, updates) => set(state => ({
+    chatHistories: {
+      ...state.chatHistories,
+      [boxId]: (state.chatHistories[boxId] || []).map(m =>
+        m.id === messageId ? { ...m, ...updates } : m
+      ),
+    },
+  })),
+
+
   clearChatHistory: (boxId) => set(state => ({
     chatHistories: {
       ...state.chatHistories,
@@ -341,6 +355,11 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     pendingIdeogramOutput: null,
   }),
   setCanvasChatLoading: (loading) => set({ isCanvasChatLoading: loading }),
+  updateCanvasChatMessage: (messageId, updates) => set(state => ({
+    canvasChatMessages: state.canvasChatMessages.map(m =>
+      m.id === messageId ? { ...m, ...updates } : m
+    ),
+  })),
 
   // 布局质量检测结果
   pendingQualityReport: null,
@@ -537,20 +556,15 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     // 优先使用 JSON 内嵌的画布尺寸，fallback 到 store 当前值
     const cw = json.canvasW ?? state.canvasW;
     const ch = json.canvasH ?? state.canvasH;
-
-    const denorm = (val: number, max: number) => (val / 1000) * max;
-
+    const system = detectBboxSystem(json.compositional_deconstruction.elements);
     const newBoxes: Box[] = [];
     let counter = 0;
 
     for (const el of json.compositional_deconstruction.elements) {
-      const [y1, x1, y2, x2] = el.bbox;
+      const { x, y, w, h } = bboxToPixels(el.bbox, cw, ch, system);
       newBoxes.push({
         id: `box_${counter}`,
-        x: denorm(x1, cw),
-        y: denorm(y1, ch),
-        w: denorm(x2 - x1, cw),
-        h: denorm(y2 - y1, ch),
+        x, y, w, h,
         mode: el.type,
         text: el.text || '',
         desc: el.desc || '',

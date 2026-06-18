@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useEditorStore } from '../store';
 import { getLlmProviders } from '../components/llm/api';
-import { sendChatMessage } from '../services/llm-chat';
+import { sendChatMessageStream } from '../services/llm-stream';
 import { CANVAS_CHAT_SYSTEM_PROMPT, buildCanvasChatContext, buildLayoutFeedbackPrompt, extractAndValidateIdeogramJSON } from '../services/llm-canvas-chat';
 import { validateLayout } from '../services/layout-validator';
 import { generateMessageId, createUserMessage, createAssistantMessage } from '../types/chat';
@@ -9,6 +9,7 @@ import type { LlmProvider } from '../components/llm/types';
 import type { ChatMessage } from '../types/chat';
 import type { IdeogramOutput } from '../types';
 import { MODE_PHOTO, MODE_ARTSTYLE } from '../types';
+import { detectBboxSystem, bboxToPixels } from '../utils/coordinates';
 
 /** Apply 确认弹窗中各部分的选中状态 */
 export interface ApplySelections {
@@ -17,6 +18,44 @@ export interface ApplySelections {
   styleParams: boolean;
   globalPalette: boolean;
   modeSwitch: boolean;
+}
+/** 截取当前画布的缩略图 Data URL */
+async function takeCanvasSnapshot(): Promise<string | undefined> {
+  const wrapper = document.querySelector('#canvas-wrapper') as HTMLElement;
+  if (!wrapper) return undefined;
+
+  const rect = wrapper.getBoundingClientRect();
+  if (rect.width === 0 || rect.height === 0) return undefined;
+
+  const TARGET_W = 120;
+  const scale = TARGET_W / rect.width;
+
+  // 使用 foreignObject 将 DOM 序列化到 SVG 再绘制到 canvas
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="${rect.width}" height="${rect.height}">
+      <foreignObject width="100%" height="100%">
+        <div xmlns="http://www.w3.org/1999/xhtml">
+          ${wrapper.outerHTML}
+        </div>
+      </foreignObject>
+    </svg>
+  `;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = TARGET_W;
+  canvas.height = Math.round(rect.height * scale);
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return undefined;
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', 0.6));
+    };
+    img.onerror = () => resolve(undefined);
+    img.src = 'data:image/svg+xml,' + encodeURIComponent(svg);
+  });
 }
 
 export function useCanvasChat() {
@@ -76,7 +115,6 @@ export function useCanvasChat() {
     return providers.find(p => p.id === parsed.providerId) || null;
   }, [chatModel, providers, parseModel]);
 
-  /** 发送消息 */
   /** 构建解析失败的错误文本，用于硬重试时反馈给 LLM */
   function buildParseErrorText(aiText: string): string {
     const match = aiText.match(/```json\s*([\s\S]*?)```/);
@@ -125,6 +163,8 @@ export function useCanvasChat() {
 
   const sendMessage = useCallback(async (content: string, retryContext?: { feedback?: string }) => {
     const userMessage = createUserMessage(content);
+    const snapshotUrl = await takeCanvasSnapshot();
+    userMessage.canvasSnapshotUrl = snapshotUrl;
     addCanvasChatMessage(userMessage);
     setIsLoading(true);
 
@@ -177,85 +217,103 @@ export function useCanvasChat() {
     const MAX_HARD_RETRIES = 2;
     let lastErrorText = '';
 
-    while (hardRetryCount <= MAX_HARD_RETRIES) {
-      try {
-        const contextJson = buildCanvasChatContext(snapshot);
+    const doStreamAttempt = (): Promise<boolean> => {
+      return new Promise((resolve) => {
+        const placeholderId = generateMessageId();
+        const placeholder: ChatMessage = {
+          id: placeholderId,
+          role: 'assistant',
+          content: '',
+          timestamp: Date.now(),
+          canvasSnapshotUrl: snapshotUrl,
+        };
+        addCanvasChatMessage(placeholder);
 
-        // 构造消息列表：每轮都附带当前上下文
+        const contextJson = buildCanvasChatContext(snapshot);
         const allMessages = [...canvasChatMessages, userMessage];
         const apiMessages = allMessages.map(m => ({ role: m.role, content: m.content }));
-
-        // 在最后一条 user 消息前插入上下文 + 重试反馈
         const lastUserIdx = apiMessages.map((m, i) => (m.role === 'user' ? i : -1)).reduce((a, b) => Math.max(a, b), -1);
         if (lastUserIdx >= 0) {
-          const original = apiMessages[lastUserIdx];
-          let enriched = `Current canvas state (JSON prompt):\n\`\`\`json\n${contextJson}\n\`\`\`\n\nMy composition request: ${original.content}`;
-          // 第一次调用时附加 soft-validation feedback
-          if (hardRetryCount === 0 && retryContext?.feedback) {
-            enriched += buildLayoutFeedbackPrompt(retryContext.feedback);
-          }
-          // 硬重试时附加上次解析错误文本（仅重试轮次使用）
-          if (hardRetryCount > 0 && lastErrorText) {
-            enriched += lastErrorText;
-          }
-          apiMessages[lastUserIdx] = {
-            role: 'user',
-            content: enriched,
-          };
+          let enriched = `Current canvas state (JSON prompt):\n\`\`\`json\n${contextJson}\n\`\`\`\n\nMy composition request: ${apiMessages[lastUserIdx].content}`;
+          if (hardRetryCount === 0 && retryContext?.feedback) enriched += buildLayoutFeedbackPrompt(retryContext.feedback);
+          if (hardRetryCount > 0 && lastErrorText) enriched += lastErrorText;
+          apiMessages[lastUserIdx] = { role: 'user', content: enriched };
         }
 
-        const result = await sendChatMessage(provider, parsed.modelName, allMessages, CANVAS_CHAT_SYSTEM_PROMPT + langHint);
+        const accumulatedContent: string[] = [];
+        const accumulatedThinking: string[] = [];
 
-        if (!result.ok) {
-          addCanvasChatMessage(createAssistantMessage(`Error: ${result.error || 'Unknown error'}`));
-          setIsLoading(false);
-          return;
-        }
-
-        const aiText = result.content || '';
-        const parsedJson = extractAndValidateIdeogramJSON(aiText);
-
-        if (parsedJson !== null) {
-          // 成功解析 — 添加 assistant 消息并设置输出
-          addCanvasChatMessage(createAssistantMessage(aiText));
-          setPendingIdeogramOutput(parsedJson);
-          // 软校验：布局质量检查
-          if (parsedJson.compositional_deconstruction.elements.length > 0) {
-            const qualityReport = validateLayout(
-              parsedJson.compositional_deconstruction.elements,
-              parsedJson.canvasW ?? canvasW,
-              parsedJson.canvasH ?? canvasH,
-            );
-            if (!qualityReport.overallPass) {
-              setPendingQualityReport(qualityReport);
-              setIsLoading(false);
-              return;  // 等待用户决定
+        sendChatMessageStream(provider, parsed.modelName, apiMessages, CANVAS_CHAT_SYSTEM_PROMPT + langHint, {
+          onChunk: ({ type, text }) => {
+            if (type === 'thinking') {
+              accumulatedThinking.push(text);
+            } else {
+              accumulatedContent.push(text);
             }
-          }
-          // 软校验通过 → 清除任何旧报告并继续
-          setPendingQualityReport(null);
-          setIsLoading(false);
-          return;
-        }
+            // 逐步更新 store 中的占位消息
+            const store = useEditorStore.getState();
+            store.updateCanvasChatMessage(placeholderId, {
+              content: accumulatedContent.join(''),
+              thinking: accumulatedThinking.join(''),
+            });
+          },
+          onDone: async (fullText) => {
+            // 确保最终内容写入
+            const finalContent = accumulatedContent.join('') || fullText;
+            const finalThinking = accumulatedThinking.join('');
+            useEditorStore.getState().updateCanvasChatMessage(placeholderId, {
+              content: finalContent,
+              thinking: finalThinking || undefined,
+            });
 
-        // 解析失败 — 构建重试错误文本，不添加 assistant 消息
-        lastErrorText = buildParseErrorText(aiText);
-        hardRetryCount++;
-      } catch (err) {
-        addCanvasChatMessage(createAssistantMessage(`Error: ${err instanceof Error ? err.message : String(err)}`));
-        setIsLoading(false);
-        return;
-      }
+            const parsedJson = extractAndValidateIdeogramJSON(finalContent);
+            if (parsedJson !== null) {
+              setPendingIdeogramOutput(parsedJson);
+              // 软校验
+              const rawElements = parsedJson.compositional_deconstruction.elements;
+              const bboxSystem = detectBboxSystem(rawElements);
+              const normCw = parsedJson.canvasW ?? canvasW;
+              const normCh = parsedJson.canvasH ?? canvasH;
+              const normElements = bboxSystem === 'normalized' ? rawElements : rawElements.map(el => {
+                const [y1, x1, y2, x2] = el.bbox;
+                if (bboxSystem === 'fractional') return { ...el, bbox: [y1 * 1000, x1 * 1000, y2 * 1000, x2 * 1000] as [number, number, number, number] };
+                return { ...el, bbox: [(y1 / normCh) * 1000, (x1 / normCw) * 1000, (y2 / normCh) * 1000, (x2 / normCw) * 1000] as [number, number, number, number] };
+              });
+              const qualityReport = validateLayout(normElements, normCw, normCh);
+              setPendingQualityReport(qualityReport.overallPass ? null : qualityReport);
+              resolve(true);
+            } else {
+              // 解析失败：保留失败文本 + 追加错误提示
+              lastErrorText = buildParseErrorText(finalContent);
+              addCanvasChatMessage(createAssistantMessage(`\n\n[Parse Error: 解析失败，正在重新生成...]`));
+              resolve(false);
+            }
+          },
+          onError: (err) => {
+            const store = useEditorStore.getState();
+            store.updateCanvasChatMessage(placeholderId, {
+              content: (accumulatedContent.join('') || '') + `\n\n[Stream Error: ${err}]`,
+            });
+            resolve(false);
+          },
+        });
+      });
+    };
+
+    while (hardRetryCount <= MAX_HARD_RETRIES) {
+      const success = await doStreamAttempt();
+      if (success) { setIsLoading(false); return; }
+      hardRetryCount++;
     }
 
-    // 超过最大重试次数
-    addCanvasChatMessage(createAssistantMessage(`Error: Failed to receive valid JSON after ${MAX_HARD_RETRIES + 1} attempts. Last error: ${lastErrorText.replace(/\n\n\[Parse Error\]\n/, '')}`));
+    // 超过最大重试次数 — 在最后一条错误消息后追加最终提示
+    addCanvasChatMessage(createAssistantMessage(`Error: Failed after ${MAX_HARD_RETRIES + 1} attempts. Last error: ${lastErrorText.replace(/\n\n\[Parse Error\]\n/, '')}`));
     setIsLoading(false);
   }, [
     addCanvasChatMessage, getCurrentProvider, parseModel, chatModel,
     boxes, canvasW, canvasH, globalPalette, highLevelDescription,
     aesthetics, lighting, medium, artStyle, background, photoArtStyleMode,
-    canvasChatMessages, chatResponseLang, setPendingIdeogramOutput,
+    canvasChatMessages, chatResponseLang, setPendingIdeogramOutput, setPendingQualityReport,
   ]);
 
   /** Apply 确认弹窗的选中状态 */
@@ -272,34 +330,22 @@ export function useCanvasChat() {
     if (!pendingIdeogramOutput) return 0;
 
     const store = useEditorStore.getState();
-    // 优先使用 LLM 返回的画布尺寸，fallback 到 store 当前值
-    const cw = pendingIdeogramOutput.canvasW ?? store.canvasW;
-    const ch = pendingIdeogramOutput.canvasH ?? store.canvasH;
     // 如果 LLM 返回的画布尺寸与 store 不同，同步更新
     if (pendingIdeogramOutput.canvasW && pendingIdeogramOutput.canvasH &&
         (pendingIdeogramOutput.canvasW !== store.canvasW || pendingIdeogramOutput.canvasH !== store.canvasH)) {
       store.setCanvasDimensions(pendingIdeogramOutput.canvasW, pendingIdeogramOutput.canvasH);
     }
     if (selections.boxes) {
-      // 判断 bbox 坐标系统：有任一值 > 1000 则视为像素坐标
-      const isPixelCoords = pendingIdeogramOutput.compositional_deconstruction.elements.some(
-        el => el.bbox.some(v => v > 1000)
-      );
+      const elements = pendingIdeogramOutput.compositional_deconstruction.elements;
+      const system = detectBboxSystem(elements);
+      const cw = pendingIdeogramOutput.canvasW ?? store.canvasW;
+      const ch = pendingIdeogramOutput.canvasH ?? store.canvasH;
 
-      // 手动解析 boxes
       store.clearBoxes();
-      pendingIdeogramOutput.compositional_deconstruction.elements.forEach((el, i) => {
-        const [y1, x1, y2, x2] = el.bbox;
-        const box = isPixelCoords
-          ? { x: x1, y: y1, w: x2 - x1, h: y2 - y1 }   // 像素坐标直接使用
-          : {
-              x: (x1 / 1000) * cw,
-              y: (y1 / 1000) * ch,
-              w: ((x2 - x1) / 1000) * cw,
-              h: ((y2 - y1) / 1000) * ch,
-            };                                            // 归一化坐标转像素
+      elements.forEach(el => {
+        const { x, y, w, h } = bboxToPixels(el.bbox, cw, ch, system);
         store.addBox({
-          ...box,
+          x, y, w, h,
           id: '',
           mode: el.type,
           text: el.text || '',

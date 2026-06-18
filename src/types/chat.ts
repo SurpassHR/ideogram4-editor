@@ -7,6 +7,10 @@ export interface ChatMessage {
   timestamp: number;
   /** 标记此 assistant 回复是否已被用户采纳并写入 box */
   adopted?: boolean;
+  /** 模型推理过程文本，从流式事件中提取 */
+  thinking?: string;
+  /** 消息发送时刻的画布截图 Data URL（仅 Canvas Chat 使用） */
+  canvasSnapshotUrl?: string;
 }
 
 /** 生成唯一消息 ID：`msg_<timestamp>_<随机4位>` */

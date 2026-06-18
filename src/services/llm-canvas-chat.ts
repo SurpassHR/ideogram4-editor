@@ -8,6 +8,7 @@
 
 import type { IdeogramOutput } from '../types';
 import { generateJSON } from '../utils/json-serializer';
+const CJK_TEXT_RE = /[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]/;
 
 // ─── System Prompt ──────────────────────────────────────────────────
 
@@ -26,7 +27,7 @@ The IdeogramOutput object has the following structure:
   "style_description": {
     "aesthetics": string,                  // visual aesthetic direction
     "lighting": string,                    // lighting description
-    "color_palette": string[],             // max 16 global colors, 6-char hex uppercase (e.g., "#FF5733")
+    "color_palette": string[],             // max 5 global colors, 6-char hex uppercase (e.g., "#FF5733")
     "medium": string,                      // artistic medium (for MODE_ARTSTYLE) or photograph
     "art_style": string,                   // art style name (for MODE_ARTSTYLE) — do NOT include if "photo" is present
     "photo": string                        // photo style description (for MODE_PHOTO) — do NOT include if "art_style" is present
@@ -39,7 +40,7 @@ The IdeogramOutput object has the following structure:
         "bbox": [y1, x1, y2, x2],         // bounding box in 0-1000 normalized coordinates (y before x!)
         "desc": string,                    // detailed English visual description of this element
         "text": string,                    // required ONLY when type === "text" — the text content to render
-        "color_palette": string[]          // optional, max 5 colors per element, 6-char hex uppercase
+        "color_palette": string[]          // optional, max 5 colors per element, 6-char hex uppercase (recommend 2-3)
       }
     ]
   }
@@ -62,6 +63,17 @@ Important: "style_description" must use EITHER "art_style" + "medium" (art style
 - Visual anchor: at least one element should occupy ≥ 15% of canvas area as the primary focal point
 - Breathing room: leave adequate whitespace between elements for visual clarity
 - Size rhythm: vary element sizes with a max/min ratio ≤ 8:1 for visual interest
+- Concrete descriptions only: Use concrete visual descriptions (colors, shapes, textures, lighting, positions). Avoid abstract emotional language like "壮丽感", "majestic feeling", "dramatic tension" — describe only what is physically visible in the image
+- Text language: If using type === "text", the text content MUST be in English — Ideogram renders English text most reliably. Do NOT use Chinese, Japanese, or other scripts for text regions
+- Spatial consistency: Bbox coordinates (all in 0-1000 normalized range) MUST match the spatial position described in the element's desc field. Use these value ranges as reference:
+  - "top" / "upper" / "above" → y1 < 333 and y2 < 500
+  - "bottom" / "lower" / "below" → y1 > 500
+  - "center" / "middle" → x values and y values around 333-666
+  - "left" → x1 < 333 and x2 < 500
+  - "right" → x1 > 500
+  - Example: desc says "bottom center title" → bbox MUST have y1 > 500 (e.g., [600, 200, 800, 800])
+  - Anti-example: desc says "在下方" / "at the bottom" but y1=100 or y2<500 is WRONG — y=100 is near the top
+- Focal coherence: Focus on 2-4 primary subject elements. Avoid adding minor tertiary elements (background crowds, small details) that fragment the viewer's attention. Fewer, larger elements produce stronger compositions
 - Avoid clustering elements in one region — spread them across the canvas
 
 ## Retry Protocol
@@ -203,6 +215,13 @@ export function extractAndValidateIdeogramJSON(text: string): IdeogramOutput | n
   if (typeof cd !== 'object' || cd === null) return null;
 
   const cdObj = cd as Record<string, unknown>;
+  // ✅ 新增: global color_palette ≤ 5
+  const sd = obj.style_description;
+  if (typeof sd === 'object' && sd !== null) {
+    const sdObj = sd as Record<string, unknown>;
+    const globalPalette = sdObj.color_palette;
+    if (Array.isArray(globalPalette) && globalPalette.length > 5) return null;
+  }
   const elements = cdObj.elements;
   if (!Array.isArray(elements) || elements.length === 0) return null;
 
@@ -224,6 +243,12 @@ export function extractAndValidateIdeogramJSON(text: string): IdeogramOutput | n
 
     // desc: 非空字符串
     if (typeof e.desc !== 'string' || e.desc.trim().length === 0) return null;
+    // ✅ 新增: per-element color_palette ≤ 5
+    if (Array.isArray(e.color_palette) && e.color_palette.length > 5) return null;
+    // ✅ 新增: type=text 且 text 含 CJK 字符 → 拒绝
+    if (e.type === 'text' && typeof e.text === 'string') {
+      if (CJK_TEXT_RE.test(e.text)) return null;
+    }
   }
 
   return parsed as IdeogramOutput;

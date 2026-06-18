@@ -3,6 +3,7 @@ import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import type { ChatMessage as ChatMessageType } from '../../types/chat';
 import { useI18n } from '../../i18n/context';
+import { useEditorStore } from '../../store';
 
 interface ChatMessageProps {
   message: ChatMessageType;
@@ -28,12 +29,14 @@ function renderMarkdown(text: string): string {
 }
 
 export default function ChatMessage({ message, onAdopt, onDismiss, dismissed }: ChatMessageProps) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const timeLabel = useMemo(() => formatTime(message.timestamp), [message.timestamp]);
 
   const isUser = message.role === 'user';
   const roleLabel = isUser ? t('chat.you') : 'AI';
   const avatarLetter = isUser ? 'U' : 'A';
+  const responseLang = useEditorStore(s => s.chatResponseLang);
+  const isChinese = responseLang === 'zh' || (responseLang === 'auto' && lang === 'zh');
 
   const handleCopy = async () => {
     try {
@@ -52,6 +55,29 @@ export default function ChatMessage({ message, onAdopt, onDismiss, dismissed }: 
         <span className="chat-msg-card-spacer" />
         <span className="chat-msg-card-time">{timeLabel}</span>
       </div>
+      {/* 画布缩略图（仅 assistant 消息） */}
+      {!isUser && message.canvasSnapshotUrl && (
+        <div className="chat-msg-thumb-container">
+          <img
+            src={message.canvasSnapshotUrl}
+            className="chat-msg-canvas-thumb"
+            alt="Canvas preview"
+          />
+        </div>
+      )}
+
+      {/* 思维链折叠块（仅 assistant 消息有 thinking） */}
+      {!isUser && message.thinking && (
+        <details className="chat-thinking-block">
+          <summary>
+            {isChinese ? '🧠 思考过程' : '🧠 Reasoning'}
+          </summary>
+          <div
+            className="chat-thinking-content"
+            dangerouslySetInnerHTML={{ __html: renderMarkdown(message.thinking) }}
+          />
+        </details>
+      )}
 
       {/* 消息正文 */}
       <div

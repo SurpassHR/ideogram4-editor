@@ -375,6 +375,163 @@ Let me know if you'd like any adjustments!`;
     expect(result!.compositional_deconstruction.elements[0].type).toBe('text');
     expect(result!.compositional_deconstruction.elements[0].text).toBe('Hello World');
   });
+  // ─── 颜色数量上限 + CJK 文本拒绝 ──────────────────────────
+
+  it('global color_palette > 5 should return null', () => {
+    const tooManyColors = {
+      ...validOutput,
+      style_description: {
+        ...validOutput.style_description,
+        color_palette: ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF'],
+      },
+    };
+    const result = extractAndValidateIdeogramJSON(wrap(tooManyColors));
+    expect(result).toBeNull();
+  });
+
+  it('global color_palette <= 5 should pass', () => {
+    const fineColors = {
+      ...validOutput,
+      style_description: {
+        ...validOutput.style_description,
+        color_palette: ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF'],
+      },
+    };
+    const result = extractAndValidateIdeogramJSON(wrap(fineColors));
+    expect(result).not.toBeNull();
+  });
+
+  it('per-element color_palette > 5 should return null', () => {
+    const tooManyElementColors = {
+      ...validOutput,
+      compositional_deconstruction: {
+        ...validOutput.compositional_deconstruction,
+        elements: [
+          {
+            type: 'obj',
+            bbox: [100, 200, 500, 800],
+            desc: 'An object with too many colors',
+            color_palette: ['#A1', '#A2', '#A3', '#A4', '#A5', '#A6'],
+          },
+        ],
+      },
+    };
+    const result = extractAndValidateIdeogramJSON(wrap(tooManyElementColors));
+    expect(result).toBeNull();
+  });
+
+  it('type=text with CJK characters should return null', () => {
+    const cjkText = {
+      ...validOutput,
+      compositional_deconstruction: {
+        ...validOutput.compositional_deconstruction,
+        elements: [
+          {
+            type: 'text',
+            bbox: [100, 200, 300, 800],
+            desc: 'Title text',
+            text: '蝙蝠侠大战钢铁侠',
+          },
+        ],
+      },
+    };
+    const result = extractAndValidateIdeogramJSON(wrap(cjkText));
+    expect(result).toBeNull();
+  });
+
+  it('type=text with Japanese Hiragana should return null', () => {
+    const jpHiragana = {
+      ...validOutput,
+      compositional_deconstruction: {
+        ...validOutput.compositional_deconstruction,
+        elements: [
+          {
+            type: 'text',
+            bbox: [100, 200, 300, 800],
+            desc: 'Title text',
+            text: 'こんにちは',
+          },
+        ],
+      },
+    };
+    const result = extractAndValidateIdeogramJSON(wrap(jpHiragana));
+    expect(result).toBeNull();
+  });
+
+  it('type=text with Japanese Katakana should return null', () => {
+    const jpKatakana = {
+      ...validOutput,
+      compositional_deconstruction: {
+        ...validOutput.compositional_deconstruction,
+        elements: [
+          {
+            type: 'text',
+            bbox: [100, 200, 300, 800],
+            desc: 'Title text',
+            text: 'コンニチハ',
+          },
+        ],
+      },
+    };
+    const result = extractAndValidateIdeogramJSON(wrap(jpKatakana));
+    expect(result).toBeNull();
+  });
+
+  it('type=text with Korean Hangul should return null', () => {
+    const korHangul = {
+      ...validOutput,
+      compositional_deconstruction: {
+        ...validOutput.compositional_deconstruction,
+        elements: [
+          {
+            type: 'text',
+            bbox: [100, 200, 300, 800],
+            desc: 'Title text',
+            text: '안녕하세요',
+          },
+        ],
+      },
+    };
+    const result = extractAndValidateIdeogramJSON(wrap(korHangul));
+    expect(result).toBeNull();
+  });
+
+  it('type=text with English text should pass', () => {
+    const englishText = {
+      ...validOutput,
+      compositional_deconstruction: {
+        ...validOutput.compositional_deconstruction,
+        elements: [
+          {
+            type: 'text',
+            bbox: [100, 200, 300, 800],
+            desc: 'Title text at top center',
+            text: 'BATMAN VS IRON MAN',
+          },
+        ],
+      },
+    };
+    const result = extractAndValidateIdeogramJSON(wrap(englishText));
+    expect(result).not.toBeNull();
+  });
+
+  it('type=obj with CJK in desc should pass (only text field is restricted)', () => {
+    const cjkDesc = {
+      ...validOutput,
+      compositional_deconstruction: {
+        ...validOutput.compositional_deconstruction,
+        elements: [
+          {
+            type: 'obj',
+            bbox: [100, 200, 500, 800],
+            desc: '一棵大树 with detailed bark texture',
+          },
+        ],
+      },
+    };
+    const result = extractAndValidateIdeogramJSON(wrap(cjkDesc));
+    expect(result).not.toBeNull();
+  });
 });
 
 // ─── buildCanvasChatContext ─────────────────────────────────────────
@@ -464,16 +621,19 @@ describe('CANVAS_CHAT_SYSTEM_PROMPT', () => {
     expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Minimum gap between elements');
     expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Element aspect ratio');
     expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Recommended element count: 2-6');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).not.toContain('max 16');
   });
-
   it('应包含 Design Principles 章节', () => {
     expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('### Design Principles');
     expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Rule of thirds');
     expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Visual anchor');
     expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Breathing room');
     expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Avoid clustering');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Text language');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Spatial consistency');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Focal coherence');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Concrete descriptions');
   });
-
   it('应包含 Retry Protocol 章节', () => {
     expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('## Retry Protocol');
     expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('[Layout Feedback]');

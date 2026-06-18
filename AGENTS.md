@@ -31,7 +31,7 @@ src/
 │       └── index.test.ts             # Store 单元测试（openChat, selectBox, editingBoxId）
 ├── types/
 │   ├── index.ts                      # Box, IdeogramOutput, GenerationStatus 等类型
-│   ├── chat.ts                       # ChatMessage 类型（id, role, content, timestamp, adopted）
+│   ├── chat.ts                       # ChatMessage 类型（id, role, content, timestamp, adopted, thinking?, canvasSnapshotUrl?）
 │   └── presets.ts                    # PromptPreset 接口 + 4 个内置预设模板
 ├── hooks/
 │   ├── usePointerInteraction.ts      # 画布 Pointer Events：绘制/拖拽/缩放 boxes + 单击/双击检测 + 全局键盘快捷键（Ctrl+D/C/X/V, Delete）
@@ -40,7 +40,7 @@ src/
 │   ├── useComfyUIGeneration.ts       # ComfyUI 生成流程编排
 │   ├── useArtboardZoom.ts            # 画板缩放/平移：wheel 缩放+中键拖拽+坐标转换
 │   ├── useChatPanel.ts               # AI 对话面板逻辑：消息发送/采纳/清空/预设/多模态图像
-│   ├── useCanvasChat.ts              # 画布级 AI 构图对话：发送/重试/解析 IdeogramOutput/选择性 Apply/布局质量校验/预设
+│   ├── useCanvasChat.ts              # 画布级 AI 构图对话：发送/流式/重试/解析 IdeogramOutput/选择性 Apply/布局质量校验/画布缩略图截取/预设
 │   ├── useHashRoute.ts               # Hash 路由 Hook：监听 hashchange 事件，返回 { hash, navigate }
 │   └── __tests__/
 │       ├── usePointerInteraction.test.tsx  # 交互 hook 测试（单击选中/拖拽/双击编辑）
@@ -91,6 +91,7 @@ src/
 │   └── comfyui-api.ts               # 轮询 ComfyUI /history 端点
 ├── services/
 │   ├── llm-chat.ts                  # sendChatMessage() 多提供商 LLM + 多模态图像支持
+│   ├── llm-stream.ts                # sendChatMessageStream() SSE 流式服务层（OpenAI/Anthropic/Gemini）
 │   ├── llm-canvas-chat.ts           # Canvas Chat system prompt + JSON 提取验证 + 上下文构建
 │   ├── layout-validator.ts          # 布局质量软校验（元素面积/覆盖率/间距/边距/数量/宽高比）
 │   └── __tests__/
@@ -114,8 +115,8 @@ src/
 8. 右键 box 弹出框上下文菜单（Duplicate/Cut/Copy/Delete/层级/图像/AI Chat），右键画布空白弹出画布菜单（Paste/背景图/清除/Fit）；键盘快捷键 Ctrl+D/Ctrl+X/Ctrl+C/Ctrl+V/Delete 全局生效
 9. `generateJSON()` 将 boxes 坐标归一化到 0-1000 范围，合并全局设置，输出 JSON（可选导出图像 Data URL）
 10. `generateImage()` 将 JSON 注入 ComfyUI workflow 模板，调用 ComfyUI API 生成图片
-
-11. `IdeogramOutput` 结构：Canvas Chat 的 LLM 返回结构化 JSON（`high_level_description` + `style_description` + `compositional_deconstruction.elements[]`），解析验证后存入 `pendingIdeogramOutput`；Per-Box Chat 返回自由文本，直接采纳为 box 描述
+11. LLM 对话支持 SSE 流式输出：`sendChatMessageStream()` 逐 token 渲染，模型思维链（CoT）以可折叠块显示，Canvas Chat 每条消息附带画布缩略图
+12. `IdeogramOutput` 结构：Canvas Chat 的 LLM 返回结构化 JSON（`high_level_description` + `style_description` + `compositional_deconstruction.elements[]`），解析验证后存入 `pendingIdeogramOutput`；Per-Box Chat 返回自由文本，直接采纳为 box 描述
 
 ### 关键 Store 字段
 
@@ -135,6 +136,10 @@ src/
 - `chatResponseLang` — LLM 回复语言偏好（`'auto' | 'en' | 'zh'`，持久化 localStorage `ideogram4-chat-lang`）
 - `isCanvasChatOpen` — 画布级 AI 构图对话面板展开/折叠状态（独立于 per-box ChatPanel）
 - `canvasChatMessages` — 画布级对话历史（`ChatMessage[]`，不绑定任何 box）
+- `isCanvasChatLoading` / `setCanvasChatLoading` — Canvas Chat 加载状态
+- `pendingQualityReport` — AI 回复的质量校验报告（`null` 表示无报告）
+- `updateCanvasChatMessage(messageId, updates)` — 更新 canvasChatMessages 中指定消息的字段
+- `updateChatHistoryMessage(boxId, messageId, updates)` — 更新 per-box chatHistories 中的消息字段
 - `pendingIdeogramOutput` — 最新 AI 回复中提取的待 Apply 的 `IdeogramOutput`，null 表示无有效 JSON
 - `duplicateBox / cutBox / copyBox / pasteBox / bringToFront / sendToBack` — 框操作（右键菜单 + 键盘快捷键），内部剪贴板（模块级变量，非 OS 剪贴板）
 - `setCanvasBackgroundUrl(url)` — 设置/清除画布背景图
