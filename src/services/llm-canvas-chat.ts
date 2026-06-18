@@ -8,6 +8,7 @@
 
 import type { IdeogramOutput } from '../types';
 import { generateJSON } from '../utils/json-serializer';
+const CJK_TEXT_RE = /[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]/;
 
 // ─── System Prompt ──────────────────────────────────────────────────
 
@@ -239,8 +240,7 @@ export function extractAndValidateIdeogramJSON(text: string): IdeogramOutput | n
     if (Array.isArray(e.color_palette) && e.color_palette.length > 5) return null;
     // ✅ 新增: type=text 且 text 含 CJK 字符 → 拒绝
     if (e.type === 'text' && typeof e.text === 'string') {
-      const cjkRegex = /[\u4e00-\u9fff]/;
-      if (cjkRegex.test(e.text)) return null;
+      if (CJK_TEXT_RE.test(e.text)) return null;
     }
   }
 

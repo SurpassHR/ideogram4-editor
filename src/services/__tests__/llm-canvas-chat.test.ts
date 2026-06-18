@@ -439,6 +439,63 @@ Let me know if you'd like any adjustments!`;
     expect(result).toBeNull();
   });
 
+  it('type=text with Japanese Hiragana should return null', () => {
+    const jpHiragana = {
+      ...validOutput,
+      compositional_deconstruction: {
+        ...validOutput.compositional_deconstruction,
+        elements: [
+          {
+            type: 'text',
+            bbox: [100, 200, 300, 800],
+            desc: 'Title text',
+            text: 'こんにちは',
+          },
+        ],
+      },
+    };
+    const result = extractAndValidateIdeogramJSON(wrap(jpHiragana));
+    expect(result).toBeNull();
+  });
+
+  it('type=text with Japanese Katakana should return null', () => {
+    const jpKatakana = {
+      ...validOutput,
+      compositional_deconstruction: {
+        ...validOutput.compositional_deconstruction,
+        elements: [
+          {
+            type: 'text',
+            bbox: [100, 200, 300, 800],
+            desc: 'Title text',
+            text: 'コンニチハ',
+          },
+        ],
+      },
+    };
+    const result = extractAndValidateIdeogramJSON(wrap(jpKatakana));
+    expect(result).toBeNull();
+  });
+
+  it('type=text with Korean Hangul should return null', () => {
+    const korHangul = {
+      ...validOutput,
+      compositional_deconstruction: {
+        ...validOutput.compositional_deconstruction,
+        elements: [
+          {
+            type: 'text',
+            bbox: [100, 200, 300, 800],
+            desc: 'Title text',
+            text: '안녕하세요',
+          },
+        ],
+      },
+    };
+    const result = extractAndValidateIdeogramJSON(wrap(korHangul));
+    expect(result).toBeNull();
+  });
+
   it('type=text with English text should pass', () => {
     const englishText = {
       ...validOutput,
