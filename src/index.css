@@ -638,14 +638,15 @@ input[type="color"]::-webkit-color-swatch {
   left: 50%;
   transform: translateX(-50%);
   z-index: 40;
-  pointer-events: auto;
-}
-
-.artboard-toolbar .glow-grid-container {
-  padding: 6px 14px;
-  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(22, 22, 48, 0.9);
   backdrop-filter: blur(8px);
   border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 14px;
+  pointer-events: auto;
 }
 
 .artboard.is-panning {

@@ -1,5 +1,3 @@
-import { useEditorStore } from '../../store';
-import { useI18n } from '../../i18n/context';
 import Artboard from '../canvas/Artboard';
 import JsonToolbar from '../json/JsonToolbar';
 import ComfyUIControls from '../comfyui/ComfyUIControls';
@@ -7,16 +5,11 @@ import ImagePreview from '../comfyui/ImagePreview';
 import RightPanelContainer from '../panels/RightPanelContainer';
 import { useImageDrop } from '../../hooks/useImageDrop';
 
-
 export default function CanvasPage() {
   useImageDrop();
-  const { t } = useI18n();
-  const resetCanvas = useEditorStore(s => s.resetCanvas);
 
   return (
     <>
-      <button className="btn" onClick={resetCanvas}>{t('header.resetCanvas')}</button>
-
       {/* Main Content: 画板 + 右侧面板 */}
       <div style={{ display: 'flex', gap: '20px', flex: 1, minHeight: 0, overflow: 'hidden' }}>
         <div style={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column' }}>

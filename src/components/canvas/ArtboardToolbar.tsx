@@ -1,7 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { useEditorStore } from '../../store';
 import { useI18n } from '../../i18n/context';
-import GlowGrid from '../panels/GlowGrid';
 import SelectMenu from '../chat/SelectMenu';
 import { RATIO_KEYS, type RatioKey } from '../../utils/canvas-dims';
 
@@ -45,7 +44,6 @@ export default function ArtboardToolbar() {
 
   return (
     <div className="artboard-toolbar">
-      <GlowGrid style={{ display: 'flex', gap: '12px', alignItems: 'center', background: 'rgba(13, 13, 26, 0.85)', padding: '8px 14px' }}>
         <span className="canvas-controls-label">{t('header.ratio')}</span>
         <SelectMenu
           options={ratioOptions}
@@ -114,7 +112,7 @@ export default function ArtboardToolbar() {
         </div>
 
         <span className="canvas-dims-display">{canvasW} × {canvasH}</span>
-      </GlowGrid>
+
     </div>
   );
 }
