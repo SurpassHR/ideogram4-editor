@@ -135,6 +135,10 @@ interface EditorStore {
   canvasBackgroundUrl: string | null;
   setCanvasBackgroundUrl: (url: string | null) => void;
 
+  // 快捷键速查弹窗
+  isShortcutsModalOpen: boolean;
+  setShortcutsModalOpen: (open: boolean) => void;
+
   // 框操作（右键菜单 + 键盘快捷键）
   duplicateBox: (boxId: string) => void;
   cutBox: (boxId: string) => void;
@@ -418,6 +422,10 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   // ─── 画布背景图 ─────────────────────────────────────────────
   canvasBackgroundUrl: null,
   setCanvasBackgroundUrl: (url) => set({ canvasBackgroundUrl: url }),
+
+  // ─── 快捷键速查弹窗 ─────────────────────────────────────────
+  isShortcutsModalOpen: false,
+  setShortcutsModalOpen: (open) => set({ isShortcutsModalOpen: open }),
 
   // ─── 框操作（右键菜单 + 键盘快捷键）────────────────────────
 

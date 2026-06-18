@@ -215,6 +215,38 @@ export interface Translations {
       aspect_ratio: string;
     };
   };
+  shortcuts: {
+    button: string;
+    title: string;
+    close: string;
+    groups: {
+      boxOps: string;
+      editing: string;
+      canvas: string;
+    };
+    keys: {
+      ctrlD: string;
+      ctrlX: string;
+      ctrlC: string;
+      ctrlV: string;
+      delete: string;
+      doubleClick: string;
+      altDrag: string;
+      scroll: string;
+      middleDrag: string;
+    };
+    items: {
+      duplicate: string;
+      cut: string;
+      copy: string;
+      paste: string;
+      delete: string;
+      inlineEdit: string;
+      altDrag: string;
+      wheelZoom: string;
+      middlePan: string;
+    };
+  };
 }
 
 const en: Translations = {
@@ -432,6 +464,38 @@ const en: Translations = {
       aspect_ratio: 'Aspect Ratio',
     },
   },
+  shortcuts: {
+    button: 'Shortcuts',
+    title: 'Shortcuts',
+    close: 'Close',
+    groups: {
+      boxOps: 'Box Operations',
+      editing: 'Interactive Editing',
+      canvas: 'Canvas View',
+    },
+    keys: {
+      ctrlD: 'Ctrl+D',
+      ctrlX: 'Ctrl+X',
+      ctrlC: 'Ctrl+C',
+      ctrlV: 'Ctrl+V',
+      delete: 'Delete',
+      doubleClick: 'Double-click',
+      altDrag: 'Alt+Drag',
+      scroll: 'Scroll',
+      middleDrag: 'Middle-drag',
+    },
+    items: {
+      duplicate: 'Duplicate selected box',
+      cut: 'Cut selected box',
+      copy: 'Copy selected box',
+      paste: 'Paste',
+      delete: 'Delete selected box',
+      inlineEdit: 'Inline edit box text',
+      altDrag: 'Draw a new box over existing ones',
+      wheelZoom: 'Zoom the artboard',
+      middlePan: 'Pan the artboard',
+    },
+  },
 };
 
 const zh: Translations = {
@@ -647,6 +711,38 @@ const zh: Translations = {
       margin: '边缘距离',
       element_count: '元素数量',
       aspect_ratio: '宽高比',
+    },
+  },
+  shortcuts: {
+    button: '快捷键',
+    title: '快捷键',
+    close: '关闭',
+    groups: {
+      boxOps: '框操作',
+      editing: '交互编辑',
+      canvas: '画布视图',
+    },
+    keys: {
+      ctrlD: 'Ctrl+D',
+      ctrlX: 'Ctrl+X',
+      ctrlC: 'Ctrl+C',
+      ctrlV: 'Ctrl+V',
+      delete: 'Delete',
+      doubleClick: '双击',
+      altDrag: 'Alt+拖拽',
+      scroll: '滚轮',
+      middleDrag: '中键拖拽',
+    },
+    items: {
+      duplicate: '复制选中框',
+      cut: '剪切选中框',
+      copy: '复制选中框',
+      paste: '粘贴',
+      delete: '删除选中框',
+      inlineEdit: '内联编辑框内文字',
+      altDrag: '在已有框上绘制新框',
+      wheelZoom: '缩放画板',
+      middlePan: '平移画板',
     },
   },
 };

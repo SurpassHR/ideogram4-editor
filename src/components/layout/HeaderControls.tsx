@@ -1,4 +1,5 @@
 import { useI18n } from '../../i18n/context';
+import { useEditorStore } from '../../store';
 
 interface Props {
   currentHash: string;
@@ -7,6 +8,7 @@ interface Props {
 
 export default function Header({ currentHash, onNavigate }: Props) {
   const { lang, setLang, t } = useI18n();
+  const setShortcutsModalOpen = useEditorStore(s => s.setShortcutsModalOpen);
 
   const isCanvas = currentHash !== '#/settings';
 
@@ -34,6 +36,15 @@ export default function Header({ currentHash, onNavigate }: Props) {
       </nav>
 
       <div className="app-header-spacer" />
+
+      <button
+        className="shortcuts-trigger-btn"
+        onClick={() => setShortcutsModalOpen(true)}
+        title={t('shortcuts.button')}
+        aria-label={t('shortcuts.button')}
+      >
+        ⌨
+      </button>
 
       <div className="lang-switcher">
         <button

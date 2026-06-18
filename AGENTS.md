@@ -83,6 +83,9 @@ src/
 │       ├── ChatMessage.tsx           # 用户/AI 消息气泡 + 采纳/忽略按钮
 │       ├── PresetManagerPanel.tsx    # 预设管理面板（模态框 + 内嵌模式）：搜索/标签筛选/CRUD/变量参考
 │       └── SelectMenu.tsx            # 可复用 Portal 下拉选择菜单组件
+│   └── shortcuts/
+│       ├── ShortcutsModal.tsx        # 快捷键速查模态（createPortal→body，✕/Escape/遮罩关闭，store isShortcutsModalOpen 驱动）
+│       └── shortcuts-data.ts         # 静态分组数据（3 组 9 条，keyLabel/descKey 均走 i18n）
 ├── utils/
 │   ├── coordinates.ts               # 坐标归一化/反归一化（0-1000 ↔ 像素）
 │   ├── json-serializer.ts           # generateJSON() + parseBoxesFromJSON()，可选 image_data 导出
