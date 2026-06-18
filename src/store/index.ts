@@ -509,6 +509,8 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
     return {
       high_level_description: highLevelDescription,
+      canvasW,
+      canvasH,
       style_description: styleDescription as IdeogramOutput['style_description'],
       compositional_deconstruction: {
         background,
@@ -519,7 +521,9 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
   loadFromJSON: (json) => {
     const state = get();
-    const { canvasW, canvasH } = state;
+    // 优先使用 JSON 内嵌的画布尺寸，fallback 到 store 当前值
+    const cw = json.canvasW ?? state.canvasW;
+    const ch = json.canvasH ?? state.canvasH;
 
     const denorm = (val: number, max: number) => (val / 1000) * max;
 
@@ -530,10 +534,10 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       const [y1, x1, y2, x2] = el.bbox;
       newBoxes.push({
         id: `box_${counter}`,
-        x: denorm(x1, canvasW),
-        y: denorm(y1, canvasH),
-        w: denorm(x2 - x1, canvasW),
-        h: denorm(y2 - y1, canvasH),
+        x: denorm(x1, cw),
+        y: denorm(y1, ch),
+        w: denorm(x2 - x1, cw),
+        h: denorm(y2 - y1, ch),
         mode: el.type,
         text: el.text || '',
         desc: el.desc || '',

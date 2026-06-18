@@ -66,6 +66,30 @@ export default function CanvasChatPanel() {
     if (!el) return;
     el.scrollTop = el.scrollHeight;
   }, [messages.length, isLoading]);
+  // 阻止 wheel 事件冒泡到 Artboard（避免缩放 canvas 而非滚动消息列表）
+  // 边界时 preventDefault 防止页面滚动链
+  useEffect(() => {
+    const el = messagesRef.current;
+    if (!el) return;
+    const handler = (e: WheelEvent) => {
+      const atTop = el.scrollTop <= 0;
+      const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight;
+      const scrollingDown = e.deltaY > 0;
+      const scrollingUp = e.deltaY < 0;
+
+      // 能继续滚动 → 停止冒泡（阻止画布缩放）但允许默认滚动
+      if ((scrollingDown && !atBottom) || (scrollingUp && !atTop)) {
+        e.stopPropagation();
+        return;
+      }
+
+      // 到达边界或无滚动内容 → 同时阻止默认行为（页面滚动链）和冒泡（画布缩放）
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    el.addEventListener('wheel', handler, { passive: false });
+    return () => el.removeEventListener('wheel', handler);
+  }, [isCanvasChatOpen]);
 
   // Apply 成功 toast
   useEffect(() => {

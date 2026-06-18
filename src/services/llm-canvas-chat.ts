@@ -20,7 +20,9 @@ Your task: given a user's thematic description and the current canvas state (as 
 The IdeogramOutput object has the following structure:
 
 {
-  "high_level_description": string,       // 1-2 sentence overall scene description
+  "high_level_description": string,      // 1-2 sentence overall scene description
+  "canvasW": number,                       // canvas width in pixels (must match canvasW from the input context JSON)
+  "canvasH": number,                       // canvas height in pixels (must match canvasH from the input context JSON)
   "style_description": {
     "aesthetics": string,                  // visual aesthetic direction
     "lighting": string,                    // lighting description
@@ -53,10 +55,11 @@ Important: "style_description" must use EITHER "art_style" + "medium" (art style
   - bbox: exactly 4 numbers [y1, x1, y2, x2], each in the range 0-1000, representing the normalized bounding box
   - desc: a non-empty English string with detailed visual description (colors, materials, lighting, shape, texture, mood)
 - For "text" type elements, include the "text" field with the exact text to render.
-- Colors in color_palette must be 6-character hex uppercase strings (e.g., "#FF5733").
-- Elements should not overlap excessively — leave room for background and overall composition balance.
-- bbox coordinates: y1 < y2 and x1 < x2 must hold (valid rectangle).
-- high_level_description: 1-2 sentences summarizing the entire scene.
+      - Colors in color_palette must be 6-character hex uppercase strings (e.g., "#FF5733").
+      - Elements should not overlap excessively — leave room for background and overall composition balance.
+      - You MUST include "canvasW" and "canvasH" in your output, matching the current canvas dimensions from the input context. These are metadata fields only — bbox coordinates are ALWAYS in 0-1000 normalized space and are NOT affected by canvasW/canvasH pixel dimensions.
+      - bbox coordinates: y1 < y2 and x1 < x2 must hold (valid rectangle).
+      - high_level_description: 1-2 sentences summarizing the entire scene.
 
 ## Output Format
 
@@ -69,6 +72,8 @@ Here's the composition I designed for your scene:
 \`\`\`json
 {
   "high_level_description": "...",
+  "canvasW": 1024,
+  "canvasH": 768,
   "style_description": { ... },
   "compositional_deconstruction": { ... }
 }
@@ -188,7 +193,7 @@ export function extractAndValidateIdeogramJSON(text: string): IdeogramOutput | n
     if (!Array.isArray(bbox) || bbox.length !== 4) return null;
     for (const v of bbox) {
       if (typeof v !== 'number' || Number.isNaN(v)) return null;
-      if (v < 0 || v > 1000) return null;
+      if (v < 0) return null;
     }
 
     // desc: 非空字符串

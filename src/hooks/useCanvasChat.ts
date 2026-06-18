@@ -150,6 +150,52 @@ export function useCanvasChat() {
 
       // 尝试提取 JSON
       const parsedJson = extractAndValidateIdeogramJSON(aiText);
+
+      // 调试：JSON 解析失败时输出详细原因（保留用于排查 LLM 输出格式问题）
+      if (parsedJson === null) {
+        const match = aiText.match(/```json\s*([\s\S]*?)```/);
+        if (!match) {
+          addCanvasChatMessage(createAssistantMessage('⚠ Debug: No ```json code block found in AI response.'));
+        } else {
+          const jsonStr = match[1].trim();
+          try {
+            const p = JSON.parse(jsonStr);
+            const cd = (p as Record<string, unknown>).compositional_deconstruction;
+            if (!cd || typeof cd !== 'object') {
+              addCanvasChatMessage(createAssistantMessage('⚠ Debug: Missing or invalid compositional_deconstruction.'));
+            } else {
+              const els = (cd as Record<string, unknown>).elements;
+              if (!Array.isArray(els)) {
+                addCanvasChatMessage(createAssistantMessage('⚠ Debug: elements is not an array, type=' + typeof els));
+              } else if (els.length === 0) {
+                addCanvasChatMessage(createAssistantMessage('⚠ Debug: elements array is empty.'));
+              } else {
+                const issues: string[] = [];
+                for (let i = 0; i < els.length; i++) {
+                  const el = els[i] as Record<string, unknown>;
+                  if (typeof el !== 'object' || el === null) { issues.push(`el[${i}] not object`); continue; }
+                  if (el.type !== 'obj' && el.type !== 'text') { issues.push(`el[${i}] type="${el.type}"`); }
+                  const bbox = el.bbox;
+                  if (!Array.isArray(bbox) || bbox.length !== 4) { issues.push(`el[${i}] bbox invalid`); }
+                  else {
+                    const badVals = (bbox as number[]).filter(v => typeof v !== 'number' || isNaN(v) || v < 0);
+                    if (badVals.length > 0) { issues.push(`el[${i}] bbox has bad values: ${JSON.stringify(badVals)}`); }
+                  }
+                  if (typeof el.desc !== 'string' || (el.desc as string).trim().length === 0) { issues.push(`el[${i}] desc empty`); }
+                }
+                if (issues.length > 0) {
+                  addCanvasChatMessage(createAssistantMessage('⚠ Debug: JSON validation issues:\n' + issues.join('\n')));
+                } else {
+                  addCanvasChatMessage(createAssistantMessage('⚠ Debug: All elements pass validation but extractAndValidateIdeogramJSON returned null — unknown reason.'));
+                }
+              }
+            }
+          } catch (e) {
+            addCanvasChatMessage(createAssistantMessage('⚠ Debug: JSON.parse failed: ' + ((e as Error).message || String(e))));
+          }
+        }
+      }
+
       setPendingIdeogramOutput(parsedJson);
     } catch (err) {
       addCanvasChatMessage(createAssistantMessage(`Error: ${err instanceof Error ? err.message : String(err)}`));
@@ -177,26 +223,42 @@ export function useCanvasChat() {
     if (!pendingIdeogramOutput) return 0;
 
     const store = useEditorStore.getState();
-    const { canvasW: cw, canvasH: ch } = store;
-
+    // 优先使用 LLM 返回的画布尺寸，fallback 到 store 当前值
+    const cw = pendingIdeogramOutput.canvasW ?? store.canvasW;
+    const ch = pendingIdeogramOutput.canvasH ?? store.canvasH;
+    // 如果 LLM 返回的画布尺寸与 store 不同，同步更新
+    if (pendingIdeogramOutput.canvasW && pendingIdeogramOutput.canvasH &&
+        (pendingIdeogramOutput.canvasW !== store.canvasW || pendingIdeogramOutput.canvasH !== store.canvasH)) {
+      store.setCanvasDimensions(pendingIdeogramOutput.canvasW, pendingIdeogramOutput.canvasH);
+    }
     if (selections.boxes) {
+      // 判断 bbox 坐标系统：有任一值 > 1000 则视为像素坐标
+      const isPixelCoords = pendingIdeogramOutput.compositional_deconstruction.elements.some(
+        el => el.bbox.some(v => v > 1000)
+      );
+
       // 手动解析 boxes
       store.clearBoxes();
       pendingIdeogramOutput.compositional_deconstruction.elements.forEach((el, i) => {
         const [y1, x1, y2, x2] = el.bbox;
-        const box = {
-          x: (x1 / 1000) * cw,
-          y: (y1 / 1000) * ch,
-          w: ((x2 - x1) / 1000) * cw,
-          h: ((y2 - y1) / 1000) * ch,
+        const box = isPixelCoords
+          ? { x: x1, y: y1, w: x2 - x1, h: y2 - y1 }   // 像素坐标直接使用
+          : {
+              x: (x1 / 1000) * cw,
+              y: (y1 / 1000) * ch,
+              w: ((x2 - x1) / 1000) * cw,
+              h: ((y2 - y1) / 1000) * ch,
+            };                                            // 归一化坐标转像素
+        store.addBox({
+          ...box,
+          id: '',
           mode: el.type,
           text: el.text || '',
           desc: el.desc || '',
           colors: el.color_palette || [],
           imageDataUrl: null,
           imageRole: 'both' as const,
-        };
-        store.addBox({ ...box, id: '' });
+        });
       });
     }
 

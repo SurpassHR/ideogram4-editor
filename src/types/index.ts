@@ -24,6 +24,10 @@ export interface IdeogramElement {
 
 export interface IdeogramOutput {
   high_level_description: string;
+  /** 画布宽度（像素），LLM 返回时携带此字段使 bbox 能正确适配当前画布 */
+  canvasW?: number;
+  /** 画布高度（像素），LLM 返回时携带此字段使 bbox 能正确适配当前画布 */
+  canvasH?: number;
   style_description: {
     aesthetics: string;
     lighting: string;

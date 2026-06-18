@@ -135,20 +135,21 @@ Let me know if you'd like any adjustments!`;
     expect(result).toBeNull();
   });
 
-  // ─── bbox 值越界 → null ───────────────────────────────────────
+  // ─── bbox 值检测 ─────────────────────────────────────────────
 
-  it('bbox 值 > 1000 应返回 null', () => {
-    const outOfRange = {
+  it('应接受 bbox > 1000 作为像素坐标', () => {
+    const pixelCoords = {
       ...validOutput,
       compositional_deconstruction: {
         ...validOutput.compositional_deconstruction,
         elements: [
-          { type: 'obj' as const, bbox: [0, 0, 2000, 500], desc: 'Out of range' },
+          { type: 'obj' as const, bbox: [0, 0, 2000, 500], desc: 'Pixel coordinate' },
         ],
       },
     };
-    const result = extractAndValidateIdeogramJSON(wrap(outOfRange));
-    expect(result).toBeNull();
+    const result = extractAndValidateIdeogramJSON(wrap(pixelCoords));
+    expect(result).not.toBeNull();
+    expect(result!.compositional_deconstruction.elements[0].bbox).toEqual([0, 0, 2000, 500]);
   });
 
   it('bbox 值 < 0 应返回 null', () => {
