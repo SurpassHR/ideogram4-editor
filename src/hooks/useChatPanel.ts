@@ -149,6 +149,12 @@ export function useChatPanel() {
             setIsLoading(false);
           },
           onError: (err) => {
+            const errorMsg = `\n\n[Stream Error: ${err}]`;
+            contentRef.current += errorMsg;
+            useEditorStore.getState().updateChatHistoryMessage(
+              activeChatBoxId, placeholderId,
+              { content: contentRef.current },
+            );
             setError(err);
             setIsLoading(false);
           },

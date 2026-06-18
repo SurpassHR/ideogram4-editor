@@ -138,7 +138,7 @@ async function callAnthropicStream(
     },
     body: JSON.stringify({
       model,
-      max_tokens: 1024,
+      max_tokens: 4096,
       stream: true,
       system: systemPrompt,
       messages: apiMessages,

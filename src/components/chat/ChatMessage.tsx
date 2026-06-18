@@ -3,6 +3,7 @@ import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import type { ChatMessage as ChatMessageType } from '../../types/chat';
 import { useI18n } from '../../i18n/context';
+import { useEditorStore } from '../../store';
 
 interface ChatMessageProps {
   message: ChatMessageType;
@@ -34,7 +35,8 @@ export default function ChatMessage({ message, onAdopt, onDismiss, dismissed }: 
   const isUser = message.role === 'user';
   const roleLabel = isUser ? t('chat.you') : 'AI';
   const avatarLetter = isUser ? 'U' : 'A';
-  const isChinese = lang === 'zh';
+  const responseLang = useEditorStore(s => s.chatResponseLang);
+  const isChinese = responseLang === 'zh' || (responseLang === 'auto' && lang === 'zh');
 
   const handleCopy = async () => {
     try {
