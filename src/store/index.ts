@@ -4,6 +4,7 @@ import type { ChatMessage } from '../types/chat';
 import type { PromptPreset } from '../types/presets';
 import { PRESETS_STORAGE_KEY, createBuiltinPresets } from '../types/presets';
 import { MODE_ARTSTYLE, MODE_PHOTO } from '../types';
+import { computeCanvasDims, type RatioKey } from '../utils/canvas-dims';
 
 // ─── 内部剪贴板（模块级变量，非 OS 剪贴板）──────────────────────────
 let internalClipboard: Box | null = null;
@@ -36,6 +37,11 @@ interface EditorStore {
   canvasW: number;
   canvasH: number;
   canvasRatio: string;
+  canvasScale: number;
+  canvasCustomW: number;
+  canvasCustomH: number;
+  setCanvasScale: (scale: number) => void;
+  setCanvasCustom: (w: number, h: number) => void;
   setCanvasDimensions: (w: number, h: number) => void;
   setCanvasRatio: (ratio: string) => void;
   resetCanvas: () => void;
@@ -131,13 +137,31 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   canvasW: 1024,
   canvasH: 1024,
   canvasRatio: '1:1',
+  canvasScale: 4,
+  canvasCustomW: 16,
+  canvasCustomH: 9,
 
   setCanvasDimensions: (w, h) => set({
     canvasW: w,
     canvasH: h,
   }),
 
-  setCanvasRatio: (ratio) => set({ canvasRatio: ratio }),
+  setCanvasRatio: (ratio) => {
+    const state = get();
+    const { w, h } = computeCanvasDims(ratio as RatioKey, state.canvasScale, state.canvasCustomW, state.canvasCustomH);
+    set({ canvasRatio: ratio, canvasW: w, canvasH: h });
+  },
+  setCanvasScale: (scale) => {
+    const state = get();
+    const { w, h } = computeCanvasDims(state.canvasRatio as RatioKey, scale, state.canvasCustomW, state.canvasCustomH);
+    set({ canvasScale: scale, canvasW: w, canvasH: h });
+  },
+
+  setCanvasCustom: (w, h) => {
+    const state = get();
+    const { w: newW, h: newH } = computeCanvasDims(state.canvasRatio as RatioKey, state.canvasScale, w, h);
+    set({ canvasCustomW: w, canvasCustomH: h, canvasW: newW, canvasH: newH });
+  },
 
   resetCanvas: () => set({
     boxes: [],
