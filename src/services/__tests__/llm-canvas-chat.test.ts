@@ -375,6 +375,106 @@ Let me know if you'd like any adjustments!`;
     expect(result!.compositional_deconstruction.elements[0].type).toBe('text');
     expect(result!.compositional_deconstruction.elements[0].text).toBe('Hello World');
   });
+  // ─── 颜色数量上限 + CJK 文本拒绝 ──────────────────────────
+
+  it('global color_palette > 5 should return null', () => {
+    const tooManyColors = {
+      ...validOutput,
+      style_description: {
+        ...validOutput.style_description,
+        color_palette: ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF'],
+      },
+    };
+    const result = extractAndValidateIdeogramJSON(wrap(tooManyColors));
+    expect(result).toBeNull();
+  });
+
+  it('global color_palette <= 5 should pass', () => {
+    const fineColors = {
+      ...validOutput,
+      style_description: {
+        ...validOutput.style_description,
+        color_palette: ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF'],
+      },
+    };
+    const result = extractAndValidateIdeogramJSON(wrap(fineColors));
+    expect(result).not.toBeNull();
+  });
+
+  it('per-element color_palette > 5 should return null', () => {
+    const tooManyElementColors = {
+      ...validOutput,
+      compositional_deconstruction: {
+        ...validOutput.compositional_deconstruction,
+        elements: [
+          {
+            type: 'obj',
+            bbox: [100, 200, 500, 800],
+            desc: 'An object with too many colors',
+            color_palette: ['#A1', '#A2', '#A3', '#A4', '#A5', '#A6'],
+          },
+        ],
+      },
+    };
+    const result = extractAndValidateIdeogramJSON(wrap(tooManyElementColors));
+    expect(result).toBeNull();
+  });
+
+  it('type=text with CJK characters should return null', () => {
+    const cjkText = {
+      ...validOutput,
+      compositional_deconstruction: {
+        ...validOutput.compositional_deconstruction,
+        elements: [
+          {
+            type: 'text',
+            bbox: [100, 200, 300, 800],
+            desc: 'Title text',
+            text: '蝙蝠侠大战钢铁侠',
+          },
+        ],
+      },
+    };
+    const result = extractAndValidateIdeogramJSON(wrap(cjkText));
+    expect(result).toBeNull();
+  });
+
+  it('type=text with English text should pass', () => {
+    const englishText = {
+      ...validOutput,
+      compositional_deconstruction: {
+        ...validOutput.compositional_deconstruction,
+        elements: [
+          {
+            type: 'text',
+            bbox: [100, 200, 300, 800],
+            desc: 'Title text at top center',
+            text: 'BATMAN VS IRON MAN',
+          },
+        ],
+      },
+    };
+    const result = extractAndValidateIdeogramJSON(wrap(englishText));
+    expect(result).not.toBeNull();
+  });
+
+  it('type=obj with CJK in desc should pass (only text field is restricted)', () => {
+    const cjkDesc = {
+      ...validOutput,
+      compositional_deconstruction: {
+        ...validOutput.compositional_deconstruction,
+        elements: [
+          {
+            type: 'obj',
+            bbox: [100, 200, 500, 800],
+            desc: '一棵大树 with detailed bark texture',
+          },
+        ],
+      },
+    };
+    const result = extractAndValidateIdeogramJSON(wrap(cjkDesc));
+    expect(result).not.toBeNull();
+  });
 });
 
 // ─── buildCanvasChatContext ─────────────────────────────────────────

@@ -207,6 +207,13 @@ export function extractAndValidateIdeogramJSON(text: string): IdeogramOutput | n
   if (typeof cd !== 'object' || cd === null) return null;
 
   const cdObj = cd as Record<string, unknown>;
+  // ✅ 新增: global color_palette ≤ 5
+  const sd = obj.style_description;
+  if (typeof sd === 'object' && sd !== null) {
+    const sdObj = sd as Record<string, unknown>;
+    const globalPalette = sdObj.color_palette;
+    if (Array.isArray(globalPalette) && globalPalette.length > 5) return null;
+  }
   const elements = cdObj.elements;
   if (!Array.isArray(elements) || elements.length === 0) return null;
 
@@ -228,6 +235,13 @@ export function extractAndValidateIdeogramJSON(text: string): IdeogramOutput | n
 
     // desc: 非空字符串
     if (typeof e.desc !== 'string' || e.desc.trim().length === 0) return null;
+    // ✅ 新增: per-element color_palette ≤ 5
+    if (Array.isArray(e.color_palette) && e.color_palette.length > 5) return null;
+    // ✅ 新增: type=text 且 text 含 CJK 字符 → 拒绝
+    if (e.type === 'text' && typeof e.text === 'string') {
+      const cjkRegex = /[\u4e00-\u9fff]/;
+      if (cjkRegex.test(e.text)) return null;
+    }
   }
 
   return parsed as IdeogramOutput;
