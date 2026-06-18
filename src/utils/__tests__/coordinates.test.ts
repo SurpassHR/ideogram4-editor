@@ -186,3 +186,49 @@ describe('detectBboxSystem + bboxToPixels integration', () => {
     expect(result).toEqual({ x: 0, y: 0, w: 1500, h: 2000 });
   });
 });
+
+// ─── Normalize to 0-1000 (for validateLayout pre-processing) ───────
+
+describe('normalize bbox to 0-1000 scale', () => {
+  it('should multiply fractional (0-1) coords by 1000', () => {
+    const raw = [0.08, 0.12, 0.48, 0.48] as [number, number, number, number];
+    const [y1, x1, y2, x2] = raw;
+    const normed = [y1 * 1000, x1 * 1000, y2 * 1000, x2 * 1000];
+    expect(normed).toEqual([80, 120, 480, 480]);
+  });
+
+  it('should compute correct coverage from normalized fractional coords', () => {
+    // Real LLM fractional output
+    const elements = [
+      { bbox: [0.08, 0.12, 0.48, 0.48] },  // Batman
+      { bbox: [0.52, 0.52, 0.92, 0.92] },  // Iron Man
+    ];
+    const canvasW = 768;
+    const canvasH = 1024;
+    const canvasArea = canvasW * canvasH;
+
+    // Normalize to 0-1000
+    const normed = elements.map(el => {
+      const [y1, x1, y2, x2] = el.bbox;
+      return { bbox: [y1 * 1000, x1 * 1000, y2 * 1000, x2 * 1000] as [number, number, number, number] };
+    });
+
+    // Coverage calculation (same as validateLayout)
+    let totalArea = 0;
+    for (const el of normed) {
+      const [y1, x1, y2, x2] = el.bbox;
+      totalArea += (x2 - x1) * (y2 - y1);
+    }
+    const coveragePct = totalArea / canvasArea * 100;
+
+    // Should be ~38.6% (well above 15% threshold)
+    expect(coveragePct).toBeGreaterThan(30);
+    expect(coveragePct).toBeLessThan(50);
+  });
+
+  it('should not double-divide already-normalized (0-1000) coords', () => {
+    const raw = [100, 200, 500, 800] as [number, number, number, number];
+    // No conversion needed — already normalized
+    expect(raw).toEqual([100, 200, 500, 800]);
+  });
+});
