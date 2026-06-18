@@ -48,7 +48,8 @@ export function useCanvasChat() {
   const photoArtStyleMode = useEditorStore(s => s.photoArtStyleMode);
 
   const [providers, setProviders] = useState<LlmProvider[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const isLoading = useEditorStore(s => s.isCanvasChatLoading);
+  const setIsLoading = useEditorStore(s => s.setCanvasChatLoading);
 
   // 加载提供商列表
   useEffect(() => {

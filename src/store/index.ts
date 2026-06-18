@@ -106,6 +106,8 @@ interface EditorStore {
   addCanvasChatMessage: (message: ChatMessage) => void;
   setPendingIdeogramOutput: (output: IdeogramOutput | null) => void;
   clearCanvasChat: () => void;
+  isCanvasChatLoading: boolean;
+  setCanvasChatLoading: (loading: boolean) => void;
 
   // 布局质量检测结果
   pendingQualityReport: LayoutQualityReport | null;
@@ -323,6 +325,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   // Canvas Chat 状态（画布级 AI 构图对话）
   isCanvasChatOpen: false,
   canvasChatMessages: [],
+  isCanvasChatLoading: false,
   pendingIdeogramOutput: null,
 
   setCanvasChatOpen: (open) => set({ isCanvasChatOpen: open }),
@@ -337,6 +340,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     canvasChatMessages: [],
     pendingIdeogramOutput: null,
   }),
+  setCanvasChatLoading: (loading) => set({ isCanvasChatLoading: loading }),
 
   // 布局质量检测结果
   pendingQualityReport: null,
