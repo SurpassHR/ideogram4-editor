@@ -65,7 +65,14 @@ Important: "style_description" must use EITHER "art_style" + "medium" (art style
 - Size rhythm: vary element sizes with a max/min ratio ≤ 8:1 for visual interest
 - Concrete descriptions only: Use concrete visual descriptions (colors, shapes, textures, lighting, positions). Avoid abstract emotional language like "壮丽感", "majestic feeling", "dramatic tension" — describe only what is physically visible in the image
 - Text language: If using type === "text", the text content MUST be in English — Ideogram renders English text most reliably. Do NOT use Chinese, Japanese, or other scripts for text regions
-- Spatial consistency: Bounding box coordinates MUST match the position described in the element's desc field (e.g., if desc says "bottom left corner", bbox must be in the lower-left quadrant of the canvas)
+- Spatial consistency: Bbox coordinates (all in 0-1000 normalized range) MUST match the spatial position described in the element's desc field. Use these value ranges as reference:
+  - "top" / "upper" / "above" → y1 < 333 and y2 < 500
+  - "bottom" / "lower" / "below" → y1 > 500
+  - "center" / "middle" → x values and y values around 333-666
+  - "left" → x1 < 333 and x2 < 500
+  - "right" → x1 > 500
+  - Example: desc says "bottom center title" → bbox MUST have y1 > 500 (e.g., [600, 200, 800, 800])
+  - Anti-example: desc says "在下方" / "at the bottom" but y1=100 or y2<500 is WRONG — y=100 is near the top
 - Focal coherence: Focus on 2-4 primary subject elements. Avoid adding minor tertiary elements (background crowds, small details) that fragment the viewer's attention. Fewer, larger elements produce stronger compositions
 - Avoid clustering elements in one region — spread them across the canvas
 
