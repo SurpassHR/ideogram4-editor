@@ -46,8 +46,12 @@ export function useCanvasChat() {
   const artStyle = useEditorStore(s => s.artStyle);
   const background = useEditorStore(s => s.background);
   const photoArtStyleMode = useEditorStore(s => s.photoArtStyleMode);
+  // 预设 + 当前选中 box（用于解析模板变量）
+  const chatPresets = useEditorStore(s => s.chatPresets);
+  const selectedBoxId = useEditorStore(s => s.selectedBoxId);
 
   const [providers, setProviders] = useState<LlmProvider[]>([]);
+  const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
   const isLoading = useEditorStore(s => s.isCanvasChatLoading);
   const setIsLoading = useEditorStore(s => s.setCanvasChatLoading);
 
@@ -358,6 +362,23 @@ export function useCanvasChat() {
     getLlmProviders().then(setProviders);
   }, []);
 
+  /** 当前选中的 box（画布级对话无 currentBox，以画布选中 box 作为模板变量来源） */
+  const selectedBox = useMemo(
+    () => (selectedBoxId ? boxes.find(b => b.id === selectedBoxId) || null : null),
+    [selectedBoxId, boxes],
+  );
+
+  /** 获取选中预设 */
+  const selectedPreset = useMemo(
+    () => (selectedPresetId ? chatPresets.find(p => p.id === selectedPresetId) || null : null),
+    [selectedPresetId, chatPresets],
+  );
+
+  /** 选择预设 */
+  const handleSelectPreset = useCallback((presetId: string | null) => {
+    setSelectedPresetId(presetId);
+  }, []);
+
   /** 用户点击重新生成时的处理 */
   const handleRegenerate = useCallback(() => {
     const report = useEditorStore.getState().pendingQualityReport;
@@ -389,6 +410,12 @@ export function useCanvasChat() {
     handleClearHistory,
     handleSelectModel: setChatModel,
     setChatResponseLang,
+    // 预设
+    chatPresets,
+    selectedPresetId,
+    selectedPreset,
+    selectedBox,
+    handleSelectPreset,
     refreshProviders,
     hasProviders: modelOptions.length > 0,
     handleRegenerate,

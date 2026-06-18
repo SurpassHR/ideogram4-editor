@@ -5,6 +5,7 @@ import ChatMessage from '../chat/ChatMessage';
 import SelectMenu from '../chat/SelectMenu';
 import { useI18n } from '../../i18n/context';
 import { useEditorStore } from '../../store';
+import { resolveTemplate } from '../../utils/resolveTemplate';
 
 export default function CanvasChatPanel() {
   const {
@@ -21,6 +22,10 @@ export default function CanvasChatPanel() {
     handleSelectModel,
     setChatResponseLang,
     hasProviders,
+    chatPresets,
+    selectedPreset,
+    selectedBox,
+    handleSelectPreset,
   } = useCanvasChat();
 
   const isCanvasChatOpen = useEditorStore(s => s.isCanvasChatOpen);
@@ -109,8 +114,13 @@ export default function CanvasChatPanel() {
     const text = inputText.trim();
     if (!text || isLoading) return;
     setInputText('');
-    sendMessage(text);
-  }, [inputText, isLoading, sendMessage]);
+    // 选中预设且当前有选中 box 时解析模板变量
+    const resolvedText = selectedPreset && selectedBox
+      ? resolveTemplate(text, selectedBox)
+      : text;
+    sendMessage(resolvedText);
+    handleSelectPreset(null); // 发送后清除预设选择
+  }, [inputText, isLoading, sendMessage, selectedPreset, selectedBox, handleSelectPreset]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -118,6 +128,19 @@ export default function CanvasChatPanel() {
       handleSend();
     }
   }, [handleSend]);
+
+  /** 选中预设：将模板文本填入输入框 */
+  const handlePresetChange = useCallback((presetId: string) => {
+    if (!presetId) {
+      handleSelectPreset(null);
+      return;
+    }
+    handleSelectPreset(presetId);
+    const preset = chatPresets.find(p => p.id === presetId);
+    if (preset) {
+      setInputText(preset.promptTemplate);
+    }
+  }, [chatPresets, handleSelectPreset]);
 
   const handleApply = useCallback(() => {
     setShowApplyConfirm(true);
@@ -185,6 +208,15 @@ export default function CanvasChatPanel() {
           {hasProviders && (
             <div className="canvas-chat-input-area">
               <div className="canvas-chat-toolbar">
+                {chatPresets.length > 0 && (
+                  <SelectMenu
+                    className="chat-preset-select"
+                    options={chatPresets.map(p => ({ value: p.id, label: p.name }))}
+                    value={selectedPreset?.id || ''}
+                    onChange={handlePresetChange}
+                    placeholder={t('chat.presets.selectPreset')}
+                  />
+                )}
                 <SelectMenu
                   className="chat-model-select"
                   options={modelOptions.map(opt => ({ value: opt.value, label: opt.label }))}

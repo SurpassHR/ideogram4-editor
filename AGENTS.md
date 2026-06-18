@@ -40,6 +40,7 @@ src/
 │   ├── useComfyUIGeneration.ts       # ComfyUI 生成流程编排
 │   ├── useArtboardZoom.ts            # 画板缩放/平移：wheel 缩放+中键拖拽+坐标转换
 │   ├── useChatPanel.ts               # AI 对话面板逻辑：消息发送/采纳/清空/预设/多模态图像
+│   ├── useCanvasChat.ts              # 画布级 AI 构图对话：发送/重试/解析 IdeogramOutput/选择性 Apply/布局质量校验/预设
 │   ├── useHashRoute.ts               # Hash 路由 Hook：监听 hashchange 事件，返回 { hash, navigate }
 │   └── __tests__/
 │       ├── usePointerInteraction.test.tsx  # 交互 hook 测试（单击选中/拖拽/双击编辑）
@@ -52,10 +53,13 @@ src/
 │   │   └── SettingsPage.tsx          # 设置页：左右两栏（LLM 提供商管理 + 提示词预设管理）
 │   ├── canvas/
 │   │   ├── Artboard.tsx              # 画板容器：固定视口、滚轮缩放+中键平移、缩放控件
+│   │   ├── ArtboardToolbar.tsx       # 画板工具栏：比例下拉 + 倍数滑块 + 自定义尺寸 + 实时画布尺寸
 │   │   ├── CanvasArea.tsx            # 交互式画布（Pointer Events）+ 右键上下文菜单 + ChatPanel 渲染
 │   │   ├── BoundingBox.tsx           # 边界框：文字标签 + inline 编辑 input + 背景图像 + 悬浮删除按钮 + resize + 右键菜单
 │   │   ├── ContextMenu.tsx           # 通用右键上下文菜单（createPortal→body），支持分隔线/危险项/边界检测/Escape 关闭
 │   │   ├── ChatBubbleButton.tsx      # ✨ 按钮：选中 box 时在右上角边框，编辑时在 input 内部右侧
+│   │   ├── CanvasChatPanel.tsx       # 画布级 AI 构图浮动面板：消息列表/模型/语言/预设 SelectMenu/Apply 确认弹窗
+│   │   ├── LayoutQualityDialog.tsx   # 布局质量校验结果弹窗（Accept / Regenerate）
 │   │   └── __tests__/
 │   │       └── BoundingBox.test.tsx  # BoundingBox 组件测试（文字/编辑/sparkle/背景图像 按钮）
 │   ├── panels/
@@ -87,7 +91,8 @@ src/
 │   └── comfyui-api.ts               # 轮询 ComfyUI /history 端点
 ├── services/
 │   ├── llm-chat.ts                  # sendChatMessage() 多提供商 LLM + 多模态图像支持
-  │   ├── llm-canvas-chat.ts           # Canvas Chat system prompt + JSON 提取验证 + 上下文构建
+│   ├── llm-canvas-chat.ts           # Canvas Chat system prompt + JSON 提取验证 + 上下文构建
+│   ├── layout-validator.ts          # 布局质量软校验（元素面积/覆盖率/间距/边距/数量/宽高比）
 │   └── __tests__/
 │       └── llm-chat.test.ts         # 多模态消息格式测试（OpenAI/Anthropic/Gemini）
 └── workflow/
