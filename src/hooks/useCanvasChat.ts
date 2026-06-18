@@ -1,4 +1,3 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useEditorStore } from '../store';
 import { getLlmProviders } from '../components/llm/api';
 import { sendChatMessage } from '../services/llm-chat';
@@ -9,6 +8,7 @@ import type { LlmProvider } from '../components/llm/types';
 import type { ChatMessage } from '../types/chat';
 import type { IdeogramOutput } from '../types';
 import { MODE_PHOTO, MODE_ARTSTYLE } from '../types';
+import { detectBboxSystem, bboxToPixels } from '../utils/coordinates';
 
 /** Apply 确认弹窗中各部分的选中状态 */
 export interface ApplySelections {
@@ -268,34 +268,22 @@ export function useCanvasChat() {
     if (!pendingIdeogramOutput) return 0;
 
     const store = useEditorStore.getState();
-    // 优先使用 LLM 返回的画布尺寸，fallback 到 store 当前值
-    const cw = pendingIdeogramOutput.canvasW ?? store.canvasW;
-    const ch = pendingIdeogramOutput.canvasH ?? store.canvasH;
     // 如果 LLM 返回的画布尺寸与 store 不同，同步更新
     if (pendingIdeogramOutput.canvasW && pendingIdeogramOutput.canvasH &&
         (pendingIdeogramOutput.canvasW !== store.canvasW || pendingIdeogramOutput.canvasH !== store.canvasH)) {
       store.setCanvasDimensions(pendingIdeogramOutput.canvasW, pendingIdeogramOutput.canvasH);
     }
     if (selections.boxes) {
-      // 判断 bbox 坐标系统：有任一值 > 1000 则视为像素坐标
-      const isPixelCoords = pendingIdeogramOutput.compositional_deconstruction.elements.some(
-        el => el.bbox.some(v => v > 1000)
-      );
+      const elements = pendingIdeogramOutput.compositional_deconstruction.elements;
+      const system = detectBboxSystem(elements);
+      const cw = pendingIdeogramOutput.canvasW ?? store.canvasW;
+      const ch = pendingIdeogramOutput.canvasH ?? store.canvasH;
 
-      // 手动解析 boxes
       store.clearBoxes();
-      pendingIdeogramOutput.compositional_deconstruction.elements.forEach((el, i) => {
-        const [y1, x1, y2, x2] = el.bbox;
-        const box = isPixelCoords
-          ? { x: x1, y: y1, w: x2 - x1, h: y2 - y1 }   // 像素坐标直接使用
-          : {
-              x: (x1 / 1000) * cw,
-              y: (y1 / 1000) * ch,
-              w: ((x2 - x1) / 1000) * cw,
-              h: ((y2 - y1) / 1000) * ch,
-            };                                            // 归一化坐标转像素
+      elements.forEach(el => {
+        const { x, y, w, h } = bboxToPixels(el.bbox, cw, ch, system);
         store.addBox({
-          ...box,
+          x, y, w, h,
           id: '',
           mode: el.type,
           text: el.text || '',

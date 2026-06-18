@@ -5,6 +5,7 @@ import type { PromptPreset } from '../types/presets';
 import { PRESETS_STORAGE_KEY, createBuiltinPresets } from '../types/presets';
 import { MODE_ARTSTYLE, MODE_PHOTO } from '../types';
 import { computeCanvasDims, type RatioKey } from '../utils/canvas-dims';
+import { detectBboxSystem, bboxToPixels } from '../utils/coordinates';
 import type { LayoutQualityReport } from '../services/layout-validator';
 
 // ─── 内部剪贴板（模块级变量，非 OS 剪贴板）──────────────────────────
@@ -537,20 +538,15 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     // 优先使用 JSON 内嵌的画布尺寸，fallback 到 store 当前值
     const cw = json.canvasW ?? state.canvasW;
     const ch = json.canvasH ?? state.canvasH;
-
-    const denorm = (val: number, max: number) => (val / 1000) * max;
-
+    const system = detectBboxSystem(json.compositional_deconstruction.elements);
     const newBoxes: Box[] = [];
     let counter = 0;
 
     for (const el of json.compositional_deconstruction.elements) {
-      const [y1, x1, y2, x2] = el.bbox;
+      const { x, y, w, h } = bboxToPixels(el.bbox, cw, ch, system);
       newBoxes.push({
         id: `box_${counter}`,
-        x: denorm(x1, cw),
-        y: denorm(y1, ch),
-        w: denorm(x2 - x1, cw),
-        h: denorm(y2 - y1, ch),
+        x, y, w, h,
         mode: el.type,
         text: el.text || '',
         desc: el.desc || '',
