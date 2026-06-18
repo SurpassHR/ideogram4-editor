@@ -9,43 +9,8 @@ import RightPanelContainer from '../panels/RightPanelContainer';
 import GlowGrid from '../panels/GlowGrid';
 import SelectMenu from '../chat/SelectMenu';
 import { useImageDrop } from '../../hooks/useImageDrop';
+import { RATIO_KEYS, computeCanvasDims, type RatioKey } from '../../utils/canvas-dims';
 
-// ─── 比例预设 ────────────────────────────────────────────────
-
-const RATIO_KEYS = ['1:1', '16:9', '9:16', '4:3', '3:2', '2:1', 'custom'] as const;
-type RatioKey = typeof RATIO_KEYS[number];
-
-const RATIO_BASES: Record<RatioKey, { baseW: number; baseH: number }> = {
-  '1:1': { baseW: 256, baseH: 256 },
-  '16:9': { baseW: 256, baseH: 144 },
-  '9:16': { baseW: 144, baseH: 256 },
-  '4:3': { baseW: 256, baseH: 192 },
-  '3:2': { baseW: 240, baseH: 160 },
-  '2:1': { baseW: 256, baseH: 128 },
-  custom: { baseW: 256, baseH: 256 },
-};
-
-const roundTo16 = (n: number) => Math.round(n / 16) * 16;
-const clampDim = (n: number) => Math.max(256, Math.min(4096, roundTo16(n)));
-
-/** 根据比例 + 倍数 + 自定义宽高比计算实际画布尺寸 */
-function computeCanvasDims(ratio: RatioKey, scale: number, customW: number, customH: number) {
-  let baseW: number;
-  let baseH: number;
-  if (ratio === 'custom') {
-    const maxDim = Math.max(customW, customH, 1);
-    baseW = (256 * customW) / maxDim;
-    baseH = (256 * customH) / maxDim;
-  } else {
-    const bases = RATIO_BASES[ratio];
-    baseW = bases.baseW;
-    baseH = bases.baseH;
-  }
-  return {
-    w: clampDim(baseW * scale),
-    h: clampDim(baseH * scale),
-  };
-}
 
 export default function CanvasPage() {
   useImageDrop();
