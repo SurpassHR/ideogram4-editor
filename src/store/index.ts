@@ -95,6 +95,8 @@ interface EditorStore {
   closeChat: () => void;
   addChatMessage: (boxId: string, message: ChatMessage) => void;
   markChatMessageAdopted: (boxId: string, messageId: string) => void;
+  updateChatHistoryMessage: (boxId: string, messageId: string, updates: Partial<ChatMessage>) => void;
+
   clearChatHistory: (boxId: string) => void;
   setChatModel: (model: string) => void;
   setEditingBoxId: (id: string | null) => void;
@@ -309,6 +311,16 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       ),
     },
   })),
+
+  updateChatHistoryMessage: (boxId, messageId, updates) => set(state => ({
+    chatHistories: {
+      ...state.chatHistories,
+      [boxId]: (state.chatHistories[boxId] || []).map(m =>
+        m.id === messageId ? { ...m, ...updates } : m
+      ),
+    },
+  })),
+
 
   clearChatHistory: (boxId) => set(state => ({
     chatHistories: {
