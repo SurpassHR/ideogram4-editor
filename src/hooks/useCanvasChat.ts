@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useEditorStore } from '../store';
 import { getLlmProviders } from '../components/llm/api';
 import { sendChatMessage } from '../services/llm-chat';
-import { CANVAS_CHAT_SYSTEM_PROMPT, buildCanvasChatContext, extractAndValidateIdeogramJSON } from '../services/llm-canvas-chat';
+import { CANVAS_CHAT_SYSTEM_PROMPT, buildCanvasChatContext, buildLayoutFeedbackPrompt, extractAndValidateIdeogramJSON } from '../services/llm-canvas-chat';
 import { generateMessageId, createUserMessage, createAssistantMessage } from '../types/chat';
 import type { LlmProvider } from '../components/llm/types';
 import type { ChatMessage } from '../types/chat';
@@ -69,14 +69,59 @@ export function useCanvasChat() {
   }, [chatModel, providers, parseModel]);
 
   /** 发送消息 */
-  const sendMessage = useCallback(async (content: string) => {
+  /** 构建解析失败的错误文本，用于硬重试时反馈给 LLM */
+  function buildParseErrorText(aiText: string): string {
+    const match = aiText.match(/```json\s*([\s\S]*?)```/);
+    if (!match) {
+      return '\n\n[Parse Error]\nNo ```json code block was found in your response. Please return ONLY a valid ```json code block containing your complete composition.';
+    }
+    const jsonStr = match[1].trim();
+    try {
+      const p = JSON.parse(jsonStr);
+      const cd = (p as Record<string, unknown>).compositional_deconstruction;
+      if (!cd || typeof cd !== 'object') {
+        return '\n\n[Parse Error]\nMissing or invalid "compositional_deconstruction" field in your JSON.';
+      }
+      const els = (cd as Record<string, unknown>).elements;
+      if (!Array.isArray(els)) {
+        return `\n\n[Parse Error]\n"elements" is not an array (type: ${typeof els}). Please provide a valid elements array.`;
+      }
+      if (els.length === 0) {
+        return '\n\n[Parse Error]\nThe elements array is empty. Please include at least one element.';
+      }
+      for (let i = 0; i < els.length; i++) {
+        const el = els[i] as Record<string, unknown>;
+        if (typeof el !== 'object' || el === null) {
+          return `\n\n[Parse Error]\nelements[${i}] is not an object.`;
+        }
+        if (el.type !== 'obj' && el.type !== 'text') {
+          return `\n\n[Parse Error]\nelements[${i}].type must be "obj" or "text", got "${el.type}".`;
+        }
+        const bbox = el.bbox;
+        if (!Array.isArray(bbox) || bbox.length !== 4) {
+          return `\n\n[Parse Error]\nelements[${i}].bbox must be an array of 4 numbers.`;
+        }
+        const badVals = (bbox as number[]).filter(v => typeof v !== 'number' || isNaN(v) || v < 0);
+        if (badVals.length > 0) {
+          return `\n\n[Parse Error]\nelements[${i}].bbox contains invalid values: ${JSON.stringify(badVals)}. All values must be non-negative numbers.`;
+        }
+        if (typeof el.desc !== 'string' || (el.desc as string).trim().length === 0) {
+          return `\n\n[Parse Error]\nelements[${i}].desc must be a non-empty string.`;
+        }
+      }
+      return '\n\n[Parse Error]\nAll elements pass basic validation but the JSON was rejected (unknown reason). Please ensure your response contains only a single ```json code block.';
+    } catch (e) {
+      return `\n\n[Parse Error]\nJSON parsing failed: ${(e as Error).message || String(e)}. Please return a valid \`\`\`json code block.`;
+    }
+  }
+
+  const sendMessage = useCallback(async (content: string, retryContext?: { feedback?: string }) => {
     const userMessage = createUserMessage(content);
     addCanvasChatMessage(userMessage);
     setIsLoading(true);
 
     const provider = getCurrentProvider();
     if (!provider) {
-      // 追加错误 assistant 消息
       addCanvasChatMessage(createAssistantMessage('No LLM provider selected.'));
       setIsLoading(false);
       return;
@@ -89,119 +134,100 @@ export function useCanvasChat() {
       return;
     }
 
-    try {
-      // 构造上下文
-      const snapshot = {
-        boxes: boxes.map(b => ({
-          x: b.x, y: b.y, w: b.w, h: b.h,
-          mode: b.mode,
-          text: b.text,
-          desc: b.desc,
-          colors: b.colors,
-          imageDataUrl: b.imageDataUrl,
-          imageRole: b.imageRole,
-        })),
-        canvasW,
-        canvasH,
-        globalPalette,
-        highLevelDescription,
-        aesthetics,
-        lighting,
-        medium,
-        artStyle,
-        background,
-        photoArtStyleMode,
-      };
-      const contextJson = buildCanvasChatContext(snapshot);
+    // 构造上下文（在循环外快照一次，避免循环内依赖变化）
+    const snapshot = {
+      boxes: boxes.map(b => ({
+        x: b.x, y: b.y, w: b.w, h: b.h,
+        mode: b.mode,
+        text: b.text,
+        desc: b.desc,
+        colors: b.colors,
+        imageDataUrl: b.imageDataUrl,
+        imageRole: b.imageRole,
+      })),
+      canvasW,
+      canvasH,
+      globalPalette,
+      highLevelDescription,
+      aesthetics,
+      lighting,
+      medium,
+      artStyle,
+      background,
+      photoArtStyleMode,
+    };
 
-      // 构造消息列表：每轮都附带当前上下文
-      const allMessages = [...canvasChatMessages, userMessage];
-      const apiMessages = allMessages.map(m => ({ role: m.role, content: m.content }));
+    // 语言偏好 append 到 system prompt
+    let langHint = '';
+    if (chatResponseLang === 'en') {
+      langHint = '\nYou MUST respond in English.';
+    } else if (chatResponseLang === 'zh') {
+      langHint = '\n你必须用中文回复。';
+    }
 
-      // 在最后一条 user 消息前插入上下文
-      const lastUserIdx = apiMessages.map((m, i) => (m.role === 'user' ? i : -1)).reduce((a, b) => Math.max(a, b), -1);
-      if (lastUserIdx >= 0) {
-        const original = apiMessages[lastUserIdx];
-        apiMessages[lastUserIdx] = {
-          role: 'user',
-          content: `Current canvas state (JSON prompt):\n\`\`\`json\n${contextJson}\n\`\`\`\n\nMy composition request: ${original.content}`,
-        };
-      }
+    let hardRetryCount = 0;
+    const MAX_HARD_RETRIES = 2;
+    let lastErrorText = '';
 
-      // 语言偏好 append 到 system prompt
-      let langHint = '';
-      if (chatResponseLang === 'en') {
-        langHint = '\nYou MUST respond in English.';
-      } else if (chatResponseLang === 'zh') {
-        langHint = '\n你必须用中文回复。';
-      }
+    while (hardRetryCount <= MAX_HARD_RETRIES) {
+      try {
+        const contextJson = buildCanvasChatContext(snapshot);
 
-      const result = await sendChatMessage(provider, parsed.modelName, allMessages, CANVAS_CHAT_SYSTEM_PROMPT + langHint);
+        // 构造消息列表：每轮都附带当前上下文
+        const allMessages = [...canvasChatMessages, userMessage];
+        const apiMessages = allMessages.map(m => ({ role: m.role, content: m.content }));
 
-      if (!result.ok) {
-        addCanvasChatMessage(createAssistantMessage(`Error: ${result.error || 'Unknown error'}`));
+        // 在最后一条 user 消息前插入上下文 + 重试反馈
+        const lastUserIdx = apiMessages.map((m, i) => (m.role === 'user' ? i : -1)).reduce((a, b) => Math.max(a, b), -1);
+        if (lastUserIdx >= 0) {
+          const original = apiMessages[lastUserIdx];
+          let enriched = `Current canvas state (JSON prompt):\n\`\`\`json\n${contextJson}\n\`\`\`\n\nMy composition request: ${original.content}`;
+          // 第一次调用时附加 soft-validation feedback
+          if (hardRetryCount === 0 && retryContext?.feedback) {
+            enriched += buildLayoutFeedbackPrompt(retryContext.feedback);
+          }
+          // 硬重试时附加上次解析错误文本（仅重试轮次使用）
+          if (hardRetryCount > 0 && lastErrorText) {
+            enriched += lastErrorText;
+          }
+          apiMessages[lastUserIdx] = {
+            role: 'user',
+            content: enriched,
+          };
+        }
+
+        const result = await sendChatMessage(provider, parsed.modelName, allMessages, CANVAS_CHAT_SYSTEM_PROMPT + langHint);
+
+        if (!result.ok) {
+          addCanvasChatMessage(createAssistantMessage(`Error: ${result.error || 'Unknown error'}`));
+          setIsLoading(false);
+          return;
+        }
+
+        const aiText = result.content || '';
+        const parsedJson = extractAndValidateIdeogramJSON(aiText);
+
+        if (parsedJson !== null) {
+          // 成功解析 — 添加 assistant 消息并设置输出
+          addCanvasChatMessage(createAssistantMessage(aiText));
+          setPendingIdeogramOutput(parsedJson);
+          setIsLoading(false);
+          return;
+        }
+
+        // 解析失败 — 构建重试错误文本，不添加 assistant 消息
+        lastErrorText = buildParseErrorText(aiText);
+        hardRetryCount++;
+      } catch (err) {
+        addCanvasChatMessage(createAssistantMessage(`Error: ${err instanceof Error ? err.message : String(err)}`));
         setIsLoading(false);
         return;
       }
-
-      const aiText = result.content || '';
-      const assistantMessage = createAssistantMessage(aiText);
-      addCanvasChatMessage(assistantMessage);
-
-      // 尝试提取 JSON
-      const parsedJson = extractAndValidateIdeogramJSON(aiText);
-
-      // 调试：JSON 解析失败时输出详细原因（保留用于排查 LLM 输出格式问题）
-      if (parsedJson === null) {
-        const match = aiText.match(/```json\s*([\s\S]*?)```/);
-        if (!match) {
-          addCanvasChatMessage(createAssistantMessage('⚠ Debug: No ```json code block found in AI response.'));
-        } else {
-          const jsonStr = match[1].trim();
-          try {
-            const p = JSON.parse(jsonStr);
-            const cd = (p as Record<string, unknown>).compositional_deconstruction;
-            if (!cd || typeof cd !== 'object') {
-              addCanvasChatMessage(createAssistantMessage('⚠ Debug: Missing or invalid compositional_deconstruction.'));
-            } else {
-              const els = (cd as Record<string, unknown>).elements;
-              if (!Array.isArray(els)) {
-                addCanvasChatMessage(createAssistantMessage('⚠ Debug: elements is not an array, type=' + typeof els));
-              } else if (els.length === 0) {
-                addCanvasChatMessage(createAssistantMessage('⚠ Debug: elements array is empty.'));
-              } else {
-                const issues: string[] = [];
-                for (let i = 0; i < els.length; i++) {
-                  const el = els[i] as Record<string, unknown>;
-                  if (typeof el !== 'object' || el === null) { issues.push(`el[${i}] not object`); continue; }
-                  if (el.type !== 'obj' && el.type !== 'text') { issues.push(`el[${i}] type="${el.type}"`); }
-                  const bbox = el.bbox;
-                  if (!Array.isArray(bbox) || bbox.length !== 4) { issues.push(`el[${i}] bbox invalid`); }
-                  else {
-                    const badVals = (bbox as number[]).filter(v => typeof v !== 'number' || isNaN(v) || v < 0);
-                    if (badVals.length > 0) { issues.push(`el[${i}] bbox has bad values: ${JSON.stringify(badVals)}`); }
-                  }
-                  if (typeof el.desc !== 'string' || (el.desc as string).trim().length === 0) { issues.push(`el[${i}] desc empty`); }
-                }
-                if (issues.length > 0) {
-                  addCanvasChatMessage(createAssistantMessage('⚠ Debug: JSON validation issues:\n' + issues.join('\n')));
-                } else {
-                  addCanvasChatMessage(createAssistantMessage('⚠ Debug: All elements pass validation but extractAndValidateIdeogramJSON returned null — unknown reason.'));
-                }
-              }
-            }
-          } catch (e) {
-            addCanvasChatMessage(createAssistantMessage('⚠ Debug: JSON.parse failed: ' + ((e as Error).message || String(e))));
-          }
-        }
-      }
-
-      setPendingIdeogramOutput(parsedJson);
-    } catch (err) {
-      addCanvasChatMessage(createAssistantMessage(`Error: ${err instanceof Error ? err.message : String(err)}`));
-    } finally {
-      setIsLoading(false);
     }
+
+    // 超过最大重试次数
+    addCanvasChatMessage(createAssistantMessage(`Error: Failed to receive valid JSON after ${MAX_HARD_RETRIES + 1} attempts. Last error: ${lastErrorText.replace(/\n\n\[Parse Error\]\n/, '')}`));
+    setIsLoading(false);
   }, [
     addCanvasChatMessage, getCurrentProvider, parseModel, chatModel,
     boxes, canvasW, canvasH, globalPalette, highLevelDescription,
