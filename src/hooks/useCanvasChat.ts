@@ -362,13 +362,14 @@ export function useCanvasChat() {
     const report = useEditorStore.getState().pendingQualityReport;
     if (!report) return;
     setPendingQualityReport(null);
+    setPendingIdeogramOutput(null);
     // 找到最后一条 user 消息
     const msgs = useEditorStore.getState().canvasChatMessages;
     const lastUserMsg = [...msgs].reverse().find(m => m.role === 'user');
     if (!lastUserMsg) return;
     // 用 feedback 重新调用 sendMessage
     sendMessage(lastUserMsg.content, { feedback: report.summaryText });
-  }, [sendMessage, setPendingQualityReport]);
+  }, [sendMessage, setPendingQualityReport, setPendingIdeogramOutput]);
 
   return {
     isCanvasChatOpen,

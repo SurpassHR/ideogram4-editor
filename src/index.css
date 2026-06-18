@@ -3019,7 +3019,6 @@ input[type="color"]::-webkit-color-swatch {
   justify-content: flex-end;
   gap: 8px;
 }
-.canvas-chat-confirm-actions {
 /* Layout Quality Dialog */
 .layout-quality-dialog {
   position: fixed;

@@ -115,7 +115,6 @@ describe('validateLayout', () => {
   it('report has summaryText with correct format', () => {
     const elements = [el([0, 0, 400, 400])];
     const r = validateLayout(elements, W, H);
-    expect(r.summaryText).toContain('[Layout Feedback]');
     expect(r.summaryText).toMatch(/coverage/);
     expect(r.summaryText).toMatch(/Passed:/);
     expect(r.userSummary.length).toBeGreaterThan(0);

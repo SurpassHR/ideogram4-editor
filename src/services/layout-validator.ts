@@ -23,7 +23,7 @@ export interface MetricResult {
 export interface LayoutQualityReport {
   overallPass: boolean;
   metrics: MetricResult[];
-  summaryText: string;    // starts with "[Layout Feedback]\n", lines like "- coverage: 8% (threshold: 15-60%)"
+  summaryText: string;    // bullet lines like "- coverage: 8% (threshold: 15-60%)" — wrapped by buildLayoutFeedbackPrompt
   userSummary: string;    // Chinese-friendly summary
 }
 
@@ -273,7 +273,7 @@ export function validateLayout(
 
   const overallPass = metrics.every(m => m.passed);
 
-  let summaryText = '[Layout Feedback]\n';
+  let summaryText = '';
   if (failLines.length > 0) {
     summaryText += failLines.map(l => `- ${l}`).join('\n') + '\n';
   }

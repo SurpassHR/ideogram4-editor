@@ -11,3 +11,6 @@ Full suite: 155 pass, 1 pre-existing fail (ComfyUIControls)
 - Task 4 (hard retry): dcee4fd
 - Task 5 (dialog): 409b4db
 
+## Batch 3 complete (Task 6)
+- Task 6 (soft integration): 133587d
+Final suite: 160 pass, 1 pre-existing fail (ComfyUIControls)
