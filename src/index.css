@@ -3019,3 +3019,60 @@ input[type="color"]::-webkit-color-swatch {
   justify-content: flex-end;
   gap: 8px;
 }
+.canvas-chat-confirm-actions {
+/* Layout Quality Dialog */
+.layout-quality-dialog {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 150;
+  background: var(--surface-raised);
+  border: 1px solid var(--border, #2a2a4a);
+  border-radius: 12px;
+  padding: 16px;
+  min-width: 320px;
+  max-width: 420px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.layout-quality-dialog-content h3 {
+  margin: 0 0 12px;
+  font-size: 14px;
+  color: var(--accent);
+}
+
+.layout-quality-dialog-body {
+  margin-bottom: 16px;
+}
+
+.layout-quality-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border, #2a2a4a);
+}
+
+.layout-quality-metric:last-child {
+  border-bottom: none;
+}
+
+.metric-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.metric-value {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.4;
+}
+
+.layout-quality-dialog-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
