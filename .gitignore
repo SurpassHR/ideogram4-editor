@@ -32,3 +32,5 @@ _site/
 .jekyll-metadata
 /vendor
 Gemfile.lock
+# Codex CLI local artifacts
+.codex/
