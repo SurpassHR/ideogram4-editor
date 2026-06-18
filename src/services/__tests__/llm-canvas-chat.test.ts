@@ -1,5 +1,4 @@
-import { describe, it, expect } from 'vitest';
-import { extractAndValidateIdeogramJSON, buildCanvasChatContext } from '../llm-canvas-chat';
+import { extractAndValidateIdeogramJSON, buildCanvasChatContext, CANVAS_CHAT_SYSTEM_PROMPT, buildLayoutFeedbackPrompt } from '../llm-canvas-chat';
 
 // ─── extractAndValidateIdeogramJSON ─────────────────────────────────
 
@@ -425,5 +424,75 @@ describe('buildCanvasChatContext', () => {
     const result = buildCanvasChatContext(snapshot);
     const parsed = JSON.parse(result);
     expect(parsed.compositional_deconstruction.elements).toHaveLength(0);
+  });
+});
+
+// ─── buildLayoutFeedbackPrompt ──────────────────────────────────────
+
+describe('buildLayoutFeedbackPrompt', () => {
+  it('应在反馈文本外包裹布局反馈提示结构', () => {
+    const result = buildLayoutFeedbackPrompt('element_area: elements too small\ncoverage: insufficient');
+    expect(result).toContain('[Layout Feedback]');
+    expect(result).toContain('element_area: elements too small');
+    expect(result).toContain('coverage: insufficient');
+    expect(result).toContain('Return your complete revised composition as a new');
+    expect(result).toContain('```json');
+  });
+
+  it('空字符串反馈也应生成有效的提示结构', () => {
+    const result = buildLayoutFeedbackPrompt('');
+    expect(result).toContain('[Layout Feedback]');
+    expect(result).toContain('```json');
+  });
+
+  it('特殊字符反馈应正确转义 no break', () => {
+    const result = buildLayoutFeedbackPrompt('spacing: < 3% margin');
+    expect(result).toContain('spacing: < 3% margin');
+    expect(result).toContain('[Layout Feedback]');
+  });
+});
+
+// ─── CANVAS_CHAT_SYSTEM_PROMPT ──────────────────────────────────────
+
+describe('CANVAS_CHAT_SYSTEM_PROMPT', () => {
+  it('应包含 Numerical Layout Rules 章节', () => {
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('## Constraints');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('### Numerical Layout Rules');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Total element coverage: 15%-60% of canvas');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Minimum gap between elements');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Element aspect ratio');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Recommended element count: 2-6');
+  });
+
+  it('应包含 Design Principles 章节', () => {
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('### Design Principles');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Rule of thirds');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Visual anchor');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Breathing room');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Avoid clustering');
+  });
+
+  it('应包含 Retry Protocol 章节', () => {
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('## Retry Protocol');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('[Layout Feedback]');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('element_area');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('coverage');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('spacing');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('margin');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('aspect_ratio');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('element_count');
+  });
+
+  it('应保留原有的 JSON Schema 和 Output Format', () => {
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('## JSON Schema');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('## Output Format');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('IdeogramOutput');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('```json');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Example response format');
+  });
+
+  it('应不包含旧的模糊约束文本', () => {
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).not.toContain('Elements: 1-8 boxes total');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).not.toContain('Design a balanced composition');
   });
 });

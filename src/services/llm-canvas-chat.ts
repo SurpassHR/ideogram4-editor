@@ -49,17 +49,34 @@ Important: "style_description" must use EITHER "art_style" + "medium" (art style
 
 ## Constraints
 
-- Elements: 1-8 boxes total. Design a balanced composition — not too sparse, not too crowded.
-- Each element must have:
-  - type: one of "obj" or "text"
-  - bbox: exactly 4 numbers [y1, x1, y2, x2], each in the range 0-1000, representing the normalized bounding box
-  - desc: a non-empty English string with detailed visual description (colors, materials, lighting, shape, texture, mood)
-- For "text" type elements, include the "text" field with the exact text to render.
-      - Colors in color_palette must be 6-character hex uppercase strings (e.g., "#FF5733").
-      - Elements should not overlap excessively — leave room for background and overall composition balance.
-      - You MUST include "canvasW" and "canvasH" in your output, matching the current canvas dimensions from the input context. These are metadata fields only — bbox coordinates are ALWAYS in 0-1000 normalized space and are NOT affected by canvasW/canvasH pixel dimensions.
-      - bbox coordinates: y1 < y2 and x1 < x2 must hold (valid rectangle).
-      - high_level_description: 1-2 sentences summarizing the entire scene.
+### Numerical Layout Rules
+- Each element area ≥ 2% of total canvas area (elements too small will be rejected)
+- Total element coverage: 15%-60% of canvas (too little = empty, too much = crowded)
+- Minimum gap between elements: ≥ 3% of the canvas short side
+- Minimum margin from canvas edge: ≥ 2% of the canvas short side
+- Element aspect ratio (w/h or h/w, whichever is larger): ≤ 5:1
+- Recommended element count: 2-6 (max 8)
+
+### Design Principles
+- Rule of thirds: place key elements along 1/3 and 2/3 grid lines
+- Visual anchor: at least one element should occupy ≥ 15% of canvas area as the primary focal point
+- Breathing room: leave adequate whitespace between elements for visual clarity
+- Size rhythm: vary element sizes with a max/min ratio ≤ 8:1 for visual interest
+- Avoid clustering elements in one region — spread them across the canvas
+
+## Retry Protocol
+
+When you receive a [Layout Feedback] section in the user's message, it means
+your previous composition was rejected. The feedback itemizes every issue by
+metric name. Address each issue specifically:
+- element_area: elements too small → increase dimensions
+- coverage: insufficient/excessive coverage → adjust element sizes and distribution
+- spacing: elements too close → add breathing room
+- margin: elements too close to edge → push them inward
+- aspect_ratio: element too narrow/wide → reshape
+- element_count: too many/few → add/remove elements
+
+Do NOT return partial or truncated JSON. Re-submit your entire composition.
 
 ## Output Format
 
@@ -81,6 +98,15 @@ Here's the composition I designed for your scene:
 
 If the user asks for revisions, adjust the JSON accordingly and return the updated version in a new \`\`\`json block.
 `;
+
+// ─── Layout Feedback ─────────────────────────────────────────────────
+
+/**
+ * 构建布局反馈提示文本，追加到 user message 中用于重试。
+ */
+export function buildLayoutFeedbackPrompt(feedback: string): string {
+  return `\n\n[Layout Feedback]\nThe previous composition had layout quality issues. Please generate an improved version addressing each point:\n\n${feedback}\n\nReturn your complete revised composition as a new \`\`\`json code block.`;
+}
 
 // ─── 上下文构建 ─────────────────────────────────────────────────────
 
