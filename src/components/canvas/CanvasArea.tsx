@@ -5,7 +5,6 @@ import { useI18n } from '../../i18n/context';
 import BoundingBox from './BoundingBox';
 import ContextMenu from './ContextMenu';
 import type { ContextMenuItem } from './ContextMenu';
-import LayoutQualityDialog from './LayoutQualityDialog';
 import ChatPanel from '../chat/ChatPanel';
 
 interface CanvasAreaProps {
@@ -14,7 +13,6 @@ interface CanvasAreaProps {
   panY: number;
   screenToCanvas: (sx: number, sy: number) => { x: number; y: number };
   onFitToArtboard: () => void;
-  onRegenerate: () => void;
 }
 
 /** 通过文件选择器导入图像，返回 Data URL */
@@ -68,7 +66,7 @@ function pickImageFile(): Promise<string | null> {
   });
 }
 
-export default function CanvasArea({ zoom, panX, panY, screenToCanvas, onFitToArtboard, onRegenerate }: CanvasAreaProps) {
+export default function CanvasArea({ zoom, panX, panY, screenToCanvas, onFitToArtboard }: CanvasAreaProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const canvasW = useEditorStore(s => s.canvasW);
   const canvasH = useEditorStore(s => s.canvasH);
@@ -93,11 +91,8 @@ export default function CanvasArea({ zoom, panX, panY, screenToCanvas, onFitToAr
   const selectBox = useEditorStore(s => s.selectBox);
   const importImageToBox = useEditorStore(s => s.importImageToBox);
   const clearBoxImage = useEditorStore(s => s.clearBoxImage);
-  const pendingQualityReport = useEditorStore(s => s.pendingQualityReport);
-  const setPendingQualityReport = useEditorStore(s => s.setPendingQualityReport);
-  const setPendingIdeogramOutput = useEditorStore(s => s.setPendingIdeogramOutput);
-
   const { t } = useI18n();
+
 
   const {
     registerBoxRef,
@@ -256,16 +251,6 @@ export default function CanvasArea({ zoom, panX, panY, screenToCanvas, onFitToAr
           onClose={closeContextMenu}
         />
       )}
-
-      {/* 布局质量检测对话框 */}
-      <LayoutQualityDialog
-        report={pendingQualityReport}
-        onAccept={() => {
-          // 用户接受当前布局 → 保留 output 并关闭质量检测
-          setPendingQualityReport(null);
-        }}
-        onRegenerate={onRegenerate}
-      />
     </div>
   );
 }

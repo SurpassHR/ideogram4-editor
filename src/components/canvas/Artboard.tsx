@@ -6,6 +6,7 @@ import { useCanvasChat } from '../../hooks/useCanvasChat';
 import CanvasArea from './CanvasArea';
 import ArtboardToolbar from './ArtboardToolbar';
 import CanvasChatPanel from './CanvasChatPanel';
+import LayoutQualityDialog from './LayoutQualityDialog';
 
 export default function Artboard() {
   const artboardRef = useRef<HTMLDivElement>(null);
@@ -13,6 +14,8 @@ export default function Artboard() {
   const canvasH = useEditorStore(s => s.canvasH);
   const { t } = useI18n();
   const { handleRegenerate } = useCanvasChat();
+  const pendingQualityReport = useEditorStore(s => s.pendingQualityReport);
+  const setPendingQualityReport = useEditorStore(s => s.setPendingQualityReport);
 
   const {
     zoom,
@@ -67,10 +70,16 @@ export default function Artboard() {
           transformOrigin: 'top left',
         }}
       >
-        <CanvasArea zoom={zoom} panX={panX} panY={panY} screenToCanvas={screenToCanvas} onFitToArtboard={fitToArtboard} onRegenerate={handleRegenerate} />
+        <CanvasArea zoom={zoom} panX={panX} panY={panY} screenToCanvas={screenToCanvas} onFitToArtboard={fitToArtboard} />
       </div>
-
       <CanvasChatPanel />
+
+      {/* 布局质量检测对话框 */}
+      <LayoutQualityDialog
+        report={pendingQualityReport}
+        onAccept={() => setPendingQualityReport(null)}
+        onRegenerate={handleRegenerate}
+      />
     </div>
   );
 }
