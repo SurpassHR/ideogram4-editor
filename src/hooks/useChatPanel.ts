@@ -1,7 +1,8 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useEditorStore } from '../store';
 import { getLlmProviders } from '../components/llm/api';
-import { sendChatMessageStream, buildBoxChatSystemPrompt } from '../services/llm-stream';
+import { sendChatMessageStream } from '../services/llm-stream';
+import { buildBoxChatSystemPrompt } from '../services/llm-chat';
 import { resolveTemplate } from '../utils/resolveTemplate';
 import type { LlmProvider } from '../components/llm/types';
 import type { ChatMessage } from '../types/chat';
@@ -35,7 +36,6 @@ export function useChatPanel() {
   const closeChat = useEditorStore(s => s.closeChat);
   const clearChatHistory = useEditorStore(s => s.clearChatHistory);
   const setChatModel = useEditorStore(s => s.setChatModel);
-  const updateChatHistoryMessage = useEditorStore(s => s.updateChatHistoryMessage);
 
 
   const [providers, setProviders] = useState<LlmProvider[]>([]);
