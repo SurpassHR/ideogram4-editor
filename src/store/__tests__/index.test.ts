@@ -18,6 +18,21 @@ const makeBox = (id: string, x: number, y: number): Box => ({
   imageRole: 'both',
 });
 
+const makeCanvasSession = (
+  id: string,
+  title = '新会话',
+  messages: ChatMessage[] = [],
+) => ({
+  id,
+  title,
+  createdAt: 1000,
+  updatedAt: 1000,
+  messages,
+  pendingIdeogramOutput: null,
+  pendingQualityReport: null,
+  requestLogs: [],
+});
+
 describe('EditorStore', () => {
   beforeEach(() => {
     // 重置 store 到初始状态
@@ -335,6 +350,269 @@ describe('EditorStore', () => {
         isCanvasChatOpen: false,
         canvasChatMessages: [],
         pendingIdeogramOutput: null,
+        pendingQualityReport: null,
+        canvasChatSessions: [makeCanvasSession('session_1')],
+        activeCanvasChatSessionId: 'session_1',
+        activeCanvasChatRequestId: null,
+        isCanvasChatMaximized: false,
+      } as Partial<ReturnType<typeof useEditorStore.getState>>);
+    });
+
+    describe('Canvas Chat sessions', () => {
+      it('初始状态应自动拥有一个默认会话', () => {
+        const state = useEditorStore.getState() as unknown as {
+          canvasChatSessions?: Array<{ id: string; title: string; messages: ChatMessage[] }>;
+          activeCanvasChatSessionId?: string;
+        };
+
+        expect(state.canvasChatSessions).toHaveLength(1);
+        expect(state.activeCanvasChatSessionId).toBe(state.canvasChatSessions?.[0].id);
+        expect(state.canvasChatSessions?.[0].title).toBe('新会话');
+        expect(state.canvasChatSessions?.[0].messages).toEqual([]);
+      });
+
+      it('createCanvasChatSession 应创建并选中新会话', () => {
+        const store = useEditorStore.getState() as unknown as {
+          createCanvasChatSession?: (title?: string) => string;
+          canvasChatSessions: Array<{ id: string; title: string; messages: ChatMessage[] }>;
+          activeCanvasChatSessionId: string;
+          canvasChatMessages: ChatMessage[];
+        };
+
+        expect(typeof store.createCanvasChatSession).toBe('function');
+        const newId = store.createCanvasChatSession?.('海报构图') ?? '';
+
+        const state = useEditorStore.getState() as unknown as typeof store;
+        expect(state.canvasChatSessions).toHaveLength(2);
+        expect(state.activeCanvasChatSessionId).toBe(newId);
+        expect(state.canvasChatSessions[1]).toMatchObject({
+          id: newId,
+          title: '海报构图',
+          messages: [],
+        });
+        expect(state.canvasChatMessages).toEqual([]);
+      });
+
+      it('selectCanvasChatSession 应切换当前消息到目标会话', () => {
+        const firstMessage: ChatMessage = {
+          id: 'msg_1',
+          role: 'user',
+          content: '第一段需求',
+          timestamp: 1000,
+        };
+        const secondMessage: ChatMessage = {
+          id: 'msg_2',
+          role: 'assistant',
+          content: '第二个会话的回复',
+          timestamp: 2000,
+        };
+        useEditorStore.setState({
+          canvasChatSessions: [
+            makeCanvasSession('session_1', '第一会话', [firstMessage]),
+            makeCanvasSession('session_2', '第二会话', [secondMessage]),
+          ],
+          activeCanvasChatSessionId: 'session_1',
+          canvasChatMessages: [firstMessage],
+        } as Partial<ReturnType<typeof useEditorStore.getState>>);
+
+        const store = useEditorStore.getState() as unknown as {
+          selectCanvasChatSession?: (sessionId: string) => void;
+        };
+        expect(typeof store.selectCanvasChatSession).toBe('function');
+
+        store.selectCanvasChatSession?.('session_2');
+
+        const state = useEditorStore.getState() as unknown as {
+          activeCanvasChatSessionId: string;
+          canvasChatMessages: ChatMessage[];
+        };
+        expect(state.activeCanvasChatSessionId).toBe('session_2');
+        expect(state.canvasChatMessages).toEqual([secondMessage]);
+      });
+
+      it('addCanvasChatMessage 应写入当前会话并用首条用户消息更新标题', () => {
+        const { addCanvasChatMessage } = useEditorStore.getState();
+        const msg: ChatMessage = {
+          id: 'msg_1',
+          role: 'user',
+          content: '为咖啡品牌设计一张竖版海报',
+          timestamp: 1000,
+        };
+
+        addCanvasChatMessage(msg);
+
+        const state = useEditorStore.getState() as unknown as {
+          canvasChatSessions: Array<{ id: string; title: string; messages: ChatMessage[] }>;
+          canvasChatMessages: ChatMessage[];
+        };
+        expect(state.canvasChatMessages).toEqual([msg]);
+        expect(state.canvasChatSessions[0].messages).toEqual([msg]);
+        expect(state.canvasChatSessions[0].title).toBe('为咖啡品牌设计一张竖版海报');
+      });
+
+      it('updateCanvasChatMessage 应同步更新当前会话中的消息', () => {
+        const msg: ChatMessage = {
+          id: 'msg_stream',
+          role: 'assistant',
+          content: '',
+          timestamp: 1000,
+        };
+        useEditorStore.setState({
+          canvasChatMessages: [msg],
+          canvasChatSessions: [makeCanvasSession('session_1', '流式会话', [msg])],
+          activeCanvasChatSessionId: 'session_1',
+        } as Partial<ReturnType<typeof useEditorStore.getState>>);
+
+        useEditorStore.getState().updateCanvasChatMessage('msg_stream', {
+          content: 'streamed text',
+          thinking: 'reasoning text',
+        });
+
+        const state = useEditorStore.getState() as unknown as {
+          canvasChatSessions: Array<{ messages: ChatMessage[] }>;
+          canvasChatMessages: ChatMessage[];
+        };
+        expect(state.canvasChatMessages[0]).toMatchObject({
+          content: 'streamed text',
+          thinking: 'reasoning text',
+        });
+        expect(state.canvasChatSessions[0].messages[0]).toMatchObject({
+          content: 'streamed text',
+          thinking: 'reasoning text',
+        });
+      });
+
+      it('pending output 和质量报告应归属当前会话', () => {
+        const output: IdeogramOutput = {
+          high_level_description: 'Test scene',
+          style_description: { aesthetics: '', lighting: '', color_palette: [] },
+          compositional_deconstruction: { background: '', elements: [] },
+        };
+        const report = {
+          overallPass: false,
+          metrics: [],
+          summaryText: 'layout feedback',
+          userSummary: '布局需要调整',
+        };
+
+        useEditorStore.getState().setPendingIdeogramOutput(output);
+        useEditorStore.getState().setPendingQualityReport(report);
+
+        const state = useEditorStore.getState() as unknown as {
+          pendingIdeogramOutput: IdeogramOutput | null;
+          pendingQualityReport: typeof report | null;
+          canvasChatSessions: Array<{
+            pendingIdeogramOutput: IdeogramOutput | null;
+            pendingQualityReport: typeof report | null;
+          }>;
+        };
+        expect(state.pendingIdeogramOutput).toBe(output);
+        expect(state.pendingQualityReport).toBe(report);
+        expect(state.canvasChatSessions[0].pendingIdeogramOutput).toBe(output);
+        expect(state.canvasChatSessions[0].pendingQualityReport).toBe(report);
+      });
+
+      it('clearCanvasChat 应只清空当前会话并保留其他画布状态', () => {
+        const msg: ChatMessage = {
+          id: 'msg_1',
+          role: 'user',
+          content: 'Hello',
+          timestamp: 1000,
+        };
+        useEditorStore.setState({
+          boxes: [makeBox('box_keep', 0, 0)],
+          canvasChatMessages: [msg],
+          pendingIdeogramOutput: {
+            high_level_description: 'Test',
+            style_description: { aesthetics: '', lighting: '', color_palette: [] },
+            compositional_deconstruction: { background: '', elements: [] },
+          },
+          canvasChatSessions: [makeCanvasSession('session_1', '有内容', [msg])],
+          activeCanvasChatSessionId: 'session_1',
+        } as Partial<ReturnType<typeof useEditorStore.getState>>);
+
+        useEditorStore.getState().clearCanvasChat();
+
+        const state = useEditorStore.getState() as unknown as {
+          boxes: Box[];
+          canvasChatMessages: ChatMessage[];
+          pendingIdeogramOutput: IdeogramOutput | null;
+          canvasChatSessions: Array<{ messages: ChatMessage[]; pendingIdeogramOutput: IdeogramOutput | null }>;
+        };
+        expect(state.boxes).toHaveLength(1);
+        expect(state.canvasChatMessages).toEqual([]);
+        expect(state.pendingIdeogramOutput).toBeNull();
+        expect(state.canvasChatSessions[0].messages).toEqual([]);
+        expect(state.canvasChatSessions[0].pendingIdeogramOutput).toBeNull();
+      });
+
+      it('request log actions 应在当前会话记录请求步骤和最终状态', () => {
+        const store = useEditorStore.getState() as unknown as {
+          startCanvasChatRequest?: (promptPreview: string) => string;
+          appendCanvasChatRequestStep?: (
+            requestId: string,
+            step: {
+              kind: 'build_context';
+              status: 'success';
+              label: string;
+              detail?: string;
+            },
+          ) => void;
+          finishCanvasChatRequest?: (requestId: string, status: 'success' | 'error', detail?: string) => void;
+        };
+
+        expect(typeof store.startCanvasChatRequest).toBe('function');
+        expect(typeof store.appendCanvasChatRequestStep).toBe('function');
+        expect(typeof store.finishCanvasChatRequest).toBe('function');
+
+        const requestId = store.startCanvasChatRequest?.('生成海报') ?? '';
+        store.appendCanvasChatRequestStep?.(requestId, {
+          kind: 'build_context',
+          status: 'success',
+          label: 'Build canvas context',
+          detail: '1 box',
+        });
+        store.finishCanvasChatRequest?.(requestId, 'success');
+
+        const state = useEditorStore.getState() as unknown as {
+          activeCanvasChatRequestId: string | null;
+          canvasChatSessions: Array<{
+            requestLogs: Array<{
+              id: string;
+              promptPreview: string;
+              status: string;
+              endedAt?: number;
+              steps: Array<{ kind: string; status: string; label: string; detail?: string }>;
+            }>;
+          }>;
+        };
+        expect(state.activeCanvasChatRequestId).toBe(requestId);
+        expect(state.canvasChatSessions[0].requestLogs).toHaveLength(1);
+        expect(state.canvasChatSessions[0].requestLogs[0]).toMatchObject({
+          id: requestId,
+          promptPreview: '生成海报',
+          status: 'success',
+        });
+        expect(state.canvasChatSessions[0].requestLogs[0].endedAt).toBeGreaterThan(0);
+        expect(state.canvasChatSessions[0].requestLogs[0].steps[0]).toMatchObject({
+          kind: 'build_context',
+          status: 'success',
+          label: 'Build canvas context',
+          detail: '1 box',
+        });
+      });
+
+      it('setCanvasChatMaximized 应切换最大化状态', () => {
+        const store = useEditorStore.getState() as unknown as {
+          setCanvasChatMaximized?: (maximized: boolean) => void;
+        };
+        expect(typeof store.setCanvasChatMaximized).toBe('function');
+
+        store.setCanvasChatMaximized?.(true);
+        expect(useEditorStore.getState().isCanvasChatMaximized).toBe(true);
+
+        store.setCanvasChatMaximized?.(false);
+        expect(useEditorStore.getState().isCanvasChatMaximized).toBe(false);
       });
     });
 

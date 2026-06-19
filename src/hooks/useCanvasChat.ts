@@ -67,6 +67,9 @@ export function useCanvasChat() {
   const setPendingIdeogramOutput = useEditorStore(s => s.setPendingIdeogramOutput);
   const setPendingQualityReport = useEditorStore(s => s.setPendingQualityReport);
   const clearCanvasChat = useEditorStore(s => s.clearCanvasChat);
+  const startCanvasChatRequest = useEditorStore(s => s.startCanvasChatRequest);
+  const appendCanvasChatRequestStep = useEditorStore(s => s.appendCanvasChatRequestStep);
+  const finishCanvasChatRequest = useEditorStore(s => s.finishCanvasChatRequest);
   const chatModel = useEditorStore(s => s.chatModel);
   const chatResponseLang = useEditorStore(s => s.chatResponseLang);
   const setChatModel = useEditorStore(s => s.setChatModel);
@@ -115,7 +118,7 @@ export function useCanvasChat() {
     return providers.find(p => p.id === parsed.providerId) || null;
   }, [chatModel, providers, parseModel]);
 
-  /** 构建解析失败的错误文本，用于硬重试时反馈给 LLM */
+  /** 构建解析失败的错误文本，用于终端日志与用户排查 */
   function buildParseErrorText(aiText: string): string {
     const match = aiText.match(/```json\s*([\s\S]*?)```/);
     if (!match) {
@@ -162,8 +165,15 @@ export function useCanvasChat() {
   }
 
   const sendMessage = useCallback(async (content: string, retryContext?: { feedback?: string }) => {
+    const requestId = startCanvasChatRequest(content.slice(0, 80));
     const userMessage = createUserMessage(content);
     const snapshotUrl = await takeCanvasSnapshot();
+    appendCanvasChatRequestStep(requestId, {
+      kind: 'snapshot',
+      status: snapshotUrl ? 'success' : 'error',
+      label: snapshotUrl ? 'Canvas snapshot captured' : 'Canvas snapshot unavailable',
+      detail: snapshotUrl ? undefined : '未找到可截图的 canvas-wrapper，继续发送请求。',
+    });
     userMessage.canvasSnapshotUrl = snapshotUrl;
     addCanvasChatMessage(userMessage);
     setIsLoading(true);
@@ -171,6 +181,13 @@ export function useCanvasChat() {
     const provider = getCurrentProvider();
     if (!provider) {
       addCanvasChatMessage(createAssistantMessage('No LLM provider selected.'));
+      appendCanvasChatRequestStep(requestId, {
+        kind: 'provider_ready',
+        status: 'error',
+        label: 'LLM provider missing',
+        detail: 'No LLM provider selected.',
+      });
+      finishCanvasChatRequest(requestId, 'error', 'No LLM provider selected.');
       setIsLoading(false);
       return;
     }
@@ -178,6 +195,13 @@ export function useCanvasChat() {
     const parsed = parseModel(chatModel);
     if (!parsed) {
       addCanvasChatMessage(createAssistantMessage('No model selected.'));
+      appendCanvasChatRequestStep(requestId, {
+        kind: 'provider_ready',
+        status: 'error',
+        label: 'Model missing',
+        detail: `Invalid chat model value: ${chatModel}`,
+      });
+      finishCanvasChatRequest(requestId, 'error', 'No model selected.');
       setIsLoading(false);
       return;
     }
@@ -204,6 +228,18 @@ export function useCanvasChat() {
       background,
       photoArtStyleMode,
     };
+    appendCanvasChatRequestStep(requestId, {
+      kind: 'build_context',
+      status: 'success',
+      label: 'Build canvas context',
+      detail: `${snapshot.boxes.length} boxes, ${canvasW}x${canvasH}, ${globalPalette.length} global colors`,
+    });
+    appendCanvasChatRequestStep(requestId, {
+      kind: 'provider_ready',
+      status: 'success',
+      label: 'Provider and model ready',
+      detail: `${provider.name || provider.id} · ${parsed.modelName}`,
+    });
 
     // 语言偏好 append 到 system prompt
     let langHint = '';
@@ -213,104 +249,145 @@ export function useCanvasChat() {
       langHint = '\n你必须用中文回复。';
     }
 
-    let hardRetryCount = 0;
-    const MAX_HARD_RETRIES = 2;
-    let lastErrorText = '';
-
-    const doStreamAttempt = (): Promise<boolean> => {
-      return new Promise((resolve) => {
-        const placeholderId = generateMessageId();
-        const placeholder: ChatMessage = {
-          id: placeholderId,
-          role: 'assistant',
-          content: '',
-          timestamp: Date.now(),
-          canvasSnapshotUrl: snapshotUrl,
-        };
-        addCanvasChatMessage(placeholder);
-
-        const contextJson = buildCanvasChatContext(snapshot);
-        const allMessages = [...canvasChatMessages, userMessage];
-        const apiMessages = allMessages.map(m => ({ role: m.role, content: m.content }));
-        const lastUserIdx = apiMessages.map((m, i) => (m.role === 'user' ? i : -1)).reduce((a, b) => Math.max(a, b), -1);
-        if (lastUserIdx >= 0) {
-          let enriched = `Current canvas state (JSON prompt):\n\`\`\`json\n${contextJson}\n\`\`\`\n\nMy composition request: ${apiMessages[lastUserIdx].content}`;
-          if (hardRetryCount === 0 && retryContext?.feedback) enriched += buildLayoutFeedbackPrompt(retryContext.feedback);
-          if (hardRetryCount > 0 && lastErrorText) enriched += lastErrorText;
-          apiMessages[lastUserIdx] = { role: 'user', content: enriched };
-        }
-
-        const accumulatedContent: string[] = [];
-        const accumulatedThinking: string[] = [];
-
-        sendChatMessageStream(provider, parsed.modelName, apiMessages, CANVAS_CHAT_SYSTEM_PROMPT + langHint, {
-          onChunk: ({ type, text }) => {
-            if (type === 'thinking') {
-              accumulatedThinking.push(text);
-            } else {
-              accumulatedContent.push(text);
-            }
-            // 逐步更新 store 中的占位消息
-            const store = useEditorStore.getState();
-            store.updateCanvasChatMessage(placeholderId, {
-              content: accumulatedContent.join(''),
-              thinking: accumulatedThinking.join(''),
-            });
-          },
-          onDone: async (fullText) => {
-            // 确保最终内容写入
-            const finalContent = accumulatedContent.join('') || fullText;
-            const finalThinking = accumulatedThinking.join('');
-            useEditorStore.getState().updateCanvasChatMessage(placeholderId, {
-              content: finalContent,
-              thinking: finalThinking || undefined,
-            });
-
-            const parsedJson = extractAndValidateIdeogramJSON(finalContent);
-            if (parsedJson !== null) {
-              setPendingIdeogramOutput(parsedJson);
-              // 软校验
-              const rawElements = parsedJson.compositional_deconstruction.elements;
-              const bboxSystem = detectBboxSystem(rawElements);
-              const normCw = parsedJson.canvasW ?? canvasW;
-              const normCh = parsedJson.canvasH ?? canvasH;
-              const normElements = bboxSystem === 'normalized' ? rawElements : rawElements.map(el => {
-                const [y1, x1, y2, x2] = el.bbox;
-                if (bboxSystem === 'fractional') return { ...el, bbox: [y1 * 1000, x1 * 1000, y2 * 1000, x2 * 1000] as [number, number, number, number] };
-                return { ...el, bbox: [(y1 / normCh) * 1000, (x1 / normCw) * 1000, (y2 / normCh) * 1000, (x2 / normCw) * 1000] as [number, number, number, number] };
-              });
-              const qualityReport = validateLayout(normElements, normCw, normCh);
-              setPendingQualityReport(qualityReport.overallPass ? null : qualityReport);
-              resolve(true);
-            } else {
-              // 解析失败：保留失败文本 + 追加错误提示
-              lastErrorText = buildParseErrorText(finalContent);
-              addCanvasChatMessage(createAssistantMessage(`\n\n[Parse Error: 解析失败，正在重新生成...]`));
-              resolve(false);
-            }
-          },
-          onError: (err) => {
-            const store = useEditorStore.getState();
-            store.updateCanvasChatMessage(placeholderId, {
-              content: (accumulatedContent.join('') || '') + `\n\n[Stream Error: ${err}]`,
-            });
-            resolve(false);
-          },
-        });
-      });
+    const placeholderId = generateMessageId();
+    const placeholder: ChatMessage = {
+      id: placeholderId,
+      role: 'assistant',
+      content: '',
+      timestamp: Date.now(),
+      canvasSnapshotUrl: snapshotUrl,
     };
+    addCanvasChatMessage(placeholder);
 
-    while (hardRetryCount <= MAX_HARD_RETRIES) {
-      const success = await doStreamAttempt();
-      if (success) { setIsLoading(false); return; }
-      hardRetryCount++;
+    const contextJson = buildCanvasChatContext(snapshot);
+    const allMessages = [...canvasChatMessages, userMessage];
+    const apiMessages = allMessages.map(m => ({ role: m.role, content: m.content }));
+    const lastUserIdx = apiMessages.map((m, i) => (m.role === 'user' ? i : -1)).reduce((a, b) => Math.max(a, b), -1);
+    if (lastUserIdx >= 0) {
+      let enriched = `Current canvas state (JSON prompt):\n\`\`\`json\n${contextJson}\n\`\`\`\n\nMy composition request: ${apiMessages[lastUserIdx].content}`;
+      if (retryContext?.feedback) enriched += buildLayoutFeedbackPrompt(retryContext.feedback);
+      apiMessages[lastUserIdx] = { role: 'user', content: enriched };
     }
 
-    // 超过最大重试次数 — 在最后一条错误消息后追加最终提示
-    addCanvasChatMessage(createAssistantMessage(`Error: Failed after ${MAX_HARD_RETRIES + 1} attempts. Last error: ${lastErrorText.replace(/\n\n\[Parse Error\]\n/, '')}`));
-    setIsLoading(false);
+    const accumulatedContent: string[] = [];
+    const accumulatedThinking: string[] = [];
+    let loggedFirstChunk = false;
+
+    appendCanvasChatRequestStep(requestId, {
+      kind: 'stream_start',
+      status: 'running',
+      label: 'Start LLM stream',
+      detail: `${provider.name || provider.id} · ${parsed.modelName}`,
+    });
+
+    await new Promise<void>((resolve) => {
+      let settled = false;
+      const finishWithError = (err: string) => {
+        if (settled) return;
+        settled = true;
+        const store = useEditorStore.getState();
+        store.updateCanvasChatMessage(placeholderId, {
+          content: (accumulatedContent.join('') || '') + `\n\n[Stream Error: ${err}]`,
+        });
+        appendCanvasChatRequestStep(requestId, {
+          kind: 'error',
+          status: 'error',
+          label: 'Stream failed',
+          detail: err,
+        });
+        finishCanvasChatRequest(requestId, 'error', err);
+        setIsLoading(false);
+        resolve();
+      };
+
+      const streamResult = sendChatMessageStream(provider, parsed.modelName, apiMessages, CANVAS_CHAT_SYSTEM_PROMPT + langHint, {
+        onChunk: ({ type, text }) => {
+          if (type === 'thinking') {
+            accumulatedThinking.push(text);
+          } else {
+            accumulatedContent.push(text);
+          }
+          if (!loggedFirstChunk) {
+            loggedFirstChunk = true;
+            appendCanvasChatRequestStep(requestId, {
+              kind: 'stream_chunk',
+              status: 'running',
+              label: 'Receive first stream chunk',
+            });
+          }
+          const store = useEditorStore.getState();
+          store.updateCanvasChatMessage(placeholderId, {
+            content: accumulatedContent.join(''),
+            thinking: accumulatedThinking.join(''),
+          });
+        },
+        onDone: async (fullText) => {
+          if (settled) return;
+          settled = true;
+          const finalContent = accumulatedContent.join('') || fullText;
+          const finalThinking = accumulatedThinking.join('');
+          useEditorStore.getState().updateCanvasChatMessage(placeholderId, {
+            content: finalContent,
+            thinking: finalThinking || undefined,
+          });
+          appendCanvasChatRequestStep(requestId, {
+            kind: 'stream_done',
+            status: 'success',
+            label: 'LLM stream completed',
+            detail: `${finalContent.length} content chars`,
+          });
+
+          const parsedJson = extractAndValidateIdeogramJSON(finalContent);
+          if (parsedJson !== null) {
+            setPendingIdeogramOutput(parsedJson);
+            appendCanvasChatRequestStep(requestId, {
+              kind: 'parse_success',
+              status: 'success',
+              label: 'Parse Ideogram JSON',
+              detail: `${parsedJson.compositional_deconstruction.elements.length} elements`,
+            });
+
+            const rawElements = parsedJson.compositional_deconstruction.elements;
+            const bboxSystem = detectBboxSystem(rawElements);
+            const normCw = parsedJson.canvasW ?? canvasW;
+            const normCh = parsedJson.canvasH ?? canvasH;
+            const normElements = bboxSystem === 'normalized' ? rawElements : rawElements.map(el => {
+              const [y1, x1, y2, x2] = el.bbox;
+              if (bboxSystem === 'fractional') return { ...el, bbox: [y1 * 1000, x1 * 1000, y2 * 1000, x2 * 1000] as [number, number, number, number] };
+              return { ...el, bbox: [(y1 / normCh) * 1000, (x1 / normCw) * 1000, (y2 / normCh) * 1000, (x2 / normCw) * 1000] as [number, number, number, number] };
+            });
+            const qualityReport = validateLayout(normElements, normCw, normCh);
+            setPendingQualityReport(qualityReport.overallPass ? null : qualityReport);
+            appendCanvasChatRequestStep(requestId, {
+              kind: 'layout_validation',
+              status: 'success',
+              label: 'Validate layout quality',
+              detail: qualityReport.overallPass ? 'All metrics passed' : qualityReport.userSummary,
+            });
+            finishCanvasChatRequest(requestId, 'success');
+          } else {
+            const errorText = buildParseErrorText(finalContent);
+            appendCanvasChatRequestStep(requestId, {
+              kind: 'parse_failed',
+              status: 'error',
+              label: 'Parse Ideogram JSON failed',
+              detail: errorText.replace(/\n\n\[Parse Error\]\n/, ''),
+            });
+            finishCanvasChatRequest(requestId, 'error', errorText.replace(/\n\n\[Parse Error\]\n/, ''));
+          }
+          setIsLoading(false);
+          resolve();
+        },
+        onError: finishWithError,
+      });
+
+      void Promise.resolve(streamResult).catch(err => {
+        finishWithError(err instanceof Error ? err.message : String(err));
+      });
+    });
   }, [
-    addCanvasChatMessage, getCurrentProvider, parseModel, chatModel,
+    startCanvasChatRequest, appendCanvasChatRequestStep, addCanvasChatMessage, getCurrentProvider,
+    parseModel, chatModel, finishCanvasChatRequest,
     boxes, canvasW, canvasH, globalPalette, highLevelDescription,
     aesthetics, lighting, medium, artStyle, background, photoArtStyleMode,
     canvasChatMessages, chatResponseLang, setPendingIdeogramOutput, setPendingQualityReport,

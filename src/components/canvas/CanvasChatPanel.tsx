@@ -29,7 +29,14 @@ export default function CanvasChatPanel() {
   } = useCanvasChat();
 
   const isCanvasChatOpen = useEditorStore(s => s.isCanvasChatOpen);
+  const isCanvasChatMaximized = useEditorStore(s => s.isCanvasChatMaximized);
+  const canvasChatSessions = useEditorStore(s => s.canvasChatSessions);
+  const activeCanvasChatSessionId = useEditorStore(s => s.activeCanvasChatSessionId);
+  const activeCanvasChatRequestId = useEditorStore(s => s.activeCanvasChatRequestId);
+  const setCanvasChatMaximized = useEditorStore(s => s.setCanvasChatMaximized);
   const setCanvasChatOpen = useEditorStore(s => s.setCanvasChatOpen);
+  const createCanvasChatSession = useEditorStore(s => s.createCanvasChatSession);
+  const selectCanvasChatSession = useEditorStore(s => s.selectCanvasChatSession);
 
   const { t } = useI18n();
   const [inputText, setInputText] = useState('');
@@ -38,28 +45,37 @@ export default function CanvasChatPanel() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const activeSession = canvasChatSessions.find(session => session.id === activeCanvasChatSessionId) ?? canvasChatSessions[0];
+  const terminalLogs = activeSession?.requestLogs ?? [];
+  const activeTerminalLog = terminalLogs.find(log => log.id === activeCanvasChatRequestId) ?? terminalLogs[terminalLogs.length - 1] ?? null;
 
   // 点击画布空白区关闭面板
   useEffect(() => {
     if (!isCanvasChatOpen) return;
     const onPointerDown = (e: PointerEvent) => {
+      if (isCanvasChatMaximized) return;
       if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
         setCanvasChatOpen(false);
       }
     };
     document.addEventListener('pointerdown', onPointerDown);
     return () => document.removeEventListener('pointerdown', onPointerDown);
-  }, [isCanvasChatOpen, setCanvasChatOpen]);
+  }, [isCanvasChatMaximized, isCanvasChatOpen, setCanvasChatOpen]);
 
   // Escape 关闭面板
   useEffect(() => {
     if (!isCanvasChatOpen) return;
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setCanvasChatOpen(false);
+      if (e.key !== 'Escape') return;
+      if (isCanvasChatMaximized) {
+        setCanvasChatMaximized(false);
+      } else {
+        setCanvasChatOpen(false);
+      }
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [isCanvasChatOpen, setCanvasChatOpen]);
+  }, [isCanvasChatMaximized, isCanvasChatOpen, setCanvasChatMaximized, setCanvasChatOpen]);
 
   const handleToggle = useCallback(() => {
     setCanvasChatOpen(!isCanvasChatOpen);
@@ -68,6 +84,19 @@ export default function CanvasChatPanel() {
   const handleAddProvider = useCallback(() => {
     window.location.hash = '#/settings';
   }, []);
+
+  const handleMaximize = useCallback(() => {
+    setCanvasChatOpen(true);
+    setCanvasChatMaximized(true);
+  }, [setCanvasChatMaximized, setCanvasChatOpen]);
+
+  const handleRestore = useCallback(() => {
+    setCanvasChatMaximized(false);
+  }, [setCanvasChatMaximized]);
+
+  const handleCreateSession = useCallback(() => {
+    createCanvasChatSession();
+  }, [createCanvasChatSession]);
 
   // 新消息自动滚到底部
   useEffect(() => {
@@ -170,13 +199,22 @@ export default function CanvasChatPanel() {
     <>
       <div
         ref={wrapperRef}
-        className={`canvas-chat-handle-wrapper${isCanvasChatOpen ? ' open' : ''}`}
+        className={`canvas-chat-handle-wrapper${isCanvasChatOpen ? ' open' : ''}${isCanvasChatMaximized ? ' maximized' : ''}`}
       >
         <div className="canvas-chat-panel">
           {/* Header */}
           <div className="canvas-chat-header">
             <span className="canvas-chat-header-title">🤖 Canvas AI Compose</span>
             <span className="chat-header-spacer" />
+            <button
+              type="button"
+              className="canvas-chat-icon-btn"
+              aria-label="Maximize Canvas Chat"
+              title="Maximize Canvas Chat"
+              onClick={handleMaximize}
+            >
+              ⛶
+            </button>
           </div>
 
           {/* 无 LLM 配置提示 */}
@@ -263,6 +301,7 @@ export default function CanvasChatPanel() {
                     className="chat-send-btn"
                     onClick={handleSend}
                     disabled={isLoading || !inputText.trim()}
+                    aria-label={t('chat.send')}
                     title={t('chat.send')}
                   >
                     {isLoading ? (
@@ -288,6 +327,171 @@ export default function CanvasChatPanel() {
             <div className="canvas-chat-toast">{applyToast}</div>
           )}
         </div>
+        {isCanvasChatMaximized && (
+          <div className="canvas-chat-workbench" role="dialog" aria-label="Canvas Chat Workbench">
+            <aside className="canvas-chat-workbench-sidebar">
+              <div className="canvas-chat-workbench-section-title">Sessions</div>
+              <button
+                type="button"
+                className="canvas-chat-session-new"
+                onClick={handleCreateSession}
+              >
+                + New
+              </button>
+              <div className="canvas-chat-session-list">
+                {canvasChatSessions.map(session => (
+                  <button
+                    key={session.id}
+                    type="button"
+                    className={`canvas-chat-session-item${session.id === activeCanvasChatSessionId ? ' active' : ''}`}
+                    onClick={() => selectCanvasChatSession(session.id)}
+                  >
+                    <span className="canvas-chat-session-title">{session.title}</span>
+                    <span className="canvas-chat-session-meta">
+                      {session.messages.length} messages
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </aside>
+
+            <section className="canvas-chat-workbench-chat">
+              <div className="canvas-chat-workbench-header">
+                <span className="canvas-chat-header-title">Canvas AI Compose</span>
+                <button
+                  type="button"
+                  className="canvas-chat-icon-btn"
+                  aria-label="Restore Canvas Chat"
+                  title="Restore Canvas Chat"
+                  onClick={handleRestore}
+                >
+                  ×
+                </button>
+              </div>
+              <div className="canvas-chat-workbench-messages">
+                {!hasProviders && (
+                  <div className="chat-no-provider">
+                    <p>{t('chat.noProvider')}</p>
+                    <button
+                      className="btn"
+                      onClick={handleAddProvider}
+                      style={{ fontSize: 12, padding: '5px 14px' }}
+                    >
+                      {t('llmConfig.addProvider')}
+                    </button>
+                  </div>
+                )}
+                {hasProviders && messages.length === 0 && !isLoading && (
+                  <div className="chat-empty-hint">{t('chat.emptyHint')}</div>
+                )}
+                {hasProviders && messages.map(msg => (
+                  <ChatMessage
+                    key={msg.id}
+                    message={msg}
+                    dismissed={false}
+                  />
+                ))}
+              </div>
+              {hasProviders && (
+                <div className="canvas-chat-input-area canvas-chat-workbench-input-area">
+                  <div className="canvas-chat-toolbar">
+                    {chatPresets.length > 0 && (
+                      <SelectMenu
+                        className="chat-preset-select"
+                        options={chatPresets.map(p => ({ value: p.id, label: p.name }))}
+                        value={selectedPreset?.id || ''}
+                        onChange={handlePresetChange}
+                        placeholder={t('chat.presets.selectPreset')}
+                      />
+                    )}
+                    <SelectMenu
+                      className="chat-model-select"
+                      options={modelOptions.map(opt => ({ value: opt.value, label: opt.label }))}
+                      value={chatModel}
+                      onChange={handleSelectModel}
+                      placeholder={t('chat.modelSelect')}
+                    />
+                    <SelectMenu
+                      className="chat-lang-select"
+                      options={[
+                        { value: 'auto', label: '🌐 Auto' },
+                        { value: 'en', label: 'EN' },
+                        { value: 'zh', label: '中文' },
+                      ]}
+                      value={chatResponseLang}
+                      onChange={setChatResponseLang}
+                    />
+                    <span className="chat-header-spacer" />
+                  </div>
+                  <div className="canvas-chat-input-row">
+                    <textarea
+                      className="chat-input"
+                      rows={2}
+                      value={inputText}
+                      onChange={handleInputChange}
+                      onKeyDown={handleKeyDown}
+                      placeholder="Describe the scene you want to compose..."
+                      disabled={isLoading}
+                    />
+                    <div className="canvas-chat-input-actions">
+                      <button
+                        className="chat-send-btn"
+                        onClick={handleSend}
+                        disabled={isLoading || !inputText.trim()}
+                        aria-label={t('chat.send')}
+                        title={t('chat.send')}
+                      >
+                        {isLoading ? (
+                          <span className="canvas-chat-spinner" />
+                        ) : '➤'}
+                      </button>
+                      {pendingIdeogramOutput !== null && (
+                        <button
+                          className="canvas-chat-apply-btn"
+                          onClick={handleApply}
+                          disabled={isLoading}
+                        >
+                          Apply
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </section>
+
+            <aside className="canvas-chat-terminal-panel">
+              <div className="canvas-chat-workbench-section-title">Terminal</div>
+              {activeTerminalLog ? (
+                <div className="canvas-chat-terminal-log">
+                  <div className={`canvas-chat-terminal-request ${activeTerminalLog.status}`}>
+                    <span className="canvas-chat-terminal-request-title">
+                      {activeTerminalLog.promptPreview}
+                    </span>
+                    <span className="canvas-chat-terminal-request-status">
+                      {activeTerminalLog.status}
+                    </span>
+                  </div>
+                  <div className="canvas-chat-terminal-steps">
+                    {activeTerminalLog.steps.map(step => (
+                      <div key={step.id} className={`canvas-chat-terminal-step ${step.status}`}>
+                        <div className="canvas-chat-terminal-step-row">
+                          <span className="canvas-chat-terminal-step-kind">{step.kind}</span>
+                          <span className="canvas-chat-terminal-step-label">{step.label}</span>
+                        </div>
+                        {step.detail && (
+                          <div className="canvas-chat-terminal-step-detail">{step.detail}</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="canvas-chat-terminal-empty">No request logs yet</div>
+              )}
+            </aside>
+          </div>
+        )}
         <div className="canvas-chat-handle" onClick={handleToggle} title="Toggle Canvas AI Compose" />
       </div>
 
