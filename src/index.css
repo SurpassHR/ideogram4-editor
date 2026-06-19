@@ -27,6 +27,8 @@
 
 html {
   background-color: var(--bg);
+  /* 始终为滚动条预留槽位，避免画布页与设置页切换时因滚动条出现/消失导致水平抖动 */
+  scrollbar-gutter: stable;
 }
 
 body {
