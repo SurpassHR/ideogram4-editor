@@ -1,9 +1,10 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, fireEvent, act } from '@testing-library/react';
 import CanvasChatPanel from '../CanvasChatPanel';
 import { useEditorStore } from '../../../store';
 import { I18nProvider } from '../../../i18n/context';
 import type { IdeogramOutput } from '../../../types';
+import { getLlmProviders } from '../../../components/llm/api';
 
 // Mock getLlmProviders 以确保 hasProviders 为 true
 vi.mock('../../../components/llm/api', () => ({
@@ -25,7 +26,7 @@ function renderPanel() {
 }
 
 /** 渲染展开态（设置 chatModel），等待异步 providers 加载 */
-async function renderWithPending(pendingOutput?: IdeogramOutput) {
+async function renderWithPending(pendingOutput?: IdeogramOutput | null) {
   useEditorStore.setState({
     chatModel: 'mock:gpt-4',
     pendingIdeogramOutput: pendingOutput ?? null,
@@ -64,6 +65,7 @@ describe('CanvasChatPanel', () => {
       pendingIdeogramOutput: null,
       chatModel: 'mock:gpt-4',
     });
+    window.location.hash = '#/';
   });
 
   // ─── 底部横杠 ────────────────────────────────────────────────────
@@ -112,6 +114,21 @@ describe('CanvasChatPanel', () => {
       const dialog = document.querySelector('.canvas-chat-confirm');
       expect(dialog).not.toBeNull();
       expect(dialog!.textContent).toContain('Apply Composition');
+    });
+
+    it('无 LLM provider 时应显示添加提供商按钮并跳转到设置页', async () => {
+      vi.mocked(getLlmProviders).mockResolvedValueOnce([]);
+
+      const { getByRole, getByText } = await renderWithPending();
+
+      expect(getByText('No LLM provider configured yet')).toBeInTheDocument();
+
+      const addButton = getByRole('button', { name: '+ Add' });
+      expect(addButton).toBeInTheDocument();
+
+      fireEvent.click(addButton);
+
+      expect(window.location.hash).toBe('#/settings');
     });
   });
 

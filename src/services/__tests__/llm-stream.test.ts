@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-import type { LlmProvider } from '../../components/llm/types';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import type { LlmProvider, ProviderKind } from '../../components/llm/types';
 
 // Mock fetch
 const mockFetch = vi.fn();
@@ -9,7 +9,7 @@ globalThis.fetch = mockFetch;
 import { sendChatMessageStream } from '../llm-stream';
 import type { ChatMessageForApi } from '../../types/chat';
 
-function makeProvider(kind: string): LlmProvider {
+function makeProvider(kind: ProviderKind): LlmProvider {
   return {
     id: 'test',
     name: 'Test',

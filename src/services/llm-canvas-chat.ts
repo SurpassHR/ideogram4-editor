@@ -6,7 +6,7 @@
  * - extractAndValidateIdeogramJSON: 从 AI 回复中提取 ```json 代码块并验证结构
  */
 
-import type { IdeogramOutput } from '../types';
+import type { Box, IdeogramOutput } from '../types';
 import { generateJSON } from '../utils/json-serializer';
 const CJK_TEXT_RE = /[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]/;
 
@@ -134,7 +134,7 @@ export interface CanvasChatStoreSnapshot {
     desc: string;
     colors: string[];
     imageDataUrl: string | null;
-    imageRole: string;
+    imageRole: Box['imageRole'];
   }>;
   canvasW: number;
   canvasH: number;

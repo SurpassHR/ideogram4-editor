@@ -65,6 +65,10 @@ export default function CanvasChatPanel() {
     setCanvasChatOpen(!isCanvasChatOpen);
   }, [isCanvasChatOpen, setCanvasChatOpen]);
 
+  const handleAddProvider = useCallback(() => {
+    window.location.hash = '#/settings';
+  }, []);
+
   // 新消息自动滚到底部
   useEffect(() => {
     const el = messagesRef.current;
@@ -179,6 +183,13 @@ export default function CanvasChatPanel() {
           {!hasProviders && (
             <div className="chat-no-provider">
               <p>{t('chat.noProvider')}</p>
+              <button
+                className="btn"
+                onClick={handleAddProvider}
+                style={{ fontSize: 12, padding: '5px 14px' }}
+              >
+                {t('llmConfig.addProvider')}
+              </button>
             </div>
           )}
 

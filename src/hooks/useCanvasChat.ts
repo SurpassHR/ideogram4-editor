@@ -346,7 +346,6 @@ export function useCanvasChat() {
         const { x, y, w, h } = bboxToPixels(el.bbox, cw, ch, system);
         store.addBox({
           x, y, w, h,
-          id: '',
           mode: el.type,
           text: el.text || '',
           desc: el.desc || '',
