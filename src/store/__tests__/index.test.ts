@@ -2,7 +2,21 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useEditorStore } from '../index';
 import { PRESETS_STORAGE_KEY } from '../../types/presets';
 import type { ChatMessage } from '../../types/chat';
-import type { IdeogramOutput } from '../../types';
+import type { Box, IdeogramOutput } from '../../types';
+
+const makeBox = (id: string, x: number, y: number): Box => ({
+  id,
+  x,
+  y,
+  w: 100,
+  h: 80,
+  mode: 'obj',
+  text: '',
+  desc: id,
+  colors: [],
+  imageDataUrl: null,
+  imageRole: 'both',
+});
 
 describe('EditorStore', () => {
   beforeEach(() => {
@@ -11,6 +25,7 @@ describe('EditorStore', () => {
       activeChatBoxId: null,
       isChatOpen: false,
       selectedBoxId: null,
+      selectedBoxIds: [],
       boxes: [],
       boxCounter: 0,
     });
@@ -27,6 +42,17 @@ describe('EditorStore', () => {
   });
 
   describe('selectBox', () => {
+    it('selectBox 应同步 selectedBoxIds 和兼容 selectedBoxId', () => {
+      const { selectBox } = useEditorStore.getState();
+      selectBox('box_1');
+      expect(useEditorStore.getState().selectedBoxIds).toEqual(['box_1']);
+      expect(useEditorStore.getState().selectedBoxId).toBe('box_1');
+
+      selectBox(null);
+      expect(useEditorStore.getState().selectedBoxIds).toEqual([]);
+      expect(useEditorStore.getState().selectedBoxId).toBeNull();
+    });
+
     it('当选中新 box 时，如果已有 chat 在另一个 box 上打开，应关闭 chat', () => {
       const { openChat, selectBox } = useEditorStore.getState();
       openChat('box_0');
@@ -45,6 +71,122 @@ describe('EditorStore', () => {
       expect(state.selectedBoxId).toBe('box_0');
       expect(state.activeChatBoxId).toBe('box_0');
       expect(state.isChatOpen).toBe(true);
+    });
+  });
+
+  describe('multi-select actions', () => {
+    beforeEach(() => {
+      useEditorStore.setState({
+        boxes: [
+          makeBox('box_0', 0, 0),
+          makeBox('box_1', 120, 0),
+          makeBox('box_2', 240, 0),
+        ],
+        selectedBoxId: null,
+        selectedBoxIds: [],
+        boxCounter: 3,
+        activeChatBoxId: null,
+        isChatOpen: false,
+        editingBoxId: null,
+        chatHistories: {
+          box_0: [{ id: 'm0', role: 'user', content: 'a', timestamp: 1 }],
+          box_1: [{ id: 'm1', role: 'assistant', content: 'b', timestamp: 2 }],
+        },
+      });
+    });
+
+    it('selectBoxes 应去重并在多选时将 selectedBoxId 设为 null', () => {
+      const { selectBoxes } = useEditorStore.getState();
+      selectBoxes(['box_0', 'box_1', 'box_0']);
+
+      const state = useEditorStore.getState();
+      expect(state.selectedBoxIds).toEqual(['box_0', 'box_1']);
+      expect(state.selectedBoxId).toBeNull();
+    });
+
+    it('toggleBoxSelection 应追加或移除单个 box，并维护 selectedBoxId', () => {
+      const { toggleBoxSelection } = useEditorStore.getState();
+
+      toggleBoxSelection('box_0');
+      expect(useEditorStore.getState().selectedBoxIds).toEqual(['box_0']);
+      expect(useEditorStore.getState().selectedBoxId).toBe('box_0');
+
+      toggleBoxSelection('box_1');
+      expect(useEditorStore.getState().selectedBoxIds).toEqual(['box_0', 'box_1']);
+      expect(useEditorStore.getState().selectedBoxId).toBeNull();
+
+      toggleBoxSelection('box_0');
+      expect(useEditorStore.getState().selectedBoxIds).toEqual(['box_1']);
+      expect(useEditorStore.getState().selectedBoxId).toBe('box_1');
+    });
+
+    it('removeBox 批量删除时应清理选择、chat、active chat 和编辑状态', () => {
+      useEditorStore.setState({
+        selectedBoxIds: ['box_0', 'box_1'],
+        selectedBoxId: null,
+        activeChatBoxId: 'box_1',
+        isChatOpen: true,
+        editingBoxId: 'box_0',
+      });
+
+      useEditorStore.getState().removeBox(['box_0', 'box_1']);
+
+      const state = useEditorStore.getState();
+      expect(state.boxes.map(b => b.id)).toEqual(['box_2']);
+      expect(state.selectedBoxIds).toEqual([]);
+      expect(state.selectedBoxId).toBeNull();
+      expect(state.activeChatBoxId).toBeNull();
+      expect(state.isChatOpen).toBe(false);
+      expect(state.editingBoxId).toBeNull();
+      expect(state.chatHistories.box_0).toBeUndefined();
+      expect(state.chatHistories.box_1).toBeUndefined();
+    });
+
+    it('duplicateBox 批量复制时应保持相对顺序并选中新副本集合', () => {
+      useEditorStore.getState().duplicateBox(['box_0', 'box_2']);
+
+      const state = useEditorStore.getState();
+      expect(state.boxes.map(b => b.id)).toEqual(['box_0', 'box_1', 'box_2', 'box_3', 'box_4']);
+      expect(state.boxes[3]).toMatchObject({ id: 'box_3', x: 20, y: 20 });
+      expect(state.boxes[4]).toMatchObject({ id: 'box_4', x: 260, y: 20 });
+      expect(state.selectedBoxIds).toEqual(['box_3', 'box_4']);
+      expect(state.selectedBoxId).toBeNull();
+      expect(state.boxCounter).toBe(5);
+    });
+
+    it('copyBox/cutBox/pasteBox 应支持多个 box 的内部剪贴板', () => {
+      const store = useEditorStore.getState();
+      store.copyBox(['box_0', 'box_1']);
+      store.pasteBox();
+
+      let state = useEditorStore.getState();
+      expect(state.boxes.map(b => b.id)).toEqual(['box_0', 'box_1', 'box_2', 'box_3', 'box_4']);
+      expect(state.boxes[3]).toMatchObject({ id: 'box_3', x: 20, y: 20 });
+      expect(state.boxes[4]).toMatchObject({ id: 'box_4', x: 140, y: 20 });
+      expect(state.selectedBoxIds).toEqual(['box_3', 'box_4']);
+
+      useEditorStore.getState().cutBox(['box_0', 'box_1']);
+      state = useEditorStore.getState();
+      expect(state.boxes.map(b => b.id)).toEqual(['box_2', 'box_3', 'box_4']);
+      expect(state.selectedBoxIds).toEqual(['box_3', 'box_4']);
+
+      useEditorStore.getState().pasteBox(300, 200);
+      state = useEditorStore.getState();
+      expect(state.boxes.slice(-2)).toMatchObject([
+        { id: 'box_5', x: 300, y: 200 },
+        { id: 'box_6', x: 420, y: 200 },
+      ]);
+      expect(state.selectedBoxIds).toEqual(['box_5', 'box_6']);
+    });
+
+    it('bringToFront/sendToBack 批量操作时应保持选中集合内部相对顺序', () => {
+      const store = useEditorStore.getState();
+
+      store.bringToFront(['box_0', 'box_2']);
+      expect(useEditorStore.getState().boxes.map(b => b.id)).toEqual(['box_1', 'box_0', 'box_2']);
+
+      store.sendToBack(['box_2', 'box_0']);
+      expect(useEditorStore.getState().boxes.map(b => b.id)).toEqual(['box_0', 'box_2', 'box_1']);
     });
   });
 

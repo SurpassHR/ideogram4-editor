@@ -42,7 +42,13 @@ export interface IdeogramOutput {
   };
 }
 
-export type InteractionMode = 'idle' | 'drawing' | 'dragging' | 'resizing';
+export type InteractionMode = 'idle' | 'drawing' | 'dragging' | 'resizing' | 'pendingSelection' | 'marqueeSelect';
+
+export interface DragInitialBox {
+  id: string;
+  x: number;
+  y: number;
+}
 
 export interface InteractionState {
   mode: InteractionMode;
@@ -60,6 +66,8 @@ export interface InteractionState {
   clickTargetId: string | null;
   lastClickTime: number;
   lastClickBoxId: string | null;
+  dragBoxIds: string[];
+  initialDragBoxes: DragInitialBox[];
 }
 
 export type GenerationStatus = 'idle' | 'generating' | 'polling' | 'done' | 'error';

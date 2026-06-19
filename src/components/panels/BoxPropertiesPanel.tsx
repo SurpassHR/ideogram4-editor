@@ -5,6 +5,7 @@ import GlowGrid from './GlowGrid';
 
 export default function BoxPropertiesPanel() {
   const selectedBoxId = useEditorStore(s => s.selectedBoxId);
+  const selectedBoxIds = useEditorStore(s => s.selectedBoxIds);
   const boxes = useEditorStore(s => s.boxes);
   const updateBox = useEditorStore(s => s.updateBox);
   const removeBox = useEditorStore(s => s.removeBox);
@@ -13,6 +14,24 @@ export default function BoxPropertiesPanel() {
   const { t } = useI18n();
 
   const box = boxes.find(b => b.id === selectedBoxId);
+
+  if (selectedBoxIds.length > 1) {
+    return (
+      <GlowGrid id="box-panel">
+        <h3>{t('panels.boxProperties.title')}</h3>
+        <div className="multi-select-summary">
+          {t('panels.boxProperties.multiSelected', { count: selectedBoxIds.length })}
+        </div>
+        <button
+          className="btn btn-danger"
+          style={{ marginTop: 12 }}
+          onClick={() => removeBox(selectedBoxIds)}
+        >
+          {t('panels.boxProperties.deleteSelected')}
+        </button>
+      </GlowGrid>
+    );
+  }
 
   if (!selectedBoxId || !box) {
     return (

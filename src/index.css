@@ -287,6 +287,44 @@ body {
   z-index: 10;
 }
 
+.marquee-selection {
+  position: absolute;
+  background: rgba(124, 92, 252, 0.08);
+  border-radius: 3px;
+  pointer-events: none;
+  z-index: 15;
+}
+
+.marquee-ants {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.marquee-ants-path {
+  fill: none;
+  stroke: var(--primary);
+  stroke-width: 2;
+  stroke-dasharray: 6 4;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  animation: marquee-ants 0.5s linear infinite;
+}
+
+@keyframes marquee-ants {
+  to {
+    stroke-dashoffset: -10;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-ants-path {
+    animation: none;
+  }
+}
+
 .bounding-box-bg-img {
   position: absolute;
   inset: 0;

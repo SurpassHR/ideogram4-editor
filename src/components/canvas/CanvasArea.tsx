@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback } from 'react';
+import { useMemo, useRef, useState, useCallback } from 'react';
 import { useEditorStore } from '../../store';
 import { usePointerInteraction } from '../../hooks/usePointerInteraction';
 import { useI18n } from '../../i18n/context';
@@ -6,6 +6,8 @@ import BoundingBox from './BoundingBox';
 import ContextMenu from './ContextMenu';
 import type { ContextMenuItem } from './ContextMenu';
 import ChatPanel from '../chat/ChatPanel';
+
+const SELECTED_BOUNDS_PADDING = 10;
 
 interface CanvasAreaProps {
   zoom: number;
@@ -71,7 +73,7 @@ export default function CanvasArea({ zoom, panX, panY, screenToCanvas, onFitToAr
   const canvasW = useEditorStore(s => s.canvasW);
   const canvasH = useEditorStore(s => s.canvasH);
   const boxes = useEditorStore(s => s.boxes);
-  const selectedBoxId = useEditorStore(s => s.selectedBoxId);
+  const selectedBoxIds = useEditorStore(s => s.selectedBoxIds);
   const generatedImageUrl = useEditorStore(s => s.generatedImageUrl);
   const canvasBackgroundUrl = useEditorStore(s => s.canvasBackgroundUrl);
   const setCanvasBackgroundUrl = useEditorStore(s => s.setCanvasBackgroundUrl);
@@ -93,15 +95,41 @@ export default function CanvasArea({ zoom, panX, panY, screenToCanvas, onFitToAr
   const clearBoxImage = useEditorStore(s => s.clearBoxImage);
   const { t } = useI18n();
 
-
   const {
     registerBoxRef,
     drawingGhost,
+    marqueeGhost,
+    dragPreviewOffset,
     interactionMode,
     altPressed,
     handleCanvasPointerDown,
     handleCanvasPointerMove,
   } = usePointerInteraction({ canvasRef, zoom, panX, panY, screenToCanvas });
+
+  const selectedBounds = useMemo(() => {
+    const selectedBoxes = boxes.filter(box => selectedBoxIds.includes(box.id));
+    if (selectedBoxes.length <= 1) return null;
+    const previewOffset = dragPreviewOffset && selectedBoxIds.every(id => dragPreviewOffset.boxIds.includes(id))
+      ? dragPreviewOffset
+      : null;
+    const offsetX = previewOffset?.dx ?? 0;
+    const offsetY = previewOffset?.dy ?? 0;
+    const left = Math.min(...selectedBoxes.map(box => box.x + offsetX));
+    const top = Math.min(...selectedBoxes.map(box => box.y + offsetY));
+    const right = Math.max(...selectedBoxes.map(box => box.x + box.w + offsetX));
+    const bottom = Math.max(...selectedBoxes.map(box => box.y + box.h + offsetY));
+    const paddedLeft = Math.max(0, left - SELECTED_BOUNDS_PADDING);
+    const paddedTop = Math.max(0, top - SELECTED_BOUNDS_PADDING);
+    const paddedRight = Math.min(canvasW, right + SELECTED_BOUNDS_PADDING);
+    const paddedBottom = Math.min(canvasH, bottom + SELECTED_BOUNDS_PADDING);
+
+    return {
+      x: paddedLeft,
+      y: paddedTop,
+      w: paddedRight - paddedLeft,
+      h: paddedBottom - paddedTop,
+    };
+  }, [boxes, canvasH, canvasW, dragPreviewOffset, selectedBoxIds]);
 
   // ─── 右键菜单状态 ────────────────────────────────────────────
   const [contextMenu, setContextMenu] = useState<{
@@ -114,18 +142,22 @@ export default function CanvasArea({ zoom, panX, panY, screenToCanvas, onFitToAr
 
   // ─── 框右键菜单 ──────────────────────────────────────────────
   const handleBoxContextMenu = useCallback((e: React.MouseEvent, boxId: string) => {
-    selectBox(boxId);
+    const isContextOnSelectedGroup = selectedBoxIds.length > 1 && selectedBoxIds.includes(boxId);
+    const actionBoxIds = isContextOnSelectedGroup ? selectedBoxIds : [boxId];
+    if (!isContextOnSelectedGroup) {
+      selectBox(boxId);
+    }
     setContextMenu({
       x: e.clientX,
       y: e.clientY,
       items: [
-        { label: t('contextMenu.duplicate'), shortcut: 'Ctrl+D', onClick: () => duplicateBox(boxId) },
-        { label: t('contextMenu.cut'), shortcut: 'Ctrl+X', onClick: () => cutBox(boxId) },
-        { label: t('contextMenu.copy'), shortcut: 'Ctrl+C', onClick: () => copyBox(boxId) },
-        { label: t('contextMenu.delete'), shortcut: 'Del', danger: true, onClick: () => removeBox(boxId) },
+        { label: t('contextMenu.duplicate'), shortcut: 'Ctrl+D', onClick: () => duplicateBox(actionBoxIds) },
+        { label: t('contextMenu.cut'), shortcut: 'Ctrl+X', onClick: () => cutBox(actionBoxIds) },
+        { label: t('contextMenu.copy'), shortcut: 'Ctrl+C', onClick: () => copyBox(actionBoxIds) },
+        { label: t('contextMenu.delete'), shortcut: 'Del', danger: true, onClick: () => removeBox(actionBoxIds) },
         'divider',
-        { label: t('contextMenu.bringToFront'), onClick: () => bringToFront(boxId) },
-        { label: t('contextMenu.sendToBack'), onClick: () => sendToBack(boxId) },
+        { label: t('contextMenu.bringToFront'), onClick: () => bringToFront(actionBoxIds) },
+        { label: t('contextMenu.sendToBack'), onClick: () => sendToBack(actionBoxIds) },
         'divider',
         { label: t('contextMenu.importReferenceImage'), onClick: async () => {
           const dataUrl = await pickImageFile();
@@ -136,7 +168,7 @@ export default function CanvasArea({ zoom, panX, panY, screenToCanvas, onFitToAr
         { label: t('contextMenu.openAiChat'), onClick: () => openChat(boxId) },
       ],
     });
-  }, [selectBox, duplicateBox, cutBox, copyBox, removeBox, bringToFront, sendToBack, importImageToBox, clearBoxImage, openChat, t]);
+  }, [selectedBoxIds, selectBox, duplicateBox, cutBox, copyBox, removeBox, bringToFront, sendToBack, importImageToBox, clearBoxImage, openChat, t]);
 
   // ─── 画布空白右键菜单 ────────────────────────────────────────
   const handleCanvasContextMenu = useCallback((e: React.MouseEvent) => {
@@ -221,7 +253,7 @@ export default function CanvasArea({ zoom, panX, panY, screenToCanvas, onFitToAr
           <BoundingBox
             key={box.id}
             box={box}
-            isSelected={box.id === selectedBoxId}
+            isSelected={selectedBoxIds.includes(box.id)}
             boxRef={registerBoxRef(box.id)}
             interactionMode={interactionMode}
             onContextMenu={handleBoxContextMenu}
@@ -239,6 +271,62 @@ export default function CanvasArea({ zoom, panX, panY, screenToCanvas, onFitToAr
               zIndex: 5,
             }}
           />
+        )}
+        {marqueeGhost && (
+          <div
+            className="marquee-selection"
+            style={{
+              left: marqueeGhost.x,
+              top: marqueeGhost.y,
+              width: marqueeGhost.w,
+              height: marqueeGhost.h,
+            }}
+          >
+            <svg
+              className="marquee-ants"
+              viewBox={`0 0 ${marqueeGhost.w} ${marqueeGhost.h}`}
+              preserveAspectRatio="none"
+              aria-hidden="true"
+            >
+              <rect
+                className="marquee-ants-path"
+                x="1"
+                y="1"
+                width={Math.max(0, marqueeGhost.w - 2)}
+                height={Math.max(0, marqueeGhost.h - 2)}
+                rx="2"
+                ry="2"
+              />
+            </svg>
+          </div>
+        )}
+        {selectedBounds && !marqueeGhost && (
+          <div
+            className="marquee-selection selected-bounds-marquee"
+            style={{
+              left: selectedBounds.x,
+              top: selectedBounds.y,
+              width: selectedBounds.w,
+              height: selectedBounds.h,
+            }}
+          >
+            <svg
+              className="marquee-ants"
+              viewBox={`0 0 ${selectedBounds.w} ${selectedBounds.h}`}
+              preserveAspectRatio="none"
+              aria-hidden="true"
+            >
+              <rect
+                className="marquee-ants-path"
+                x="1"
+                y="1"
+                width={Math.max(0, selectedBounds.w - 2)}
+                height={Math.max(0, selectedBounds.h - 2)}
+                rx="2"
+                ry="2"
+              />
+            </svg>
+          </div>
         )}
       </div>
       <ChatPanel />

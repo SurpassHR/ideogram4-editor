@@ -9,7 +9,32 @@ import { detectBboxSystem, bboxToPixels } from '../utils/coordinates';
 import type { LayoutQualityReport } from '../services/layout-validator';
 
 // ─── 内部剪贴板（模块级变量，非 OS 剪贴板）──────────────────────────
-let internalClipboard: Box | null = null;
+let internalClipboard: Box[] = [];
+
+function normalizeSelection(ids: string[], boxes: Box[]): string[] {
+  const existingIds = new Set(boxes.map(box => box.id));
+  return Array.from(new Set(ids)).filter(id => existingIds.has(id));
+}
+
+function selectionState(ids: string[], boxes: Box[]) {
+  const selectedBoxIds = normalizeSelection(ids, boxes);
+  return {
+    selectedBoxIds,
+    selectedBoxId: selectedBoxIds.length === 1 ? selectedBoxIds[0] : null,
+  };
+}
+
+function uncheckedSelectionState(ids: string[]) {
+  const selectedBoxIds = Array.from(new Set(ids));
+  return {
+    selectedBoxIds,
+    selectedBoxId: selectedBoxIds.length === 1 ? selectedBoxIds[0] : null,
+  };
+}
+
+function idsFromInput(ids: string | string[]): string[] {
+  return Array.isArray(ids) ? ids : [ids];
+}
 
 // ─── 预设持久化辅助 ────────────────────────────────────────────
 
@@ -50,11 +75,17 @@ interface EditorStore {
 
   boxes: Box[];
   selectedBoxId: string | null;
+  selectedBoxIds: string[];
   boxCounter: number;
   addBox: (box: Omit<Box, 'id'>) => string;
   updateBox: (id: string, updates: Partial<Omit<Box, 'id'>>) => void;
-  removeBox: (id: string) => void;
+  removeBox: (id: string | string[]) => void;
   selectBox: (id: string | null) => void;
+  selectBoxes: (ids: string[]) => void;
+  toggleBoxSelection: (id: string) => void;
+  addToSelection: (id: string) => void;
+  removeFromSelection: (id: string) => void;
+  clearSelection: () => void;
   clearBoxes: () => void;
 
   globalPalette: string[];
@@ -140,12 +171,12 @@ interface EditorStore {
   setShortcutsModalOpen: (open: boolean) => void;
 
   // 框操作（右键菜单 + 键盘快捷键）
-  duplicateBox: (boxId: string) => void;
-  cutBox: (boxId: string) => void;
-  copyBox: (boxId: string) => void;
+  duplicateBox: (boxId: string | string[]) => void;
+  cutBox: (boxId: string | string[]) => void;
+  copyBox: (boxId: string | string[]) => void;
   pasteBox: (x?: number, y?: number) => void;
-  bringToFront: (boxId: string) => void;
-  sendToBack: (boxId: string) => void;
+  bringToFront: (boxId: string | string[]) => void;
+  sendToBack: (boxId: string | string[]) => void;
 }
 
 export const useEditorStore = create<EditorStore>((set, get) => ({
@@ -181,12 +212,14 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   resetCanvas: () => set({
     boxes: [],
     selectedBoxId: null,
+    selectedBoxIds: [],
     generatedImageUrl: null,
     generationStatus: 'idle',
   }),
 
   boxes: [],
   selectedBoxId: null,
+  selectedBoxIds: [],
   boxCounter: 0,
 
   addBox: (box) => {
@@ -195,6 +228,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     set({
       boxes: [...state.boxes, { ...box, id }],
       selectedBoxId: id,
+      selectedBoxIds: [id],
       boxCounter: state.boxCounter + 1,
     });
     return id;
@@ -206,25 +240,64 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
   removeBox: (id) => {
     const state = get();
+    const ids = idsFromInput(id);
+    const idSet = new Set(ids);
     const newHistories = { ...state.chatHistories };
-    delete newHistories[id];
+    ids.forEach(boxId => delete newHistories[boxId]);
+    const boxes = state.boxes.filter(b => !idSet.has(b.id));
+    const nextSelection = selectionState(
+      state.selectedBoxIds.filter(boxId => !idSet.has(boxId)),
+      boxes,
+    );
+    const activeChatDeleted = state.activeChatBoxId ? idSet.has(state.activeChatBoxId) : false;
     set({
-      boxes: state.boxes.filter(b => b.id !== id),
-      selectedBoxId: state.selectedBoxId === id ? null : state.selectedBoxId,
-      activeChatBoxId: state.activeChatBoxId === id ? null : state.activeChatBoxId,
-      isChatOpen: state.activeChatBoxId === id ? false : state.isChatOpen,
+      boxes,
+      ...nextSelection,
+      activeChatBoxId: activeChatDeleted ? null : state.activeChatBoxId,
+      isChatOpen: activeChatDeleted ? false : state.isChatOpen,
+      editingBoxId: state.editingBoxId && idSet.has(state.editingBoxId) ? null : state.editingBoxId,
       chatHistories: newHistories,
     });
   },
 
   selectBox: (id) => set(state => ({
-    selectedBoxId: id,
+    ...uncheckedSelectionState(id ? [id] : []),
     ...(state.activeChatBoxId && state.activeChatBoxId !== id
       ? { isChatOpen: false, activeChatBoxId: null }
       : {}),
   })),
 
-  clearBoxes: () => set({ boxes: [], selectedBoxId: null }),
+  selectBoxes: (ids) => set(state => {
+    const nextSelection = selectionState(ids, state.boxes);
+    const activeStillSelected = state.activeChatBoxId
+      ? nextSelection.selectedBoxIds.includes(state.activeChatBoxId)
+      : true;
+    return {
+      ...nextSelection,
+      ...(!activeStillSelected ? { isChatOpen: false, activeChatBoxId: null } : {}),
+    };
+  }),
+
+  toggleBoxSelection: (id) => set(state => {
+    const selectedBoxIds = state.selectedBoxIds.includes(id)
+      ? state.selectedBoxIds.filter(selectedId => selectedId !== id)
+      : [...state.selectedBoxIds, id];
+    return selectionState(selectedBoxIds, state.boxes);
+  }),
+
+  addToSelection: (id) => set(state => selectionState([...state.selectedBoxIds, id], state.boxes)),
+
+  removeFromSelection: (id) => set(state => selectionState(
+    state.selectedBoxIds.filter(selectedId => selectedId !== id),
+    state.boxes,
+  )),
+
+  clearSelection: () => set(state => ({
+    ...selectionState([], state.boxes),
+    ...(state.activeChatBoxId ? { isChatOpen: false, activeChatBoxId: null } : {}),
+  })),
+
+  clearBoxes: () => set({ boxes: [], selectedBoxId: null, selectedBoxIds: [] }),
 
   globalPalette: [],
   highLevelDescription: '',
@@ -431,80 +504,90 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
   duplicateBox: (boxId) => {
     const state = get();
-    const box = state.boxes.find(b => b.id === boxId);
-    if (!box) return;
-    const newId = `box_${state.boxCounter}`;
-    const newBox: Box = {
+    const idSet = new Set(idsFromInput(boxId));
+    const sourceBoxes = state.boxes.filter(b => idSet.has(b.id));
+    if (sourceBoxes.length === 0) return;
+    const newBoxes = sourceBoxes.map((box, index): Box => ({
       ...box,
-      id: newId,
+      id: `box_${state.boxCounter + index}`,
       x: box.x + 20,
       y: box.y + 20,
-    };
+    }));
     set({
-      boxes: [...state.boxes, newBox],
-      selectedBoxId: newId,
-      boxCounter: state.boxCounter + 1,
+      boxes: [...state.boxes, ...newBoxes],
+      ...selectionState(newBoxes.map(box => box.id), [...state.boxes, ...newBoxes]),
+      boxCounter: state.boxCounter + newBoxes.length,
     });
   },
 
   cutBox: (boxId) => {
     const state = get();
-    const box = state.boxes.find(b => b.id === boxId);
-    if (!box) return;
-    internalClipboard = { ...box };
+    const idSet = new Set(idsFromInput(boxId));
+    const sourceBoxes = state.boxes.filter(b => idSet.has(b.id));
+    if (sourceBoxes.length === 0) return;
+    internalClipboard = sourceBoxes.map(box => ({ ...box }));
     const newHistories = { ...state.chatHistories };
-    delete newHistories[boxId];
+    sourceBoxes.forEach(box => delete newHistories[box.id]);
+    const boxes = state.boxes.filter(b => !idSet.has(b.id));
+    const activeChatDeleted = state.activeChatBoxId ? idSet.has(state.activeChatBoxId) : false;
     set({
-      boxes: state.boxes.filter(b => b.id !== boxId),
-      selectedBoxId: state.selectedBoxId === boxId ? null : state.selectedBoxId,
-      activeChatBoxId: state.activeChatBoxId === boxId ? null : state.activeChatBoxId,
-      isChatOpen: state.activeChatBoxId === boxId ? false : state.isChatOpen,
+      boxes,
+      ...selectionState(
+        state.selectedBoxIds.filter(id => !idSet.has(id)),
+        boxes,
+      ),
+      activeChatBoxId: activeChatDeleted ? null : state.activeChatBoxId,
+      isChatOpen: activeChatDeleted ? false : state.isChatOpen,
+      editingBoxId: state.editingBoxId && idSet.has(state.editingBoxId) ? null : state.editingBoxId,
       chatHistories: newHistories,
     });
   },
 
   copyBox: (boxId) => {
     const state = get();
-    const box = state.boxes.find(b => b.id === boxId);
-    if (!box) return;
-    internalClipboard = { ...box };
+    const idSet = new Set(idsFromInput(boxId));
+    const sourceBoxes = state.boxes.filter(b => idSet.has(b.id));
+    if (sourceBoxes.length === 0) return;
+    internalClipboard = sourceBoxes.map(box => ({ ...box }));
   },
 
   pasteBox: (x, y) => {
-    if (!internalClipboard) return;
+    if (internalClipboard.length === 0) return;
     const state = get();
-    const newId = `box_${state.boxCounter}`;
-    const newBox: Box = {
-      ...internalClipboard,
-      id: newId,
-      x: x ?? internalClipboard.x + 20,
-      y: y ?? internalClipboard.y + 20,
-    };
+    const first = internalClipboard[0];
+    const baseX = x ?? first.x + 20;
+    const baseY = y ?? first.y + 20;
+    const newBoxes = internalClipboard.map((box, index): Box => ({
+      ...box,
+      id: `box_${state.boxCounter + index}`,
+      x: baseX + (box.x - first.x),
+      y: baseY + (box.y - first.y),
+    }));
     set({
-      boxes: [...state.boxes, newBox],
-      selectedBoxId: newId,
-      boxCounter: state.boxCounter + 1,
+      boxes: [...state.boxes, ...newBoxes],
+      ...selectionState(newBoxes.map(box => box.id), [...state.boxes, ...newBoxes]),
+      boxCounter: state.boxCounter + newBoxes.length,
     });
   },
 
   bringToFront: (boxId) => {
     set(state => {
-      const idx = state.boxes.findIndex(b => b.id === boxId);
-      if (idx === -1 || idx === state.boxes.length - 1) return state;
-      const newBoxes = [...state.boxes];
-      const [box] = newBoxes.splice(idx, 1);
-      newBoxes.push(box);
+      const idSet = new Set(idsFromInput(boxId));
+      const selected = state.boxes.filter(b => idSet.has(b.id));
+      if (selected.length === 0) return state;
+      const rest = state.boxes.filter(b => !idSet.has(b.id));
+      const newBoxes = [...rest, ...selected];
       return { boxes: newBoxes };
     });
   },
 
   sendToBack: (boxId) => {
     set(state => {
-      const idx = state.boxes.findIndex(b => b.id === boxId);
-      if (idx === -1 || idx === 0) return state;
-      const newBoxes = [...state.boxes];
-      const [box] = newBoxes.splice(idx, 1);
-      newBoxes.unshift(box);
+      const idSet = new Set(idsFromInput(boxId));
+      const selected = state.boxes.filter(b => idSet.has(b.id));
+      if (selected.length === 0) return state;
+      const rest = state.boxes.filter(b => !idSet.has(b.id));
+      const newBoxes = [...selected, ...rest];
       return { boxes: newBoxes };
     });
   },
@@ -590,6 +673,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       boxes: newBoxes,
       boxCounter: counter,
       selectedBoxId: null,
+      selectedBoxIds: [],
       highLevelDescription: json.high_level_description || '',
       aesthetics: sd.aesthetics || '',
       lighting: sd.lighting || '',

@@ -44,6 +44,8 @@ export interface Translations {
       description: string;
       boxColorPalette: string;
       deleteBox: string;
+      multiSelected: string;
+      deleteSelected: string;
     };
   };
   colorPalette: {
@@ -293,6 +295,8 @@ const en: Translations = {
       description: 'Description',
       boxColorPalette: 'Box Color Palette',
       deleteBox: 'Delete Box',
+      multiSelected: 'Selected {count} elements',
+      deleteSelected: 'Delete Selected',
     },
   },
   colorPalette: {
@@ -542,6 +546,8 @@ const zh: Translations = {
       description: '描述',
       boxColorPalette: '边界框调色板',
       deleteBox: '删除边界框',
+      multiSelected: '已选中 {count} 个元素',
+      deleteSelected: '删除选中项',
     },
   },
   colorPalette: {

@@ -1,8 +1,9 @@
 import { useEditorStore } from '../../store';
+import type { InteractionMode } from '../../types';
 
 interface ChatBubbleButtonProps {
   boxId: string;
-  interactionMode: 'idle' | 'drawing' | 'dragging' | 'resizing';
+  interactionMode: InteractionMode;
 }
 
 export default function ChatBubbleButton({ boxId, interactionMode }: ChatBubbleButtonProps) {

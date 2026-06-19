@@ -28,15 +28,22 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
     clickTargetId: null,
     lastClickTime: 0,
     lastClickBoxId: null,
+    dragBoxIds: [],
+    initialDragBoxes: [],
   });
 
   const boxRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const [drawingGhost, setDrawingGhost] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const [marqueeGhost, setMarqueeGhost] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const [dragPreviewOffset, setDragPreviewOffset] = useState<{ boxIds: string[]; dx: number; dy: number } | null>(null);
   const [interactionMode, setInteractionMode] = useState<InteractionMode>('idle');
   const [altPressed, setAltPressed] = useState(false);
 
   const addBox = useEditorStore(s => s.addBox);
   const selectBox = useEditorStore(s => s.selectBox);
+  const selectBoxes = useEditorStore(s => s.selectBoxes);
+  const toggleBoxSelection = useEditorStore(s => s.toggleBoxSelection);
+  const clearSelection = useEditorStore(s => s.clearSelection);
   const updateBox = useEditorStore(s => s.updateBox);
   const setEditingBoxId = useEditorStore(s => s.setEditingBoxId);
 
@@ -52,6 +59,51 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
     }
   }, []);
 
+  const getRectFromPoints = useCallback((startX: number, startY: number, endX: number, endY: number) => {
+    const x = Math.min(startX, endX);
+    const y = Math.min(startY, endY);
+    return {
+      x,
+      y,
+      w: Math.abs(endX - startX),
+      h: Math.abs(endY - startY),
+    };
+  }, []);
+
+  const boxesOverlap = useCallback((
+    a: { x: number; y: number; w: number; h: number },
+    b: { x: number; y: number; w: number; h: number },
+  ) => !(
+    a.x + a.w < b.x ||
+    b.x + b.w < a.x ||
+    a.y + a.h < b.y ||
+    b.y + b.h < a.y
+  ), []);
+
+  const updateMarquee = useCallback((x: number, y: number) => {
+    const ir = interactionRef.current;
+    ir.dragStartX = x;
+    ir.dragStartY = y;
+    const rect = getRectFromPoints(ir.startX, ir.startY, x, y);
+    setMarqueeGhost(rect);
+  }, [getRectFromPoints]);
+
+  const beginSelectionGesture = useCallback((e: React.PointerEvent, hitBoxId: string | null) => {
+    const pos = getPointerPos(e);
+    const ir = interactionRef.current;
+    ir.mode = 'pendingSelection';
+    setInteractionMode('pendingSelection');
+    ir.startX = pos.x;
+    ir.startY = pos.y;
+    ir.dragStartX = pos.x;
+    ir.dragStartY = pos.y;
+    ir.pointerMoved = false;
+    ir.clickTargetId = hitBoxId;
+    ir.currentBoxElement = null;
+    setDragPreviewOffset(null);
+    setMarqueeGhost(null);
+  }, [getPointerPos]);
+
   // 进入 drawing 模式：在按下位置创建 ghost div，由 pointermove 更新尺寸、pointerup 落盘
   const startDrawing = useCallback((e: React.PointerEvent) => {
     const pos = getPointerPos(e);
@@ -60,6 +112,7 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
     setInteractionMode('drawing');
     ir.startX = pos.x;
     ir.startY = pos.y;
+    setDragPreviewOffset(null);
 
     const ghost = document.createElement('div');
     ghost.className = 'bounding-box';
@@ -78,6 +131,8 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
   const handleCanvasPointerDown = useCallback((e: React.PointerEvent) => {
     if (e.button !== 0) return;
     const target = e.target as HTMLElement;
+    const boxEl = target.closest('.bounding-box') as HTMLDivElement | null;
+    const isSelectionModifier = e.ctrlKey || e.metaKey || e.shiftKey;
 
     // Alt 修饰键：忽略命中检测（resize-handle / bounding-box），直接进入 drawing 模式，
     // 允许在已有 box 重叠区域绘制创建新 box（addBox 追加到 boxes 末尾即最上层）
@@ -86,8 +141,14 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
       return;
     }
 
+    if (isSelectionModifier) {
+      e.preventDefault();
+      e.stopPropagation();
+      beginSelectionGesture(e, boxEl?.id || null);
+      return;
+    }
+
     if (target.closest('.resize-handle')) {
-      const boxEl = target.closest('.bounding-box') as HTMLDivElement;
       if (!boxEl) return;
       e.preventDefault();
       e.stopPropagation();
@@ -104,13 +165,15 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
       return;
     }
 
-    if (target.closest('.bounding-box')) {
-      const boxEl = target.closest('.bounding-box') as HTMLDivElement;
+    if (boxEl) {
       if (!boxEl) return;
       e.preventDefault();
       e.stopPropagation();
 
       const pos = getPointerPos(e);
+      const state = useEditorStore.getState();
+      const shouldDragGroup = state.selectedBoxIds.length > 1 && state.selectedBoxIds.includes(boxEl.id);
+      const dragBoxIds = shouldDragGroup ? [...state.selectedBoxIds] : [boxEl.id];
       const ir = interactionRef.current;
       ir.mode = 'dragging';
       setInteractionMode('dragging');
@@ -121,18 +184,44 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
       ir.currentBoxElement = boxEl;
       ir.pointerMoved = false;
       ir.clickTargetId = boxEl.id;
+      ir.dragBoxIds = dragBoxIds;
+      ir.initialDragBoxes = dragBoxIds.map(id => {
+        const el = boxRefs.current.get(id);
+        return {
+          id,
+          x: el ? parseFloat(el.style.left) || 0 : state.boxes.find(b => b.id === id)?.x || 0,
+          y: el ? parseFloat(el.style.top) || 0 : state.boxes.find(b => b.id === id)?.y || 0,
+        };
+      });
+      setDragPreviewOffset(null);
 
-      selectBox(boxEl.id);
+      if (!shouldDragGroup) {
+        selectBox(boxEl.id);
+      }
       return;
     }
 
     if (target === canvasRef.current || (target as HTMLElement).id === 'canvas-inner') {
       startDrawing(e);
     }
-  }, [canvasRef, getPointerPos, selectBox, startDrawing]);
+  }, [beginSelectionGesture, canvasRef, getPointerPos, selectBox, startDrawing]);
 
   const handleCanvasPointerMove = useCallback((e: React.PointerEvent) => {
     const ir = interactionRef.current;
+    if (ir.mode === 'pendingSelection' || ir.mode === 'marqueeSelect') {
+      const pos = getPointerPos(e);
+      const dx = pos.x - ir.startX;
+      const dy = pos.y - ir.startY;
+      if (ir.mode === 'pendingSelection') {
+        if (Math.abs(dx) <= 4 && Math.abs(dy) <= 4) return;
+        ir.mode = 'marqueeSelect';
+        setInteractionMode('marqueeSelect');
+        ir.pointerMoved = true;
+      }
+      updateMarquee(pos.x, pos.y);
+      return;
+    }
+
     if (ir.mode !== 'drawing') return;
     if (!ir.currentBoxElement) return;
 
@@ -151,16 +240,30 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
     ir.currentBoxElement.style.height = `${h}px`;
 
     setDrawingGhost({ x, y, w, h });
-  }, [getPointerPos]);
+  }, [getPointerPos, updateMarquee]);
 
   // Window-level listeners for drag/resize (pointer-escape support) and pointerup
   useEffect(() => {
     const onPointerMove = (e: PointerEvent) => {
       const ir = interactionRef.current;
-      if (ir.mode !== 'dragging' && ir.mode !== 'resizing') return;
-      if (!ir.currentBoxElement) return;
+      if (ir.mode !== 'dragging' && ir.mode !== 'resizing' && ir.mode !== 'pendingSelection' && ir.mode !== 'marqueeSelect') return;
 
       const { x, y } = screenToCanvas(e.clientX, e.clientY);
+
+      if (ir.mode === 'pendingSelection' || ir.mode === 'marqueeSelect') {
+        const dx = x - ir.startX;
+        const dy = y - ir.startY;
+        if (ir.mode === 'pendingSelection') {
+          if (Math.abs(dx) <= 4 && Math.abs(dy) <= 4) return;
+          ir.mode = 'marqueeSelect';
+          setInteractionMode('marqueeSelect');
+          ir.pointerMoved = true;
+        }
+        updateMarquee(x, y);
+        return;
+      }
+
+      if (!ir.currentBoxElement) return;
 
       if (ir.mode === 'dragging') {
         const dx = x - ir.dragStartX;
@@ -168,8 +271,19 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
         if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
           ir.pointerMoved = true;
         }
-        ir.currentBoxElement.style.left = `${ir.initialBoxX + dx}px`;
-        ir.currentBoxElement.style.top = `${ir.initialBoxY + dy}px`;
+        if (ir.dragBoxIds.length > 1) {
+          ir.initialDragBoxes.forEach(initial => {
+            const el = boxRefs.current.get(initial.id);
+            if (!el) return;
+            el.style.left = `${initial.x + dx}px`;
+            el.style.top = `${initial.y + dy}px`;
+          });
+          setDragPreviewOffset({ boxIds: [...ir.dragBoxIds], dx, dy });
+        } else {
+          ir.currentBoxElement.style.left = `${ir.initialBoxX + dx}px`;
+          ir.currentBoxElement.style.top = `${ir.initialBoxY + dy}px`;
+          setDragPreviewOffset(null);
+        }
       } else if (ir.mode === 'resizing') {
         ir.currentBoxElement.style.width = `${Math.max(10, ir.initialBoxW + (x - ir.dragStartX))}px`;
         ir.currentBoxElement.style.height = `${Math.max(10, ir.initialBoxH + (y - ir.dragStartY))}px`;
@@ -179,7 +293,19 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
     const onPointerUp = () => {
       const ir = interactionRef.current;
 
-      if (ir.mode === 'drawing' && ir.currentBoxElement) {
+      if (ir.mode === 'pendingSelection') {
+        if (ir.clickTargetId) {
+          toggleBoxSelection(ir.clickTargetId);
+        }
+        setMarqueeGhost(null);
+      } else if (ir.mode === 'marqueeSelect') {
+        const rect = marqueeGhost ?? getRectFromPoints(ir.startX, ir.startY, ir.dragStartX, ir.dragStartY);
+        const ids = useEditorStore.getState().boxes
+          .filter(box => boxesOverlap(rect, box))
+          .map(box => box.id);
+        selectBoxes(ids);
+        setMarqueeGhost(null);
+      } else if (ir.mode === 'drawing' && ir.currentBoxElement) {
         const el = ir.currentBoxElement;
         const x = parseFloat(el.style.left) || 0;
         const y = parseFloat(el.style.top) || 0;
@@ -189,6 +315,8 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
 
         if (w >= 10 && h >= 10) {
           addBox({ x, y, w, h, mode: 'obj', text: '', desc: '', colors: [], imageDataUrl: null, imageRole: 'both' });
+        } else {
+          clearSelection();
         }
         setDrawingGhost(null);
       } else if (ir.mode === 'dragging' && ir.currentBoxElement) {
@@ -197,6 +325,7 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
           const now = Date.now();
           // 双击检测：同一 box 在 300ms 内被点击两次 → 进入文字编辑模式
           if (ir.lastClickBoxId === el.id && now - ir.lastClickTime < 300) {
+            selectBox(el.id);
             setEditingBoxId(el.id);
             ir.lastClickTime = 0;
             ir.lastClickBoxId = null;
@@ -205,6 +334,19 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
             ir.lastClickTime = now;
             ir.lastClickBoxId = el.id;
           }
+        } else if (ir.dragBoxIds.length > 1) {
+          const positions = new Map(ir.dragBoxIds.map(id => {
+            const boxEl = boxRefs.current.get(id);
+            return [id, {
+              x: boxEl ? parseFloat(boxEl.style.left) || 0 : 0,
+              y: boxEl ? parseFloat(boxEl.style.top) || 0 : 0,
+            }];
+          }));
+          const state = useEditorStore.getState();
+          state.boxes.forEach(box => {
+            const pos = positions.get(box.id);
+            if (pos) updateBox(box.id, pos);
+          });
         } else {
           updateBox(el.id, {
             x: parseFloat(el.style.left) || 0,
@@ -222,6 +364,10 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
       ir.mode = 'idle';
       setInteractionMode('idle');
       ir.currentBoxElement = null;
+      ir.clickTargetId = null;
+      ir.dragBoxIds = [];
+      ir.initialDragBoxes = [];
+      setDragPreviewOffset(null);
     };
 
     window.addEventListener('pointermove', onPointerMove);
@@ -231,7 +377,7 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
     };
-  }, [screenToCanvas, addBox, updateBox, setEditingBoxId]);
+  }, [screenToCanvas, addBox, updateBox, setEditingBoxId, selectBox, selectBoxes, toggleBoxSelection, clearSelection, getRectFromPoints, boxesOverlap, marqueeGhost, updateMarquee]);
 
   // ─── 全局键盘快捷键 ──────────────────────────────────────────
   useEffect(() => {
@@ -246,26 +392,29 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
       ) return;
 
       const store = useEditorStore.getState();
-      const { selectedBoxId } = store;
+      const activeSelection = store.selectedBoxIds.length > 0
+        ? store.selectedBoxIds
+        : store.selectedBoxId ? [store.selectedBoxId] : [];
+      const actionTarget = activeSelection.length === 1 ? activeSelection[0] : activeSelection;
 
       if (e.ctrlKey || e.metaKey) {
         switch (e.key.toLowerCase()) {
           case 'd':
-            if (selectedBoxId) {
+            if (activeSelection.length > 0) {
               e.preventDefault();
-              store.duplicateBox(selectedBoxId);
+              store.duplicateBox(actionTarget);
             }
             break;
           case 'x':
-            if (selectedBoxId) {
+            if (activeSelection.length > 0) {
               e.preventDefault();
-              store.cutBox(selectedBoxId);
+              store.cutBox(actionTarget);
             }
             break;
           case 'c':
-            if (selectedBoxId) {
+            if (activeSelection.length > 0) {
               e.preventDefault();
-              store.copyBox(selectedBoxId);
+              store.copyBox(actionTarget);
             }
             break;
           case 'v':
@@ -274,9 +423,9 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
             break;
         }
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (selectedBoxId) {
+        if (activeSelection.length > 0) {
           e.preventDefault();
-          store.removeBox(selectedBoxId);
+          store.removeBox(actionTarget);
         }
       }
     };
@@ -309,6 +458,8 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
     boxRefs,
     registerBoxRef,
     drawingGhost,
+    marqueeGhost,
+    dragPreviewOffset,
     interactionMode,
     altPressed,
     handleCanvasPointerDown,
