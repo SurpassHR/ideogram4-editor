@@ -82,6 +82,7 @@ body {
 }
 
 .input-group input[type="text"],
+.input-group input[type="password"],
 .input-group textarea,
 .input-group select {
   width: 100%;
@@ -97,6 +98,7 @@ body {
 }
 
 .input-group input[type="text"]:focus,
+.input-group input[type="password"]:focus,
 .input-group textarea:focus,
 .input-group select:focus {
   outline: none;
@@ -105,6 +107,7 @@ body {
 }
 
 .input-group input[type="text"]:disabled,
+.input-group input[type="password"]:disabled,
 .input-group textarea:disabled {
   opacity: 0.4;
   cursor: not-allowed;
@@ -2204,10 +2207,20 @@ input[type="color"]::-webkit-color-swatch {
   gap: 6px;
 }
 
+.preset-tags-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 4px;
+}
+
 .preset-tag.removable {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  width: fit-content;
+  max-width: 100%;
+  align-self: flex-start;
 }
 
 .preset-tag-remove {
@@ -2630,6 +2643,40 @@ input[type="color"]::-webkit-color-swatch {
 
 .llm-api-key-wrapper {
   position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.llm-api-key-wrapper .llm-api-key-input {
+  padding-right: 64px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.llm-api-key-toggle {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 24px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.llm-api-key-toggle:hover {
+  background: var(--primary-muted);
+  color: var(--text);
+}
+
+.llm-api-key-toggle:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 1px;
 }
 
 .llm-id-display {

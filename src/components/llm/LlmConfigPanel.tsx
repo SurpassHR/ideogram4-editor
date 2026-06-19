@@ -298,26 +298,16 @@ export default function LlmConfigPanel({ onClose, embedded }: Props) {
                     <label>{t('llmConfig.apiKey')}</label>
                     <div className="llm-api-key-wrapper">
                       <input
+                        className="llm-api-key-input"
                         type={showApiKey ? 'text' : 'password'}
                         value={editing.api_key}
                         onChange={e => update('api_key', e.target.value)}
                         placeholder="sk-..."
-                        style={{ fontFamily: 'JetBrains Mono, monospace', paddingRight: 40 }}
                       />
                       <button
+                        type="button"
+                        className="llm-api-key-toggle"
                         onClick={() => setShowApiKey(!showApiKey)}
-                        style={{
-                          position: 'absolute',
-                          right: 4,
-                          top: '50%',
-                          transform: 'translateY(-50%)',
-                          background: 'none',
-                          border: 'none',
-                          color: 'var(--text-secondary)',
-                          cursor: 'pointer',
-                          fontSize: 12,
-                          padding: '4px 8px',
-                        }}
                       >
                         {showApiKey ? t('llmConfig.hide') : t('llmConfig.show')}
                       </button>

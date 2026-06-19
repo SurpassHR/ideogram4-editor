@@ -266,12 +266,16 @@ export default function PresetManagerPanel({ onClose, embedded }: Props) {
               <div className="input-group">
                 <label>{t('chat.presets.tags')}</label>
                 <div className="preset-tags-editor">
-                  {form.tags.map(tag => (
-                    <span key={tag} className="preset-tag removable">
-                      {tag}
-                      <button onClick={() => removeTag(tag)} className="preset-tag-remove">✕</button>
-                    </span>
-                  ))}
+                  {form.tags.length > 0 && (
+                    <div className="preset-tags-list">
+                      {form.tags.map(tag => (
+                        <span key={tag} className="preset-tag removable">
+                          {tag}
+                          <button onClick={() => removeTag(tag)} className="preset-tag-remove">✕</button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   <div className="preset-tag-input-row">
                     <input
                       type="text"
