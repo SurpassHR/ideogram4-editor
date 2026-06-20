@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useEditorStore } from '../index';
 import { PRESETS_STORAGE_KEY } from '../../types/presets';
+import { CANVAS_CHAT_STORAGE_KEY, CANVAS_FAVORITES_STORAGE_KEY } from '../../services/workspace-persistence';
 import type { ChatMessage } from '../../types/chat';
 import type { Box, IdeogramOutput } from '../../types';
 
@@ -43,6 +44,12 @@ describe('EditorStore', () => {
       selectedBoxIds: [],
       boxes: [],
       boxCounter: 0,
+      canvasW: 1024,
+      canvasH: 1024,
+      canvasRatio: '1:1',
+      canvasScale: 4,
+      canvasCustomW: 16,
+      canvasCustomH: 9,
     });
   });
 
@@ -394,6 +401,27 @@ describe('EditorStore', () => {
     });
 
     describe('Canvas Chat sessions', () => {
+      it('Canvas Chat 消息变化后应自动持久化到 localStorage', () => {
+        localStorage.removeItem(CANVAS_CHAT_STORAGE_KEY);
+        const msg: ChatMessage = {
+          id: 'msg_persist',
+          role: 'user',
+          content: '保存这段对话',
+          timestamp: 1000,
+        };
+
+        useEditorStore.getState().addCanvasChatMessage(msg);
+
+        const raw = localStorage.getItem(CANVAS_CHAT_STORAGE_KEY);
+        expect(raw).not.toBeNull();
+        const persisted = JSON.parse(raw!);
+        expect(persisted.activeSessionId).toBe('session_1');
+        expect(persisted.sessions[0].messages[0]).toMatchObject({
+          id: 'msg_persist',
+          content: '保存这段对话',
+        });
+      });
+
       it('初始状态应自动拥有一个默认会话', () => {
         const state = useEditorStore.getState() as unknown as {
           canvasChatSessions?: Array<{ id: string; title: string; messages: ChatMessage[] }>;
@@ -930,6 +958,91 @@ describe('EditorStore', () => {
 
         expect(useEditorStore.getState().canvasChatMessages[0].content).toBe('Hi');
       });
+    });
+  });
+
+  describe('Canvas favorites', () => {
+    beforeEach(() => {
+      localStorage.removeItem(CANVAS_FAVORITES_STORAGE_KEY);
+      useEditorStore.setState({
+        canvasW: 1024,
+        canvasH: 768,
+        canvasRatio: '4:3',
+        canvasScale: 4,
+        canvasCustomW: 16,
+        canvasCustomH: 9,
+        boxes: [
+          {
+            id: 'box_7',
+            x: 10,
+            y: 20,
+            w: 100,
+            h: 80,
+            mode: 'obj',
+            text: '',
+            desc: '含参考图的对象',
+            colors: ['#FF0000'],
+            imageDataUrl: 'data:image/png;base64,abc',
+            imageRole: 'both',
+          },
+        ],
+        boxCounter: 8,
+        canvasBackgroundUrl: 'data:image/png;base64,bg',
+        globalPalette: ['#FFFFFF'],
+        highLevelDescription: '收藏标题来自高层描述',
+        aesthetics: 'Clean',
+        lighting: 'Soft',
+        medium: 'digital art',
+        artStyle: 'flat',
+        background: 'studio',
+        photoArtStyleMode: 1,
+        canvasFavorites: [],
+      } as Partial<ReturnType<typeof useEditorStore.getState>>);
+    });
+
+    it('favoriteCurrentCanvas 应创建轻量收藏并丢弃图片 Data URL', () => {
+      const store = useEditorStore.getState() as unknown as {
+        favoriteCurrentCanvas: () => string;
+      };
+
+      const id = store.favoriteCurrentCanvas();
+      const state = useEditorStore.getState() as unknown as {
+        canvasFavorites: Array<{ id: string; title: string; snapshot: { boxes: Array<{ imageDataUrl?: string | null }> } }>;
+      };
+      const raw = localStorage.getItem(CANVAS_FAVORITES_STORAGE_KEY);
+
+      expect(id).toBeTruthy();
+      expect(state.canvasFavorites).toHaveLength(1);
+      expect(state.canvasFavorites[0].title).toBe('收藏标题来自高层描述');
+      expect(state.canvasFavorites[0].snapshot.boxes[0].imageDataUrl).toBeNull();
+      expect(JSON.stringify(state.canvasFavorites[0].snapshot)).not.toContain('data:image');
+      expect(raw).not.toBeNull();
+    });
+
+    it('restoreCanvasFavorite 应覆盖当前画布并重新计算 boxCounter', () => {
+      const store = useEditorStore.getState() as unknown as {
+        favoriteCurrentCanvas: () => string;
+        restoreCanvasFavorite: (id: string) => void;
+      };
+      const id = store.favoriteCurrentCanvas();
+
+      useEditorStore.setState({
+        boxes: [],
+        boxCounter: 0,
+        highLevelDescription: '',
+      } as Partial<ReturnType<typeof useEditorStore.getState>>);
+      store.restoreCanvasFavorite(id);
+
+      const state = useEditorStore.getState();
+      expect(state.canvasW).toBe(1024);
+      expect(state.boxes).toHaveLength(1);
+      expect(state.boxes[0]).toMatchObject({
+        id: 'box_7',
+        imageDataUrl: null,
+        desc: '含参考图的对象',
+      });
+      expect(state.boxCounter).toBe(8);
+      expect(state.highLevelDescription).toBe('收藏标题来自高层描述');
     });
   });
 

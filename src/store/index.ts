@@ -2,11 +2,21 @@ import { create } from 'zustand';
 import type { Box, IdeogramOutput, GenerationStatus, PhotoArtStyleMode } from '../types';
 import type { CanvasChatRequestLogStep, CanvasChatSession, ChatMessage, ChatThinkingLevel } from '../types/chat';
 import type { PromptPreset } from '../types/presets';
+import type { CanvasFavorite, CanvasSnapshotLite, PersistedCanvasChatStateV1, WorkspaceBackupSettings } from '../types/workspace';
 import { PRESETS_STORAGE_KEY, createBuiltinPresets } from '../types/presets';
 import { MODE_ARTSTYLE, MODE_PHOTO } from '../types';
 import { computeCanvasDims, type RatioKey } from '../utils/canvas-dims';
 import { detectBboxSystem, bboxToPixels } from '../utils/coordinates';
 import type { LayoutQualityReport } from '../services/layout-validator';
+import {
+  loadCanvasChatState,
+  loadCanvasFavorites,
+  loadWorkspaceBackupSettings,
+  saveCanvasChatState,
+  saveCanvasFavorites,
+  saveWorkspaceBackupSettings,
+} from '../services/workspace-persistence';
+import { buildCanvasSnapshotLite, buildPersistedCanvasChatState } from '../services/workspace-backup';
 
 // ─── 内部剪贴板（模块级变量，非 OS 剪贴板）──────────────────────────
 let internalClipboard: Box[] = [];
@@ -41,6 +51,11 @@ function generateCanvasChatId(prefix: string): string {
   return `${prefix}_${Date.now()}_${hex}`;
 }
 
+function generateWorkspaceId(prefix: string): string {
+  const hex = Math.random().toString(16).slice(2, 8);
+  return `${prefix}_${Date.now()}_${hex}`;
+}
+
 function createCanvasChatSessionRecord(title = '新会话'): CanvasChatSession {
   const now = Date.now();
   return {
@@ -56,6 +71,107 @@ function createCanvasChatSessionRecord(title = '新会话'): CanvasChatSession {
 }
 
 const initialCanvasChatSession = createCanvasChatSessionRecord();
+
+function createInitialCanvasChatRuntime() {
+  const persisted = loadCanvasChatState();
+  if (persisted && persisted.sessions.length > 0) {
+    const activeSession = persisted.sessions.find(session => session.id === persisted.activeSessionId)
+      ?? persisted.sessions[0];
+    return {
+      sessions: persisted.sessions,
+      activeSessionId: activeSession.id,
+      messages: activeSession.messages,
+      pendingIdeogramOutput: activeSession.pendingIdeogramOutput,
+      pendingQualityReport: activeSession.pendingQualityReport,
+    };
+  }
+  return {
+    sessions: [initialCanvasChatSession],
+    activeSessionId: initialCanvasChatSession.id,
+    messages: initialCanvasChatSession.messages,
+    pendingIdeogramOutput: initialCanvasChatSession.pendingIdeogramOutput,
+    pendingQualityReport: initialCanvasChatSession.pendingQualityReport,
+  };
+}
+
+const initialCanvasChatRuntime = createInitialCanvasChatRuntime();
+
+function persistCanvasChatRuntime(state: {
+  canvasChatSessions: CanvasChatSession[];
+  activeCanvasChatSessionId: string;
+}) {
+  saveCanvasChatState(buildPersistedCanvasChatState(
+    state.activeCanvasChatSessionId,
+    state.canvasChatSessions,
+  ));
+}
+
+function persistFavorites(favorites: CanvasFavorite[]) {
+  saveCanvasFavorites(favorites);
+}
+
+function persistBackupSettings(settings: WorkspaceBackupSettings) {
+  saveWorkspaceBackupSettings(settings);
+}
+
+function titleFromCurrentCanvas(state: Pick<EditorStore, 'highLevelDescription'>): string {
+  const text = state.highLevelDescription.trim();
+  if (text) return text.length > 24 ? text.slice(0, 24) : text;
+  return new Date().toLocaleString();
+}
+
+function boxCounterFromBoxes(boxes: Box[]): number {
+  const numericIds = boxes
+    .map(box => /^box_(\d+)$/.exec(box.id)?.[1])
+    .filter((value): value is string => value != null)
+    .map(value => Number(value));
+  return numericIds.length > 0 ? Math.max(...numericIds) + 1 : boxes.length;
+}
+
+function boxesFromSnapshot(snapshot: CanvasSnapshotLite): Box[] {
+  const usedIds = new Set<string>();
+  return snapshot.boxes.map((box, index) => {
+    const proposedId = box.id && !usedIds.has(box.id) ? box.id : `box_${index}`;
+    usedIds.add(proposedId);
+    return {
+      id: proposedId,
+      x: box.x,
+      y: box.y,
+      w: box.w,
+      h: box.h,
+      mode: box.mode,
+      text: box.text,
+      desc: box.desc,
+      colors: [...box.colors],
+      imageDataUrl: null,
+      imageRole: box.imageRole,
+    };
+  });
+}
+
+function canvasStateFromSnapshot(snapshot: CanvasSnapshotLite) {
+  const boxes = boxesFromSnapshot(snapshot);
+  return {
+    canvasW: snapshot.canvasW,
+    canvasH: snapshot.canvasH,
+    canvasRatio: snapshot.canvasRatio,
+    canvasScale: snapshot.canvasScale,
+    canvasCustomW: snapshot.canvasCustomW,
+    canvasCustomH: snapshot.canvasCustomH,
+    boxes,
+    boxCounter: boxCounterFromBoxes(boxes),
+    selectedBoxId: null,
+    selectedBoxIds: [],
+    globalPalette: [...snapshot.globalPalette],
+    highLevelDescription: snapshot.highLevelDescription,
+    aesthetics: snapshot.aesthetics,
+    lighting: snapshot.lighting,
+    medium: snapshot.medium,
+    artStyle: snapshot.artStyle,
+    background: snapshot.background,
+    photoArtStyleMode: snapshot.photoArtStyleMode,
+  };
+}
 
 function canvasChatTitleFromMessage(message: ChatMessage): string {
   const text = message.content.trim();
@@ -114,6 +230,7 @@ interface EditorStore {
   setCanvasDimensions: (w: number, h: number) => void;
   setCanvasRatio: (ratio: string) => void;
   resetCanvas: () => void;
+  applyCanvasSnapshot: (snapshot: CanvasSnapshotLite) => void;
 
   boxes: Box[];
   selectedBoxId: string | null;
@@ -201,6 +318,7 @@ interface EditorStore {
     step: Omit<CanvasChatRequestLogStep, 'id' | 'at'>,
   ) => void;
   finishCanvasChatRequest: (requestId: string, status: 'success' | 'error', detail?: string) => void;
+  replaceCanvasChatState: (state: PersistedCanvasChatStateV1) => void;
 
   // 布局质量检测结果
   pendingQualityReport: LayoutQualityReport | null;
@@ -223,10 +341,21 @@ interface EditorStore {
   addPreset: (preset: Omit<PromptPreset, 'id' | 'createdAt' | 'updatedAt'>) => void;
   updatePreset: (id: string, updates: Partial<Omit<PromptPreset, 'id'>>) => void;
   deletePreset: (id: string) => void;
+  replaceChatPresets: (presets: PromptPreset[]) => void;
 
   // 画布背景图
   canvasBackgroundUrl: string | null;
   setCanvasBackgroundUrl: (url: string | null) => void;
+
+  // Workspace 持久化
+  canvasFavorites: CanvasFavorite[];
+  favoriteCurrentCanvas: (title?: string) => string;
+  renameCanvasFavorite: (id: string, title: string) => void;
+  deleteCanvasFavorite: (id: string) => void;
+  restoreCanvasFavorite: (id: string) => void;
+  replaceCanvasFavorites: (favorites: CanvasFavorite[]) => void;
+  workspaceBackupSettings: WorkspaceBackupSettings;
+  setWorkspaceBackupSettings: (updates: Partial<WorkspaceBackupSettings>) => void;
 
   // 快捷键速查弹窗
   isShortcutsModalOpen: boolean;
@@ -277,6 +406,11 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     selectedBoxIds: [],
     generatedImageUrl: null,
     generationStatus: 'idle',
+  }),
+
+  applyCanvasSnapshot: (snapshot) => set({
+    ...canvasStateFromSnapshot(snapshot),
+    canvasBackgroundUrl: null,
   }),
 
   boxes: [],
@@ -478,12 +612,12 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   // Canvas Chat 状态（画布级 AI 构图对话）
   isCanvasChatOpen: false,
   isCanvasChatMaximized: false,
-  canvasChatSessions: [initialCanvasChatSession],
-  activeCanvasChatSessionId: initialCanvasChatSession.id,
+  canvasChatSessions: initialCanvasChatRuntime.sessions,
+  activeCanvasChatSessionId: initialCanvasChatRuntime.activeSessionId,
   activeCanvasChatRequestId: null,
-  canvasChatMessages: [],
+  canvasChatMessages: initialCanvasChatRuntime.messages,
   isCanvasChatLoading: false,
-  pendingIdeogramOutput: null,
+  pendingIdeogramOutput: initialCanvasChatRuntime.pendingIdeogramOutput,
 
   createCanvasChatSession: (title) => {
     const session = createCanvasChatSessionRecord(title);
@@ -495,10 +629,12 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       pendingIdeogramOutput: null,
       pendingQualityReport: null,
     }));
+    persistCanvasChatRuntime(get());
     return session.id;
   },
 
-  selectCanvasChatSession: (sessionId) => set(state => {
+  selectCanvasChatSession: (sessionId) => {
+    set(state => {
     const session = state.canvasChatSessions.find(s => s.id === sessionId);
     if (!session) return {};
     return {
@@ -508,7 +644,9 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       pendingIdeogramOutput: session.pendingIdeogramOutput,
       pendingQualityReport: session.pendingQualityReport,
     };
-  }),
+    });
+    persistCanvasChatRuntime(get());
+  },
 
   renameCanvasChatSession: (sessionId, title) => {
     const trimmedTitle = title.trim();
@@ -520,9 +658,11 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
           : session
       ),
     }));
+    persistCanvasChatRuntime(get());
   },
 
-  deleteCanvasChatSession: (sessionId) => set(state => {
+  deleteCanvasChatSession: (sessionId) => {
+    set(state => {
     const targetIndex = state.canvasChatSessions.findIndex(session => session.id === sessionId);
     if (targetIndex < 0) return {};
 
@@ -553,9 +693,12 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       pendingIdeogramOutput: nextSession.pendingIdeogramOutput,
       pendingQualityReport: nextSession.pendingQualityReport,
     };
-  }),
+    });
+    persistCanvasChatRuntime(get());
+  },
 
-  clearCanvasChatSession: (sessionId) => set(state => {
+  clearCanvasChatSession: (sessionId) => {
+    set(state => {
     const isActiveSession = state.activeCanvasChatSessionId === sessionId;
     return {
       ...(isActiveSession
@@ -579,72 +722,86 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
           : session
       ),
     };
-  }),
+    });
+    persistCanvasChatRuntime(get());
+  },
 
   setCanvasChatMaximized: (maximized) => set({ isCanvasChatMaximized: maximized }),
 
   setCanvasChatOpen: (open) => set({ isCanvasChatOpen: open }),
 
-  addCanvasChatMessage: (message) => set(state => {
-    const nextMessages = [...state.canvasChatMessages, message];
-    return {
-      canvasChatMessages: nextMessages,
+  addCanvasChatMessage: (message) => {
+    set(state => {
+      const nextMessages = [...state.canvasChatMessages, message];
+      return {
+        canvasChatMessages: nextMessages,
+        canvasChatSessions: state.canvasChatSessions.map(session => {
+          if (session.id !== state.activeCanvasChatSessionId) return session;
+          const shouldUpdateTitle = session.messages.length === 0 && message.role === 'user';
+          return {
+            ...session,
+            title: shouldUpdateTitle ? canvasChatTitleFromMessage(message) : session.title,
+            updatedAt: Date.now(),
+            messages: [...session.messages, message],
+          };
+        }),
+      };
+    });
+    persistCanvasChatRuntime(get());
+  },
+
+  setPendingIdeogramOutput: (output) => {
+    set(state => ({
+      pendingIdeogramOutput: output,
+      canvasChatSessions: state.canvasChatSessions.map(session =>
+        session.id === state.activeCanvasChatSessionId
+          ? { ...session, pendingIdeogramOutput: output, updatedAt: Date.now() }
+          : session
+      ),
+    }));
+    persistCanvasChatRuntime(get());
+  },
+
+  clearCanvasChat: () => {
+    set(state => ({
+      canvasChatMessages: [],
+      pendingIdeogramOutput: null,
+      pendingQualityReport: null,
+      activeCanvasChatRequestId: null,
+      canvasChatSessions: state.canvasChatSessions.map(session =>
+        session.id === state.activeCanvasChatSessionId
+          ? {
+              ...session,
+              updatedAt: Date.now(),
+              messages: [],
+              pendingIdeogramOutput: null,
+              pendingQualityReport: null,
+              requestLogs: [],
+            }
+          : session
+      ),
+    }));
+    persistCanvasChatRuntime(get());
+  },
+  setCanvasChatLoading: (loading) => set({ isCanvasChatLoading: loading }),
+  updateCanvasChatMessage: (messageId, updates) => {
+    set(state => ({
+      canvasChatMessages: state.canvasChatMessages.map(m =>
+        m.id === messageId ? { ...m, ...updates } : m
+      ),
       canvasChatSessions: state.canvasChatSessions.map(session => {
         if (session.id !== state.activeCanvasChatSessionId) return session;
-        const shouldUpdateTitle = session.messages.length === 0 && message.role === 'user';
         return {
           ...session,
-          title: shouldUpdateTitle ? canvasChatTitleFromMessage(message) : session.title,
           updatedAt: Date.now(),
-          messages: [...session.messages, message],
+          messages: session.messages.map(m =>
+            m.id === messageId ? { ...m, ...updates } : m
+          ),
         };
       }),
-    };
-  }),
-
-  setPendingIdeogramOutput: (output) => set(state => ({
-    pendingIdeogramOutput: output,
-    canvasChatSessions: state.canvasChatSessions.map(session =>
-      session.id === state.activeCanvasChatSessionId
-        ? { ...session, pendingIdeogramOutput: output, updatedAt: Date.now() }
-        : session
-    ),
-  })),
-
-  clearCanvasChat: () => set(state => ({
-    canvasChatMessages: [],
-    pendingIdeogramOutput: null,
-    pendingQualityReport: null,
-    activeCanvasChatRequestId: null,
-    canvasChatSessions: state.canvasChatSessions.map(session =>
-      session.id === state.activeCanvasChatSessionId
-        ? {
-            ...session,
-            updatedAt: Date.now(),
-            messages: [],
-            pendingIdeogramOutput: null,
-            pendingQualityReport: null,
-            requestLogs: [],
-          }
-        : session
-    ),
-  })),
-  setCanvasChatLoading: (loading) => set({ isCanvasChatLoading: loading }),
-  updateCanvasChatMessage: (messageId, updates) => set(state => ({
-    canvasChatMessages: state.canvasChatMessages.map(m =>
-      m.id === messageId ? { ...m, ...updates } : m
-    ),
-    canvasChatSessions: state.canvasChatSessions.map(session => {
-      if (session.id !== state.activeCanvasChatSessionId) return session;
-      return {
-        ...session,
-        updatedAt: Date.now(),
-        messages: session.messages.map(m =>
-          m.id === messageId ? { ...m, ...updates } : m
-        ),
-      };
-    }),
-  })),
+    }));
+    persistCanvasChatRuntime(get());
+  },
 
   startCanvasChatRequest: (promptPreview) => {
     const requestId = generateCanvasChatId('canvas_request');
@@ -671,6 +828,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
           : session
       ),
     }));
+    persistCanvasChatRuntime(get());
     return requestId;
   },
 
@@ -690,46 +848,68 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
         ),
       })),
     }));
+    persistCanvasChatRuntime(get());
   },
 
-  finishCanvasChatRequest: (requestId, status, detail) => set(state => ({
-    canvasChatSessions: state.canvasChatSessions.map(session => ({
-      ...session,
-      requestLogs: session.requestLogs.map(log =>
-        log.id === requestId
-          ? {
-              ...log,
-              status,
-              endedAt: Date.now(),
-              steps: detail
-                ? [
-                    ...log.steps,
-                    {
-                      id: generateCanvasChatId('canvas_step'),
-                      at: Date.now(),
-                      kind: status === 'success' ? 'done' : 'error',
-                      status,
-                      label: status === 'success' ? 'Request completed' : 'Request failed',
-                      detail,
-                    },
-                  ]
-                : log.steps,
-            }
-          : log
-      ),
-    })),
-  })),
+  finishCanvasChatRequest: (requestId, status, detail) => {
+    set(state => ({
+      canvasChatSessions: state.canvasChatSessions.map(session => ({
+        ...session,
+        requestLogs: session.requestLogs.map(log =>
+          log.id === requestId
+            ? {
+                ...log,
+                status,
+                endedAt: Date.now(),
+                steps: detail
+                  ? [
+                      ...log.steps,
+                      {
+                        id: generateCanvasChatId('canvas_step'),
+                        at: Date.now(),
+                        kind: status === 'success' ? 'done' : 'error',
+                        status,
+                        label: status === 'success' ? 'Request completed' : 'Request failed',
+                        detail,
+                      },
+                    ]
+                  : log.steps,
+              }
+            : log
+        ),
+      })),
+    }));
+    persistCanvasChatRuntime(get());
+  },
+
+  replaceCanvasChatState: (persisted) => {
+    const activeSession = persisted.sessions.find(session => session.id === persisted.activeSessionId)
+      ?? persisted.sessions[0];
+    if (!activeSession) return;
+    set({
+      canvasChatSessions: persisted.sessions,
+      activeCanvasChatSessionId: activeSession.id,
+      activeCanvasChatRequestId: null,
+      canvasChatMessages: activeSession.messages,
+      pendingIdeogramOutput: activeSession.pendingIdeogramOutput,
+      pendingQualityReport: activeSession.pendingQualityReport,
+    });
+    persistCanvasChatRuntime(get());
+  },
 
   // 布局质量检测结果
-  pendingQualityReport: null,
-  setPendingQualityReport: (report) => set(state => ({
-    pendingQualityReport: report,
-    canvasChatSessions: state.canvasChatSessions.map(session =>
-      session.id === state.activeCanvasChatSessionId
-        ? { ...session, pendingQualityReport: report, updatedAt: Date.now() }
-        : session
-    ),
-  })),
+  pendingQualityReport: initialCanvasChatRuntime.pendingQualityReport,
+  setPendingQualityReport: (report) => {
+    set(state => ({
+      pendingQualityReport: report,
+      canvasChatSessions: state.canvasChatSessions.map(session =>
+        session.id === state.activeCanvasChatSessionId
+          ? { ...session, pendingQualityReport: report, updatedAt: Date.now() }
+          : session
+      ),
+    }));
+    persistCanvasChatRuntime(get());
+  },
 
   // LLM 回复语言偏好
   chatResponseLang: localStorage.getItem('ideogram4-chat-lang') || 'auto',
@@ -791,9 +971,75 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     set({ chatPresets: newPresets });
   },
 
+  replaceChatPresets: (presets) => {
+    savePresetsToStorage(presets);
+    set({ chatPresets: presets });
+  },
+
   // ─── 画布背景图 ─────────────────────────────────────────────
   canvasBackgroundUrl: null,
   setCanvasBackgroundUrl: (url) => set({ canvasBackgroundUrl: url }),
+
+  // ─── Workspace 持久化 ───────────────────────────────────────
+  canvasFavorites: loadCanvasFavorites(),
+
+  favoriteCurrentCanvas: (title) => {
+    const state = get();
+    const now = Date.now();
+    const favorite: CanvasFavorite = {
+      id: generateWorkspaceId('favorite'),
+      title: (title?.trim() || titleFromCurrentCanvas(state)),
+      createdAt: now,
+      updatedAt: now,
+      snapshot: buildCanvasSnapshotLite(state),
+    };
+    const favorites = [favorite, ...state.canvasFavorites];
+    persistFavorites(favorites);
+    set({ canvasFavorites: favorites });
+    return favorite.id;
+  },
+
+  renameCanvasFavorite: (id, title) => {
+    const trimmed = title.trim();
+    if (!trimmed) return;
+    const favorites = get().canvasFavorites.map(favorite =>
+      favorite.id === id ? { ...favorite, title: trimmed, updatedAt: Date.now() } : favorite,
+    );
+    persistFavorites(favorites);
+    set({ canvasFavorites: favorites });
+  },
+
+  deleteCanvasFavorite: (id) => {
+    const favorites = get().canvasFavorites.filter(favorite => favorite.id !== id);
+    persistFavorites(favorites);
+    set({ canvasFavorites: favorites });
+  },
+
+  restoreCanvasFavorite: (id) => {
+    const favorite = get().canvasFavorites.find(item => item.id === id);
+    if (!favorite) return;
+    set({
+      ...canvasStateFromSnapshot(favorite.snapshot),
+      canvasBackgroundUrl: null,
+    });
+  },
+
+  replaceCanvasFavorites: (favorites) => {
+    persistFavorites(favorites);
+    set({ canvasFavorites: favorites });
+  },
+
+  workspaceBackupSettings: loadWorkspaceBackupSettings(),
+
+  setWorkspaceBackupSettings: (updates) => {
+    const nextSettings = {
+      ...get().workspaceBackupSettings,
+      ...updates,
+      schemaVersion: 1 as const,
+    };
+    persistBackupSettings(nextSettings);
+    set({ workspaceBackupSettings: nextSettings });
+  },
 
   // ─── 快捷键速查弹窗 ─────────────────────────────────────────
   isShortcutsModalOpen: false,

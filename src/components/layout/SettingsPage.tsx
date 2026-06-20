@@ -1,6 +1,7 @@
 import LlmConfigPanel from '../llm/LlmConfigPanel';
 import PresetManagerPanel from '../chat/PresetManagerPanel';
 import { useI18n } from '../../i18n/context';
+import WorkspacePanel from './WorkspacePanel';
 
 export default function SettingsPage() {
   const { t } = useI18n();
@@ -15,6 +16,7 @@ export default function SettingsPage() {
         <h2 className="settings-section-title">{t('settings.promptPresets')}</h2>
         <PresetManagerPanel embedded />
       </div>
+      <WorkspacePanel />
     </div>
   );
 }

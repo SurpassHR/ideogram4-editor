@@ -1,11 +1,11 @@
 import type { LlmProvider, ProviderKind } from './types';
 import { DEFAULT_BASE_URLS } from './types';
 
-const STORAGE_KEY = 'ideogram4-llm-providers';
+export const LLM_PROVIDERS_STORAGE_KEY = 'ideogram4-llm-providers';
 
 function load(): LlmProvider[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(LLM_PROVIDERS_STORAGE_KEY);
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
@@ -13,7 +13,7 @@ function load(): LlmProvider[] {
 }
 
 function save(providers: LlmProvider[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(providers));
+  localStorage.setItem(LLM_PROVIDERS_STORAGE_KEY, JSON.stringify(providers));
 }
 
 export async function getLlmProviders(): Promise<LlmProvider[]> {
@@ -33,6 +33,10 @@ export async function saveLlmProvider(provider: LlmProvider): Promise<void> {
 
 export async function deleteLlmProvider(id: string): Promise<void> {
   const providers = load().filter(p => p.id !== id);
+  save(providers);
+}
+
+export async function replaceLlmProviders(providers: LlmProvider[]): Promise<void> {
   save(providers);
 }
 

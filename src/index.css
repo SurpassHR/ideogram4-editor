@@ -818,6 +818,45 @@ input[type="color"]::-webkit-color-swatch {
   pointer-events: auto;
 }
 
+.artboard-favorite-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-raised);
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  transition: border-color 0.15s, background 0.15s, transform 0.1s;
+}
+
+.artboard-favorite-btn:hover {
+  border-color: var(--accent);
+  background: rgba(0, 212, 170, 0.12);
+}
+
+.artboard-favorite-btn:active {
+  transform: scale(0.96);
+}
+
+.artboard-toolbar-toast {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  padding: 6px 10px;
+  border: 1px solid rgba(0, 212, 170, 0.35);
+  border-radius: 6px;
+  background: rgba(13, 13, 26, 0.92);
+  color: var(--text);
+  font-size: 12px;
+  white-space: nowrap;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
 .artboard.is-panning {
   cursor: grabbing;
 }
@@ -2653,15 +2692,18 @@ input[type="color"]::-webkit-color-swatch {
 /* ─── Settings Page ───────────────────────────────────────────── */
 
 .settings-page {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 20px;
   align-items: flex-start;
   min-height: 0;
+  overflow: auto;
+  padding-bottom: 4px;
 }
 
 .settings-page-left,
-.settings-page-right {
-  flex: 1;
+.settings-page-right,
+.settings-page-workspace {
   min-width: 0;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -2669,6 +2711,10 @@ input[type="color"]::-webkit-color-swatch {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+.settings-page-workspace {
+  grid-column: 1 / -1;
 }
 
 .settings-section-title {
@@ -2680,6 +2726,222 @@ input[type="color"]::-webkit-color-swatch {
   color: var(--text);
   background: var(--surface-raised);
   letter-spacing: 0.02em;
+}
+
+.workspace-panel-body {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.85fr) minmax(420px, 1.15fr);
+  gap: 18px;
+  padding: 16px;
+}
+
+.workspace-pane {
+  min-width: 0;
+}
+
+.workspace-pane-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.workspace-pane-header h3 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.workspace-pane-header span {
+  color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.workspace-empty {
+  margin: 0;
+  padding: 16px;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.workspace-favorite-list,
+.workspace-restore-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.workspace-favorite-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(30, 30, 58, 0.5);
+}
+
+.workspace-favorite-row:last-child,
+.workspace-restore-row:last-child {
+  border-bottom: none;
+}
+
+.workspace-favorite-main {
+  min-width: 0;
+}
+
+.workspace-favorite-main strong {
+  display: block;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-favorite-main span {
+  display: block;
+  margin-top: 3px;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-row-actions,
+.workspace-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.workspace-backup-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.workspace-backup-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 2px 0 14px;
+}
+
+.workspace-backup-meta div {
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: rgba(30, 30, 58, 0.42);
+}
+
+.workspace-backup-meta dt {
+  margin: 0 0 3px;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.workspace-backup-meta dd {
+  margin: 0;
+  color: var(--text);
+  font-size: 12px;
+}
+
+.workspace-security-note {
+  margin: 14px 0 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(0, 212, 170, 0.28);
+  border-radius: 6px;
+  background: rgba(0, 212, 170, 0.07);
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.workspace-status {
+  margin-top: 12px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--surface-raised);
+  color: var(--text);
+  font-size: 12px;
+}
+
+.workspace-restore-preview {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.workspace-restore-row {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(30, 30, 58, 0.38);
+  cursor: pointer;
+}
+
+.workspace-restore-row input {
+  margin-top: 2px;
+  accent-color: var(--primary);
+}
+
+.workspace-restore-row strong,
+.workspace-restore-row small,
+.workspace-restore-row em {
+  display: block;
+}
+
+.workspace-restore-row strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.workspace-restore-row small {
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.workspace-restore-row em {
+  margin-top: 4px;
+  color: var(--accent);
+  font-size: 11px;
+  font-style: normal;
+}
+
+@media (max-width: 1100px) {
+  .settings-page,
+  .workspace-panel-body,
+  .workspace-backup-grid,
+  .workspace-backup-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-page-workspace {
+    grid-column: auto;
+  }
+
+  .workspace-favorite-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ─── LLM Config Embedded ─────────────────────────────────────── */

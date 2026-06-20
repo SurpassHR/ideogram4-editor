@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useEditorStore } from '../../store';
 import { useI18n } from '../../i18n/context';
 import SelectMenu from '../chat/SelectMenu';
@@ -16,6 +16,8 @@ export default function ArtboardToolbar() {
   const setCanvasRatio = useEditorStore(s => s.setCanvasRatio);
   const setCanvasScale = useEditorStore(s => s.setCanvasScale);
   const setCanvasCustom = useEditorStore(s => s.setCanvasCustom);
+  const favoriteCurrentCanvas = useEditorStore(s => s.favoriteCurrentCanvas);
+  const [toast, setToast] = useState('');
 
   const selectedRatio = canvasRatio as RatioKey;
 
@@ -41,6 +43,12 @@ export default function ArtboardToolbar() {
     (cw: number, ch: number) => setCanvasCustom(cw, ch),
     [setCanvasCustom],
   );
+
+  const handleFavorite = useCallback(() => {
+    favoriteCurrentCanvas();
+    setToast(t('header.favoriteSaved'));
+    window.setTimeout(() => setToast(''), 1800);
+  }, [favoriteCurrentCanvas, t]);
 
   return (
     <div className="artboard-toolbar">
@@ -112,6 +120,18 @@ export default function ArtboardToolbar() {
         </div>
 
         <span className="canvas-dims-display">{canvasW} × {canvasH}</span>
+
+        <button
+          type="button"
+          className="artboard-favorite-btn"
+          onClick={handleFavorite}
+          aria-label={t('header.favoriteCanvas')}
+          title={t('header.favoriteCanvas')}
+        >
+          ☆
+        </button>
+
+        {toast && <span className="artboard-toolbar-toast" role="status">{toast}</span>}
 
     </div>
   );

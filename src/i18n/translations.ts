@@ -5,6 +5,8 @@ export interface Translations {
     ratio: string;
     scale: string;
     resetCanvas: string;
+    favoriteCanvas: string;
+    favoriteSaved: string;
     ratios: {
       '1:1': string;
       '16:9': string;
@@ -22,6 +24,55 @@ export interface Translations {
   settings: {
     llmProviders: string;
     promptPresets: string;
+    workspace: {
+      heading: string;
+      favorites: string;
+      favoriteCount: string;
+      noFavorites: string;
+      boxCount: string;
+      restore: string;
+      rename: string;
+      delete: string;
+      backup: string;
+      fixedGist: string;
+      githubToken: string;
+      githubTokenPlaceholder: string;
+      gistId: string;
+      gistIdPlaceholder: string;
+      lastBackup: string;
+      lastRestore: string;
+      never: string;
+      saveSettings: string;
+      backUpNow: string;
+      restoreFromGist: string;
+      clearSettings: string;
+      securityNote: string;
+      settingsSaved: string;
+      settingsCleared: string;
+      backingUp: string;
+      backupDone: string;
+      loadingRestore: string;
+      restoreReady: string;
+      restoring: string;
+      restoreDone: string;
+      restorePreview: string;
+      llmProviderWarning: string;
+      confirmRestore: string;
+      cancelRestore: string;
+      renameFavoritePrompt: string;
+      restoreFavoriteConfirm: string;
+      deleteFavoriteConfirm: string;
+      favoriteRestored: string;
+      favoriteDeleted: string;
+      modules: {
+        currentCanvas: string;
+        canvasChatSessions: string;
+        canvasFavorites: string;
+        chatPresets: string;
+        llmProviders: string;
+        uiPreferences: string;
+      };
+    };
   };
   panels: {
     globalSettings: {
@@ -290,6 +341,8 @@ const en: Translations = {
     ratio: 'Ratio:',
     scale: '×',
     resetCanvas: 'Reset Canvas',
+    favoriteCanvas: 'Favorite Canvas',
+    favoriteSaved: 'Canvas saved to favorites.',
     ratios: {
       '1:1': '1:1 (Square)',
       '16:9': '16:9 (Widescreen)',
@@ -307,6 +360,55 @@ const en: Translations = {
   settings: {
     llmProviders: '🤖 LLM Providers',
     promptPresets: '📋 Prompt Presets',
+    workspace: {
+      heading: 'Workspace',
+      favorites: 'Canvas Favorites',
+      favoriteCount: '{count} saved',
+      noFavorites: 'No favorite canvases yet.',
+      boxCount: '{count} boxes',
+      restore: 'Restore',
+      rename: 'Rename',
+      delete: 'Delete',
+      backup: 'Workspace Backup',
+      fixedGist: 'Fixed private Gist',
+      githubToken: 'GitHub Token',
+      githubTokenPlaceholder: 'Personal access token',
+      gistId: 'Gist ID',
+      gistIdPlaceholder: 'Created after first backup',
+      lastBackup: 'Last backup',
+      lastRestore: 'Last restore',
+      never: 'Never',
+      saveSettings: 'Save Settings',
+      backUpNow: 'Back Up Now',
+      restoreFromGist: 'Restore From Gist',
+      clearSettings: 'Clear Local Settings',
+      securityNote: 'Private Gist is not end-to-end encrypted. GitHub PAT is saved in localStorage, and workspace backups include LLM provider API keys.',
+      settingsSaved: 'Workspace settings saved.',
+      settingsCleared: 'Workspace backup settings cleared.',
+      backingUp: 'Backing up workspace...',
+      backupDone: 'Workspace backup completed.',
+      loadingRestore: 'Loading backup from Gist...',
+      restoreReady: 'Restore preview is ready.',
+      restoring: 'Restoring selected modules...',
+      restoreDone: 'Workspace restore completed.',
+      restorePreview: 'Restore Preview',
+      llmProviderWarning: 'Includes API keys. Confirming restore will overwrite local provider configuration.',
+      confirmRestore: 'Confirm Restore',
+      cancelRestore: 'Cancel',
+      renameFavoritePrompt: 'Rename favorite',
+      restoreFavoriteConfirm: 'Restore this favorite and overwrite the current canvas?',
+      deleteFavoriteConfirm: 'Delete this favorite canvas?',
+      favoriteRestored: 'Favorite canvas restored.',
+      favoriteDeleted: 'Favorite canvas deleted.',
+      modules: {
+        currentCanvas: 'Current Canvas',
+        canvasChatSessions: 'Canvas Chat Sessions',
+        canvasFavorites: 'Canvas Favorites',
+        chatPresets: 'Prompt Presets',
+        llmProviders: 'LLM Providers',
+        uiPreferences: 'UI Preferences',
+      },
+    },
   },
   panels: {
     globalSettings: {
@@ -575,6 +677,8 @@ const zh: Translations = {
     ratio: '比例：',
     scale: '×',
     resetCanvas: '重置画布',
+    favoriteCanvas: '收藏当前画布',
+    favoriteSaved: '画布已加入收藏。',
     ratios: {
       '1:1': '1:1 (方形)',
       '16:9': '16:9 (宽屏)',
@@ -592,6 +696,55 @@ const zh: Translations = {
   settings: {
     llmProviders: '🤖 LLM 提供商',
     promptPresets: '📋 提示词预设',
+    workspace: {
+      heading: 'Workspace',
+      favorites: '画布收藏',
+      favoriteCount: '已保存 {count} 个',
+      noFavorites: '还没有收藏画布。',
+      boxCount: '{count} 个框',
+      restore: '恢复',
+      rename: '重命名',
+      delete: '删除',
+      backup: '工作区备份',
+      fixedGist: '固定 private Gist',
+      githubToken: 'GitHub Token',
+      githubTokenPlaceholder: 'Personal access token',
+      gistId: 'Gist ID',
+      gistIdPlaceholder: '首次备份后自动生成',
+      lastBackup: '最后备份',
+      lastRestore: '最后恢复',
+      never: '从未',
+      saveSettings: '保存设置',
+      backUpNow: '立即备份',
+      restoreFromGist: '从 Gist 恢复',
+      clearSettings: '清空本地设置',
+      securityNote: 'Private Gist 不是端到端加密。GitHub PAT 会保存到本机 localStorage，工作区备份会包含 LLM provider API key。',
+      settingsSaved: 'Workspace 设置已保存。',
+      settingsCleared: 'Workspace 备份设置已清空。',
+      backingUp: '正在备份工作区...',
+      backupDone: '工作区备份完成。',
+      loadingRestore: '正在从 Gist 读取备份...',
+      restoreReady: '恢复预览已准备好。',
+      restoring: '正在恢复选中模块...',
+      restoreDone: '工作区恢复完成。',
+      restorePreview: '恢复预览',
+      llmProviderWarning: '包含 API key，确认恢复后会覆盖本机 provider 配置。',
+      confirmRestore: '确认恢复',
+      cancelRestore: '取消',
+      renameFavoritePrompt: '重命名收藏',
+      restoreFavoriteConfirm: '恢复该收藏会覆盖当前画布，是否继续？',
+      deleteFavoriteConfirm: '删除这个画布收藏？',
+      favoriteRestored: '画布收藏已恢复。',
+      favoriteDeleted: '画布收藏已删除。',
+      modules: {
+        currentCanvas: '当前画布',
+        canvasChatSessions: 'Canvas Chat 会话',
+        canvasFavorites: '画布收藏',
+        chatPresets: '聊天预设',
+        llmProviders: 'LLM 提供商',
+        uiPreferences: 'UI 偏好',
+      },
+    },
   },
   panels: {
     globalSettings: {
