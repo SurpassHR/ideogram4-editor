@@ -260,3 +260,5 @@ kanban task create --title "Task 1" --prompt "..." --base-ref main --project-pat
 - 如果任务完成但代码未合并到当前分支：在当前分支上用 `git cherry-pick <commit>` 手动合并
 - 并行任务出现冲突时（多个 worktree 同时操作同一文件）：优先采用最后完成的任务代码，再手动修复
 - 任务 worktree 可在 `~/.cline/worktrees/<task-id>/` 找到
+
+**依赖链规则**：见 @KANBAN.md
