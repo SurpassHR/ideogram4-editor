@@ -1,7 +1,7 @@
 import type { LlmProvider } from '../components/llm/types';
 import { DEFAULT_BASE_URLS } from '../components/llm/types';
-import type { ChatMessageForApi } from '../types/chat';
-import { buildMultimodalMessages } from './llm-chat';
+import type { ChatMessage, ChatMessageForApi, ChatThinkingLevel } from '../types/chat';
+import { buildMultimodalMessages, sendChatMessage } from './llm-chat';
 
 export interface StreamChunk {
   type: 'thinking' | 'content';
@@ -14,12 +14,71 @@ export interface StreamCallbacks {
   onError: (error: string) => void;
 }
 
-const TIMEOUT_MS = 30_000;
+export interface ChatRunOptions {
+  streamEnabled: boolean;
+  thinkingLevel: ChatThinkingLevel;
+  imageDataUrl?: string;
+}
+
+interface StreamRequestOptions {
+  thinkingLevel?: ChatThinkingLevel;
+}
+
+export const STREAM_TIMEOUT_MS = 120_000;
+
+function thinkingBudgetFor(level?: ChatThinkingLevel): number | null {
+  switch (level) {
+    case 'low':
+      return 1024;
+    case 'medium':
+      return 2048;
+    case 'high':
+      return 3072;
+    default:
+      return null;
+  }
+}
+
+/** 按运行设置发送 LLM 消息，统一封装流式与非流式路径。 */
+export async function sendChatMessageWithOptions(
+  provider: LlmProvider,
+  model: string,
+  messages: ChatMessageForApi[],
+  systemPrompt: string,
+  callbacks: StreamCallbacks,
+  options: ChatRunOptions,
+): Promise<void> {
+  if (options.streamEnabled) {
+    return sendChatMessageStream(
+      provider,
+      model,
+      messages,
+      systemPrompt,
+      callbacks,
+      options.imageDataUrl,
+      { thinkingLevel: options.thinkingLevel },
+    );
+  }
+
+  const chatMessages: ChatMessage[] = messages.map((message, index) => ({
+    id: `api_${index}`,
+    role: message.role,
+    content: message.content,
+    timestamp: Date.now() + index,
+  }));
+  const result = await sendChatMessage(provider, model, chatMessages, systemPrompt, options.imageDataUrl);
+  if (!result.ok || !result.content) {
+    callbacks.onError(result.error || 'Unknown error');
+    return;
+  }
+  callbacks.onChunk({ type: 'content', text: result.content });
+  callbacks.onDone(result.content);
+}
 
 /**
  * SSE 流式聊天消息发送。
  * 按 provider.kind 分发到对应的流式 API 调用。
- * 使用 AbortController 实现 30s 超时。
+ * 使用 AbortController 实现 120s 超时。
  */
 export async function sendChatMessageStream(
   provider: LlmProvider,
@@ -28,6 +87,7 @@ export async function sendChatMessageStream(
   systemPrompt: string,
   callbacks: StreamCallbacks,
   imageDataUrl?: string,
+  options: StreamRequestOptions = {},
 ): Promise<void> {
   const apiMessages = imageDataUrl
     ? buildMultimodalMessages(messages, imageDataUrl, provider.kind)
@@ -35,17 +95,23 @@ export async function sendChatMessageStream(
   const baseUrl = provider.base_url || DEFAULT_BASE_URLS[provider.kind];
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  let timedOut = false;
+  const timeoutId = setTimeout(() => {
+    timedOut = true;
+    controller.abort(new Error(`Request timed out after ${STREAM_TIMEOUT_MS / 1000} seconds.`));
+  }, STREAM_TIMEOUT_MS);
 
   try {
     await dispatchStreamCall(
       provider.kind, baseUrl, provider.api_key, model, systemPrompt, apiMessages,
-      callbacks, controller.signal
+      callbacks, controller.signal, options
     );
     clearTimeout(timeoutId);
   } catch (err) {
     clearTimeout(timeoutId);
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = timedOut
+      ? `Request timed out after ${STREAM_TIMEOUT_MS / 1000} seconds. The model did not start or finish a streaming response in time.`
+      : err instanceof Error ? err.message : String(err);
     callbacks.onError(msg);
   }
 }
@@ -80,6 +146,7 @@ async function callOpenAIStream(
   baseUrl: string, apiKey: string, model: string,
   apiMessages: { role: string; content: string | Record<string, unknown>[] }[],
   callbacks: StreamCallbacks, signal: AbortSignal,
+  thinkingLevel?: ChatThinkingLevel,
 ): Promise<void> {
   const url = `${baseUrl}/chat/completions`;
   const resp = await fetch(url, {
@@ -88,7 +155,12 @@ async function callOpenAIStream(
       'Content-Type': 'application/json',
       Authorization: `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({ model, messages: apiMessages, stream: true }),
+    body: JSON.stringify({
+      model,
+      messages: apiMessages,
+      stream: true,
+      ...(thinkingLevel && thinkingLevel !== 'off' ? { reasoning_effort: thinkingLevel } : {}),
+    }),
     signal,
   });
 
@@ -127,8 +199,10 @@ async function callAnthropicStream(
   systemPrompt: string,
   apiMessages: { role: string; content: string | Record<string, unknown>[] }[],
   callbacks: StreamCallbacks, signal: AbortSignal,
+  thinkingLevel?: ChatThinkingLevel,
 ): Promise<void> {
   const url = `${baseUrl}/messages`;
+  const thinkingBudget = thinkingBudgetFor(thinkingLevel);
   const resp = await fetch(url, {
     method: 'POST',
     headers: {
@@ -142,6 +216,7 @@ async function callAnthropicStream(
       stream: true,
       system: systemPrompt,
       messages: apiMessages,
+      ...(thinkingBudget ? { thinking: { type: 'enabled', budget_tokens: thinkingBudget } } : {}),
     }),
     signal,
   });
@@ -189,8 +264,10 @@ async function callGeminiStream(
   systemPrompt: string,
   apiMessages: { role: string; content: string | Record<string, unknown>[] }[],
   callbacks: StreamCallbacks, signal: AbortSignal,
+  thinkingLevel?: ChatThinkingLevel,
 ): Promise<void> {
   const url = `${baseUrl}/models/${model}:streamGenerateContent?alt=sse&key=${apiKey}`;
+  const thinkingBudget = thinkingBudgetFor(thinkingLevel);
 
   const contents = apiMessages.map(m => ({
     role: m.role === 'assistant' ? 'model' : 'user',
@@ -203,6 +280,7 @@ async function callGeminiStream(
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: systemPrompt }] },
       contents,
+      ...(thinkingBudget ? { generationConfig: { thinkingConfig: { thinkingBudget } } } : {}),
     }),
     signal,
   });
@@ -245,19 +323,23 @@ async function dispatchStreamCall(
   kind: string, baseUrl: string, apiKey: string, model: string,
   systemPrompt: string,
   apiMessages: { role: string; content: string | Record<string, unknown>[] }[],
-  callbacks: StreamCallbacks, signal: AbortSignal,
+  callbacks: StreamCallbacks, signal: AbortSignal, options: StreamRequestOptions,
 ): Promise<void> {
   switch (kind) {
     case 'openai':
+      return callOpenAIStream(baseUrl, apiKey, model, [
+        { role: 'system', content: systemPrompt },
+        ...apiMessages,
+      ], callbacks, signal, options.thinkingLevel);
     case 'openai_compat':
       return callOpenAIStream(baseUrl, apiKey, model, [
         { role: 'system', content: systemPrompt },
         ...apiMessages,
       ], callbacks, signal);
     case 'anthropic':
-      return callAnthropicStream(baseUrl, apiKey, model, systemPrompt, apiMessages, callbacks, signal);
+      return callAnthropicStream(baseUrl, apiKey, model, systemPrompt, apiMessages, callbacks, signal, options.thinkingLevel);
     case 'gemini':
-      return callGeminiStream(baseUrl, apiKey, model, systemPrompt, apiMessages, callbacks, signal);
+      return callGeminiStream(baseUrl, apiKey, model, systemPrompt, apiMessages, callbacks, signal, options.thinkingLevel);
     default:
       throw new Error(`Unknown provider kind: ${kind}`);
   }

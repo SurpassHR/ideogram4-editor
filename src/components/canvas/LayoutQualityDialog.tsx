@@ -10,16 +10,20 @@ interface LayoutQualityDialogProps {
 export default function LayoutQualityDialog({ report, onAccept, onRegenerate }: LayoutQualityDialogProps) {
   const { t } = useI18n();
 
-  if (!report || report.overallPass) return null;
+  if (!report) return null;
 
   const failedMetrics = report.metrics.filter(m => !m.passed);
+  const visibleMetrics = report.overallPass ? report.metrics : failedMetrics;
 
   return (
     <div className="layout-quality-dialog">
       <div className="layout-quality-dialog-content">
-        <h3>{t('layoutQuality.title')}</h3>
+        <h3>{report.overallPass ? t('layoutQuality.passedTitle') : t('layoutQuality.title')}</h3>
+        <p className="layout-quality-dialog-summary">
+          {report.overallPass ? t('layoutQuality.pass') : t('layoutQuality.fail')}
+        </p>
         <div className="layout-quality-dialog-body">
-          {failedMetrics.map(m => (
+          {visibleMetrics.map(m => (
             <div key={m.field} className="layout-quality-metric">
               <span className="metric-label">{t(`layoutQuality.metric.${m.field}`)}</span>
               <span className="metric-value">{m.message}</span>
@@ -30,9 +34,11 @@ export default function LayoutQualityDialog({ report, onAccept, onRegenerate }: 
           <button className="btn btn-primary" onClick={onAccept}>
             {t('layoutQuality.accept')}
           </button>
-          <button className="btn" onClick={onRegenerate}>
-            {t('layoutQuality.regenerate')}
-          </button>
+          {!report.overallPass && (
+            <button className="btn" onClick={onRegenerate}>
+              {t('layoutQuality.regenerate')}
+            </button>
+          )}
         </div>
       </div>
     </div>

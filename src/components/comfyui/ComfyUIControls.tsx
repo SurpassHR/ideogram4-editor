@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useEditorStore } from '../../store';
 import { useComfyUIGeneration } from '../../hooks/useComfyUIGeneration';
 import { useI18n } from '../../i18n/context';
@@ -14,16 +13,18 @@ export default function ComfyUIControls() {
 
   const { generate } = useComfyUIGeneration();
 
-  const [seedDisplay, setSeedDisplay] = useState(String(seed).padStart(5, '0'));
-
   const isLoading = generationStatus === 'generating' || generationStatus === 'polling';
+  const seedDisplay = String(seed).padStart(5, '0');
 
   return (
     <GlowGrid>
       <h3>{t('comfyui.generation')}</h3>
 
       <div className="input-group">
-        <label>{t('comfyui.seed')}</label>
+        <label>
+          {t('comfyui.seed')}
+          <span>{seedDisplay}</span>
+        </label>
         <div className="slider-row">
           <input
             type="range"
@@ -31,7 +32,6 @@ export default function ComfyUIControls() {
             max={99999}
             value={seed}
             onChange={e => {
-              setSeedDisplay(e.target.value.padStart(5, '0'));
               setSeed(parseInt(e.target.value));
             }}
           />
@@ -45,7 +45,6 @@ export default function ComfyUIControls() {
               const raw = parseInt(e.target.value);
               if (isNaN(raw)) return;
               const v = Math.max(1, Math.min(99999, Math.round(raw)));
-              setSeedDisplay(String(v).padStart(5, '0'));
               setSeed(v);
             }}
           />

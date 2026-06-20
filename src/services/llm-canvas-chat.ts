@@ -14,7 +14,7 @@ const CJK_TEXT_RE = /[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]/;
 
 export const CANVAS_CHAT_SYSTEM_PROMPT = `You are an expert image composition designer for the Ideogram 4 image generation model.
 
-Your task: given a user's thematic description and the current canvas state (as a JSON prompt), design a complete visual composition. Return your composition as a valid IdeogramOutput JSON object inside a \`\`\`json code block.
+Your task: given a user's thematic description and the current canvas state (as a JSON prompt), design a complete visual composition. Return ONLY a single valid \`\`\`json code block containing the complete IdeogramOutput JSON object.
 
 ## JSON Schema
 
@@ -92,11 +92,9 @@ Do NOT return partial or truncated JSON. Re-submit your entire composition.
 
 ## Output Format
 
-Always wrap your final JSON output in a \`\`\`json code block. You may briefly explain your design choices before or after the code block, but the valid JSON must be inside \`\`\`json ... \`\`\`.
+Return ONLY a single valid \`\`\`json code block. Do not include prose, markdown headings, bullet points, or any text before or after the code block.
 
 Example response format:
-
-Here's the composition I designed for your scene:
 
 \`\`\`json
 {
@@ -108,7 +106,7 @@ Here's the composition I designed for your scene:
 }
 \`\`\`
 
-If the user asks for revisions, adjust the JSON accordingly and return the updated version in a new \`\`\`json block.
+If the user asks for revisions, adjust the JSON accordingly and return the complete updated JSON in a new \`\`\`json code block with no extra text.
 `;
 
 // ─── Layout Feedback ─────────────────────────────────────────────────
@@ -176,7 +174,54 @@ export function buildCanvasChatContext(snapshot: CanvasChatStoreSnapshot): strin
 // ─── JSON 提取与验证 ────────────────────────────────────────────────
 
 /**
- * 从 AI 回复文本中提取第一个 ```json 代码块，解析并验证为 IdeogramOutput。
+ * 从 AI 回复文本中提取 JSON 候选内容。
+ * 优先使用严格 ```json 代码块；若模型没有遵守格式，再兼容普通代码块、纯 JSON 或带少量说明文字的 JSON 对象。
+ */
+function extractJSONCandidate(text: string): string | null {
+  const jsonBlockMatch = text.match(/```json\s*([\s\S]*?)```/i);
+  if (jsonBlockMatch?.[1]) return jsonBlockMatch[1].trim();
+
+  const plainBlockMatch = text.match(/```\s*([\s\S]*?)```/);
+  if (plainBlockMatch?.[1]) return plainBlockMatch[1].trim();
+
+  const trimmed = text.trim();
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) return trimmed;
+
+  const start = text.indexOf('{');
+  if (start < 0) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < text.length; i++) {
+    const char = text[i];
+
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (char === '\\') {
+      escaped = true;
+      continue;
+    }
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) continue;
+
+    if (char === '{') depth += 1;
+    if (char === '}') {
+      depth -= 1;
+      if (depth === 0) return text.slice(start, i + 1).trim();
+    }
+  }
+
+  return null;
+}
+
+/**
+ * 从 AI 回复文本中提取 JSON，解析并验证为 IdeogramOutput。
  *
  * 验证规则：
  * 1. compositional_deconstruction.elements 存在且为非空数组
@@ -187,11 +232,8 @@ export function buildCanvasChatContext(snapshot: CanvasChatStoreSnapshot): strin
  * @returns 验证通过的 IdeogramOutput，或 null（提取/解析/验证任一失败）
  */
 export function extractAndValidateIdeogramJSON(text: string): IdeogramOutput | null {
-  // 1. 提取 ```json ... ``` 代码块
-  const jsonBlockMatch = text.match(/```json\s*([\s\S]*?)```/);
-  if (!jsonBlockMatch || !jsonBlockMatch[1]) return null;
-
-  const jsonStr = jsonBlockMatch[1].trim();
+  const jsonStr = extractJSONCandidate(text);
+  if (!jsonStr) return null;
 
   // 2. JSON.parse
   let parsed: unknown;

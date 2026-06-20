@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useEditorStore } from '../store';
 import { getLlmProviders } from '../components/llm/api';
-import { sendChatMessageStream } from '../services/llm-stream';
+import { sendChatMessageWithOptions } from '../services/llm-stream';
 import { buildBoxChatSystemPrompt } from '../services/llm-chat';
 import { resolveTemplate } from '../utils/resolveTemplate';
 import type { LlmProvider } from '../components/llm/types';
@@ -29,6 +29,8 @@ export function useChatPanel() {
   const deletePreset = useEditorStore(s => s.deletePreset);
   const chatResponseLang = useEditorStore(s => s.chatResponseLang);
   const setChatResponseLang = useEditorStore(s => s.setChatResponseLang);
+  const chatStreamEnabled = useEditorStore(s => s.chatStreamEnabled);
+  const chatThinkingLevel = useEditorStore(s => s.chatThinkingLevel);
 
   const addChatMessage = useEditorStore(s => s.addChatMessage);
   const markChatMessageAdopted = useEditorStore(s => s.markChatMessageAdopted);
@@ -131,7 +133,7 @@ export function useChatPanel() {
 
       const apiMessages = allMessages.map(m => ({ role: m.role, content: m.content }));
 
-      await sendChatMessageStream(
+      await sendChatMessageWithOptions(
         provider, parsed.modelName, apiMessages, systemPrompt, {
           onChunk: ({ type, text }) => {
             if (type === 'thinking') {
@@ -159,13 +161,17 @@ export function useChatPanel() {
             setIsLoading(false);
           },
         },
-        canSendImage,
+        {
+          streamEnabled: chatStreamEnabled,
+          thinkingLevel: chatThinkingLevel,
+          imageDataUrl: canSendImage,
+        },
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
       setIsLoading(false);
     }
-  }, [activeChatBoxId, currentBox, messages, chatModel, getCurrentProvider, parseModel, addChatMessage, highLevelDescription, aesthetics, lighting, medium, artStyle, background, globalPalette, photoArtStyleMode, canSendImage, chatResponseLang]);
+  }, [activeChatBoxId, currentBox, messages, chatModel, getCurrentProvider, parseModel, addChatMessage, highLevelDescription, aesthetics, lighting, medium, artStyle, background, globalPalette, photoArtStyleMode, canSendImage, chatResponseLang, chatStreamEnabled, chatThinkingLevel]);
 
   // 采纳 AI 回复
   const adoptResponse = useCallback((messageId: string) => {

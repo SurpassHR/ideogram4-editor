@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { useCanvasChat, type ApplySelections } from '../../hooks/useCanvasChat';
+import { useCanvasChat } from '../../hooks/useCanvasChat';
 import ChatMessage from '../chat/ChatMessage';
 import SelectMenu from '../chat/SelectMenu';
+import ChatRunControls from '../chat/ChatRunControls';
+import ContextMenu from './ContextMenu';
 import { useI18n } from '../../i18n/context';
 import { useEditorStore } from '../../store';
 import { resolveTemplate } from '../../utils/resolveTemplate';
@@ -17,8 +19,6 @@ export default function CanvasChatPanel() {
     chatResponseLang,
     sendMessage,
     applyOutput,
-    applySelections,
-    setApplySelections,
     handleSelectModel,
     setChatResponseLang,
     hasProviders,
@@ -37,17 +37,25 @@ export default function CanvasChatPanel() {
   const setCanvasChatOpen = useEditorStore(s => s.setCanvasChatOpen);
   const createCanvasChatSession = useEditorStore(s => s.createCanvasChatSession);
   const selectCanvasChatSession = useEditorStore(s => s.selectCanvasChatSession);
+  const renameCanvasChatSession = useEditorStore(s => s.renameCanvasChatSession);
+  const deleteCanvasChatSession = useEditorStore(s => s.deleteCanvasChatSession);
+  const clearCanvasChatSession = useEditorStore(s => s.clearCanvasChatSession);
 
   const { t } = useI18n();
   const [inputText, setInputText] = useState('');
+  const [sessionMenu, setSessionMenu] = useState<{ sessionId: string; x: number; y: number } | null>(null);
+  const [renamingSessionId, setRenamingSessionId] = useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = useState('');
   const [applyToast, setApplyToast] = useState<string | null>(null);
-  const [showApplyConfirm, setShowApplyConfirm] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const activeSession = canvasChatSessions.find(session => session.id === activeCanvasChatSessionId) ?? canvasChatSessions[0];
   const terminalLogs = activeSession?.requestLogs ?? [];
   const activeTerminalLog = terminalLogs.find(log => log.id === activeCanvasChatRequestId) ?? terminalLogs[terminalLogs.length - 1] ?? null;
+  const renamingSession = renamingSessionId
+    ? canvasChatSessions.find(session => session.id === renamingSessionId) ?? null
+    : null;
 
   // 点击画布空白区关闭面板
   useEffect(() => {
@@ -97,6 +105,60 @@ export default function CanvasChatPanel() {
   const handleCreateSession = useCallback(() => {
     createCanvasChatSession();
   }, [createCanvasChatSession]);
+
+  const handleOpenRenameSession = useCallback((sessionId: string) => {
+    const session = canvasChatSessions.find(item => item.id === sessionId);
+    if (!session) return;
+    setRenamingSessionId(session.id);
+    setRenameDraft(session.title);
+    setSessionMenu(null);
+  }, [canvasChatSessions]);
+
+  const handleConfirmRenameSession = useCallback(() => {
+    if (!renamingSessionId) return;
+    renameCanvasChatSession(renamingSessionId, renameDraft);
+    setRenamingSessionId(null);
+    setRenameDraft('');
+  }, [renameCanvasChatSession, renameDraft, renamingSessionId]);
+
+  const handleCancelRenameSession = useCallback(() => {
+    setRenamingSessionId(null);
+    setRenameDraft('');
+  }, []);
+
+  const handleDeleteSession = useCallback((sessionId: string) => {
+    deleteCanvasChatSession(sessionId);
+    setSessionMenu(null);
+  }, [deleteCanvasChatSession]);
+
+  const handleClearSession = useCallback((sessionId: string) => {
+    clearCanvasChatSession(sessionId);
+    setSessionMenu(null);
+  }, [clearCanvasChatSession]);
+
+  const handleWorkbenchWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+  }, []);
+
+  const openSessionMenu = useCallback((sessionId: string, x: number, y: number) => {
+    if (sessionId !== activeCanvasChatSessionId) {
+      selectCanvasChatSession(sessionId);
+    }
+    setSessionMenu({ sessionId, x, y });
+  }, [activeCanvasChatSessionId, selectCanvasChatSession]);
+
+  const handleSessionContextMenu = useCallback((e: React.MouseEvent, sessionId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    openSessionMenu(sessionId, e.clientX, e.clientY);
+  }, [openSessionMenu]);
+
+  const handleSessionMenuClick = useCallback((e: React.MouseEvent<HTMLButtonElement>, sessionId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    openSessionMenu(sessionId, rect.right + 4, rect.top);
+  }, [openSessionMenu]);
 
   // 新消息自动滚到底部
   useEffect(() => {
@@ -176,23 +238,9 @@ export default function CanvasChatPanel() {
   }, [chatPresets, handleSelectPreset]);
 
   const handleApply = useCallback(() => {
-    setShowApplyConfirm(true);
-  }, []);
-
-  const handleApplyConfirm = useCallback(() => {
-    const count = applyOutput(applySelections);
-    setShowApplyConfirm(false);
+    const count = applyOutput();
     setApplyToast(`Applied ${count} boxes`);
-  }, [applyOutput, applySelections]);
-
-  const handleApplyCancel = useCallback(() => {
-    setShowApplyConfirm(false);
-  }, []);
-
-  /** 切换单个 checkbox */
-  const toggleSelection = useCallback((key: keyof ApplySelections) => {
-    setApplySelections(prev => ({ ...prev, [key]: !prev[key] }));
-  }, [setApplySelections]);
+  }, [applyOutput]);
 
   // ─── 始终渲染：底部横杠可点击 toggle + JS 状态驱动面板 ──────
   return (
@@ -283,6 +331,7 @@ export default function CanvasChatPanel() {
                   value={chatResponseLang}
                   onChange={setChatResponseLang}
                 />
+                <ChatRunControls />
                 <span className="chat-header-spacer" />
               </div>
               <div className="canvas-chat-input-row">
@@ -328,29 +377,50 @@ export default function CanvasChatPanel() {
           )}
         </div>
         {isCanvasChatMaximized && (
-          <div className="canvas-chat-workbench" role="dialog" aria-label="Canvas Chat Workbench">
+          <>
+            <div className="canvas-chat-backdrop" aria-hidden="true" />
+            <div
+              className="canvas-chat-workbench"
+              role="dialog"
+              aria-label="Canvas Chat Workbench"
+              onWheelCapture={handleWorkbenchWheel}
+            >
             <aside className="canvas-chat-workbench-sidebar">
-              <div className="canvas-chat-workbench-section-title">Sessions</div>
+              <div className="canvas-chat-workbench-section-title">{t('chat.canvasSessions.sectionTitle')}</div>
               <button
                 type="button"
                 className="canvas-chat-session-new"
                 onClick={handleCreateSession}
               >
-                + New
+                {t('chat.canvasSessions.newSession')}
               </button>
               <div className="canvas-chat-session-list">
                 {canvasChatSessions.map(session => (
-                  <button
+                  <div
                     key={session.id}
-                    type="button"
                     className={`canvas-chat-session-item${session.id === activeCanvasChatSessionId ? ' active' : ''}`}
-                    onClick={() => selectCanvasChatSession(session.id)}
+                    onContextMenu={e => handleSessionContextMenu(e, session.id)}
                   >
-                    <span className="canvas-chat-session-title">{session.title}</span>
-                    <span className="canvas-chat-session-meta">
-                      {session.messages.length} messages
-                    </span>
-                  </button>
+                    <button
+                      type="button"
+                      className="canvas-chat-session-select"
+                      onClick={() => selectCanvasChatSession(session.id)}
+                    >
+                      <span className="canvas-chat-session-title">{session.title}</span>
+                      <span className="canvas-chat-session-meta">
+                        {t('chat.canvasSessions.messageCount', { count: session.messages.length })}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      className="canvas-chat-session-menu-button"
+                      aria-label={t('chat.canvasSessions.menuAria', { title: session.title })}
+                      title={t('chat.canvasSessions.menuAria', { title: session.title })}
+                      onClick={e => handleSessionMenuClick(e, session.id)}
+                    >
+                      ⋯
+                    </button>
+                  </div>
                 ))}
               </div>
             </aside>
@@ -421,6 +491,7 @@ export default function CanvasChatPanel() {
                       value={chatResponseLang}
                       onChange={setChatResponseLang}
                     />
+                    <ChatRunControls />
                     <span className="chat-header-spacer" />
                   </div>
                   <div className="canvas-chat-input-row">
@@ -461,7 +532,7 @@ export default function CanvasChatPanel() {
             </section>
 
             <aside className="canvas-chat-terminal-panel">
-              <div className="canvas-chat-workbench-section-title">Terminal</div>
+              <div className="canvas-chat-workbench-section-title">{t('chat.canvasSessions.terminal')}</div>
               {activeTerminalLog ? (
                 <div className="canvas-chat-terminal-log">
                   <div className={`canvas-chat-terminal-request ${activeTerminalLog.status}`}>
@@ -487,84 +558,78 @@ export default function CanvasChatPanel() {
                   </div>
                 </div>
               ) : (
-                <div className="canvas-chat-terminal-empty">No request logs yet</div>
+                <div className="canvas-chat-terminal-empty">{t('chat.canvasSessions.noRequestLogs')}</div>
               )}
             </aside>
-          </div>
+            </div>
+          </>
         )}
         <div className="canvas-chat-handle" onClick={handleToggle} title="Toggle Canvas AI Compose" />
       </div>
 
-      {/* Apply 确认弹窗 (createPortal → body) */}
-      {showApplyConfirm && createPortal(
-        <div className="modal-overlay" onClick={handleApplyCancel}>
-          <div className="canvas-chat-confirm" onClick={e => e.stopPropagation()}>
-            <h3>Apply Composition</h3>
-            <p className="canvas-chat-confirm-desc">
-              Select which parts to apply from the AI composition:
-            </p>
+      {sessionMenu && (
+        <ContextMenu
+          x={sessionMenu.x}
+          y={sessionMenu.y}
+          onClose={() => setSessionMenu(null)}
+          items={[
+            {
+              icon: '✏',
+              label: t('chat.canvasSessions.rename'),
+              onClick: () => handleOpenRenameSession(sessionMenu.sessionId),
+            },
+            {
+              icon: '🧹',
+              label: t('chat.canvasSessions.clear'),
+              onClick: () => handleClearSession(sessionMenu.sessionId),
+            },
+            'divider',
+            {
+              icon: '🗑',
+              label: t('chat.canvasSessions.delete'),
+              danger: true,
+              onClick: () => handleDeleteSession(sessionMenu.sessionId),
+            },
+          ]}
+        />
+      )}
 
-            <div className="canvas-chat-confirm-list">
-              <label className="canvas-chat-confirm-item">
-                <input
-                  type="checkbox"
-                  checked={applySelections.boxes}
-                  onChange={() => toggleSelection('boxes')}
-                />
-                <span>
-                  Boxes ({pendingIdeogramOutput?.compositional_deconstruction.elements.length ?? 0} 个边界框 + 描述 + 颜色)
-                </span>
-              </label>
-
-              <label className="canvas-chat-confirm-item">
-                <input
-                  type="checkbox"
-                  checked={applySelections.globalDesc}
-                  onChange={() => toggleSelection('globalDesc')}
-                />
-                <span>
-                  全局描述 (high_level_description)
-                </span>
-              </label>
-
-              <label className="canvas-chat-confirm-item">
-                <input
-                  type="checkbox"
-                  checked={applySelections.styleParams}
-                  onChange={() => toggleSelection('styleParams')}
-                />
-                <span>
-                  风格参数 (aesthetics / lighting / medium / art_style / background)
-                </span>
-              </label>
-
-              <label className="canvas-chat-confirm-item">
-                <input
-                  type="checkbox"
-                  checked={applySelections.globalPalette}
-                  onChange={() => toggleSelection('globalPalette')}
-                />
-                <span>
-                  全局调色板 ({pendingIdeogramOutput?.style_description.color_palette?.length ?? 0} 色)
-                </span>
-              </label>
-
-              <label className="canvas-chat-confirm-item">
-                <input
-                  type="checkbox"
-                  checked={applySelections.modeSwitch}
-                  onChange={() => toggleSelection('modeSwitch')}
-                />
-                <span>
-                  模式切换 (Art Style / Photo)
-                </span>
-              </label>
-            </div>
-
-            <div className="canvas-chat-confirm-actions">
-              <button className="btn" onClick={handleApplyCancel}>Cancel</button>
-              <button className="btn canvas-chat-apply-btn" onClick={handleApplyConfirm}>
-                Apply Selected
+      {renamingSession && createPortal(
+        <div className="modal-overlay canvas-chat-rename-overlay" onClick={handleCancelRenameSession}>
+          <div
+            className="canvas-chat-rename-modal"
+            role="dialog"
+            aria-label={t('chat.canvasSessions.renameAria')}
+            onClick={e => e.stopPropagation()}
+          >
+            <h3>{t('chat.canvasSessions.renameAria')}</h3>
+            <label className="canvas-chat-rename-label" htmlFor="canvas-chat-rename-input">
+              {t('chat.canvasSessions.titleLabel')}
+            </label>
+            <input
+              id="canvas-chat-rename-input"
+              className="canvas-chat-rename-input"
+              aria-label={t('chat.canvasSessions.titleLabel')}
+              value={renameDraft}
+              onChange={e => setRenameDraft(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') handleConfirmRenameSession();
+                if (e.key === 'Escape') handleCancelRenameSession();
+              }}
+              autoFocus
+            />
+            <div className="canvas-chat-rename-actions">
+              <button className="btn" type="button" onClick={handleCancelRenameSession}>
+                {t('chat.canvasSessions.cancelRename')}
+              </button>
+              <button
+                className="btn canvas-chat-apply-btn"
+                type="button"
+                aria-label={t('chat.canvasSessions.saveRenameAria')}
+                onClick={handleConfirmRenameSession}
+                disabled={!renameDraft.trim()}
+              >
+                {t('chat.canvasSessions.saveRename')}
               </button>
             </div>
           </div>

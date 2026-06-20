@@ -51,12 +51,25 @@ describe('LayoutQualityDialog', () => {
     expect(container.innerHTML).toBe('');
   });
 
-  it('renders nothing when report.overallPass is true', () => {
-    const report = makeFailedReport({ overallPass: true, metrics: [] });
-    const { container } = render(
-      <LayoutQualityDialog report={report} onAccept={() => {}} onRegenerate={() => {}} />,
-    );
-    expect(container.innerHTML).toBe('');
+  it('renders passed summary when report.overallPass is true', () => {
+    const report = makeFailedReport({
+      overallPass: true,
+      metrics: [
+        {
+          field: 'coverage',
+          passed: true,
+          actual: 32,
+          threshold: '15-60%',
+          message: 'coverage looks balanced (32.0%)',
+        },
+      ],
+      userSummary: '布局检测通过',
+    });
+    render(<LayoutQualityDialog report={report} onAccept={() => {}} onRegenerate={() => {}} />);
+
+    expect(screen.getByText('layoutQuality.passedTitle')).toBeTruthy();
+    expect(screen.getByText('coverage looks balanced (32.0%)')).toBeTruthy();
+    expect(screen.queryByText('layoutQuality.regenerate')).toBeNull();
   });
 
   it('onAccept is called when Accept button clicked', () => {

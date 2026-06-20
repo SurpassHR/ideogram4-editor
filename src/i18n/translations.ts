@@ -55,8 +55,11 @@ export interface Translations {
   json: {
     generatePrompt: string;
     loadFromPasted: string;
+    jsonMode: string;
+    previewMode: string;
     placeholder: string;
     invalidJson: string;
+    previewEmpty: string;
   };
   comfyui: {
     generation: string;
@@ -171,6 +174,36 @@ export interface Translations {
     error: string;
     emptyHint: string;
     langAuto: string;
+    streamOutput: string;
+    streamShort: string;
+    streamHint: string;
+    thinkingStrength: string;
+    thinkingShort: string;
+    thinkingHint: string;
+    thinkingLevels: {
+      off: string;
+      low: string;
+      medium: string;
+      high: string;
+    };
+    canvasSessions: {
+      sectionTitle: string;
+      newSession: string;
+      menuAria: string;
+      titleLabel: string;
+      rename: string;
+      renameAria: string;
+      clear: string;
+      clearAria: string;
+      delete: string;
+      deleteAria: string;
+      saveRename: string;
+      saveRenameAria: string;
+      cancelRename: string;
+      messageCount: string;
+      terminal: string;
+      noRequestLogs: string;
+    };
     presets: {
       title: string;
       selectPreset: string;
@@ -204,6 +237,7 @@ export interface Translations {
   };
   layoutQuality: {
     title: string;
+    passedTitle: string;
     pass: string;
     fail: string;
     accept: string;
@@ -306,8 +340,11 @@ const en: Translations = {
   json: {
     generatePrompt: 'Generate JSON Prompt',
     loadFromPasted: 'Load From Pasted JSON',
+    jsonMode: 'JSON',
+    previewMode: 'Preview',
     placeholder: 'JSON output will appear here...',
     invalidJson: 'Invalid JSON: {error}',
+    previewEmpty: 'No elements to preview.',
   },
   comfyui: {
     generation: 'Generation',
@@ -422,6 +459,36 @@ const en: Translations = {
     error: 'Error: {error}',
     emptyHint: 'Send a message to start the conversation',
     langAuto: 'Auto',
+    streamOutput: 'Stream output',
+    streamShort: 'Stream',
+    streamHint: 'Show AI responses as they arrive.',
+    thinkingStrength: 'Thinking strength',
+    thinkingShort: 'Think',
+    thinkingHint: 'Reasoning effort depends on the selected model.',
+    thinkingLevels: {
+      off: 'Off',
+      low: 'Low',
+      medium: 'Medium',
+      high: 'High',
+    },
+    canvasSessions: {
+      sectionTitle: 'Sessions',
+      newSession: '+ New',
+      menuAria: 'Session actions for {title}',
+      titleLabel: 'Session title',
+      rename: 'Rename',
+      renameAria: 'Rename session',
+      clear: 'Clear',
+      clearAria: 'Clear session',
+      delete: 'Delete',
+      deleteAria: 'Delete session',
+      saveRename: 'Save',
+      saveRenameAria: 'Save session name',
+      cancelRename: 'Cancel',
+      messageCount: '{count} messages',
+      terminal: 'Terminal',
+      noRequestLogs: 'No request logs yet',
+    },
     presets: {
       title: 'Preset Manager',
       selectPreset: 'Select Preset...',
@@ -455,6 +522,7 @@ const en: Translations = {
   },
   layoutQuality: {
     title: 'Layout Quality Check',
+    passedTitle: 'Layout Check Passed',
     pass: 'Layout check passed.',
     fail: 'Layout issues detected:',
     accept: 'Accept Current Layout',
@@ -557,8 +625,11 @@ const zh: Translations = {
   json: {
     generatePrompt: '生成 JSON Prompt',
     loadFromPasted: '从粘贴的 JSON 加载',
+    jsonMode: 'JSON',
+    previewMode: '预览',
     placeholder: 'JSON 输出将显示在此处...',
     invalidJson: '无效的 JSON：{error}',
+    previewEmpty: '暂无可预览元素。',
   },
   comfyui: {
     generation: '图像生成',
@@ -673,6 +744,36 @@ const zh: Translations = {
     error: '错误：{error}',
     emptyHint: '发送消息开始对话',
     langAuto: '自动',
+    streamOutput: '流式输出',
+    streamShort: '流式',
+    streamHint: '边生成边显示 AI 回复。',
+    thinkingStrength: '思考强度',
+    thinkingShort: '思考',
+    thinkingHint: '实际 reasoning 效果取决于当前模型能力。',
+    thinkingLevels: {
+      off: '关',
+      low: '低',
+      medium: '中',
+      high: '高',
+    },
+    canvasSessions: {
+      sectionTitle: '会话',
+      newSession: '+ 新建',
+      menuAria: '{title} 会话操作',
+      titleLabel: '会话标题',
+      rename: '重命名',
+      renameAria: '重命名会话',
+      clear: '清空',
+      clearAria: '清空会话',
+      delete: '删除',
+      deleteAria: '删除会话',
+      saveRename: '保存',
+      saveRenameAria: '保存会话名称',
+      cancelRename: '取消',
+      messageCount: '{count} 条消息',
+      terminal: '终端',
+      noRequestLogs: '暂无请求日志',
+    },
     presets: {
       title: '预设管理',
       selectPreset: '选择预设...',
@@ -706,6 +807,7 @@ const zh: Translations = {
   },
   layoutQuality: {
     title: '布局质量检测',
+    passedTitle: '布局检测通过',
     pass: '布局质量检测通过。',
     fail: '布局存在以下问题：',
     accept: '接受当前布局',

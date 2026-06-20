@@ -107,11 +107,24 @@ Let me know if you'd like any adjustments!`;
     expect(result!.style_description.photo).toBeDefined();
   });
 
-  // ─── 无 ```json 代码块 → null ─────────────────────────────────
+  // ─── 兼容模型未严格返回 ```json 代码块 ──────────────────────────
 
-  it('无 ```json 代码块应返回 null', () => {
+  it('应解析有效的纯 JSON 响应', () => {
     const result = extractAndValidateIdeogramJSON(JSON.stringify(validOutput, null, 2));
-    expect(result).toBeNull();
+    expect(result).not.toBeNull();
+    expect(result!.compositional_deconstruction.elements).toHaveLength(2);
+  });
+
+  it('应解析普通代码块中的有效 JSON', () => {
+    const result = extractAndValidateIdeogramJSON(`\`\`\`\n${JSON.stringify(validOutput, null, 2)}\n\`\`\``);
+    expect(result).not.toBeNull();
+    expect(result!.high_level_description).toBe('A peaceful garden scene with flowers and trees.');
+  });
+
+  it('应解析前后带说明文本的有效 JSON 对象', () => {
+    const result = extractAndValidateIdeogramJSON(`Here is the composition:\n${JSON.stringify(validOutput, null, 2)}\nDone.`);
+    expect(result).not.toBeNull();
+    expect(result!.style_description.aesthetics).toBe('Soft and ethereal');
   });
 
   it('纯文本无代码块应返回 null', () => {
@@ -651,6 +664,8 @@ describe('CANVAS_CHAT_SYSTEM_PROMPT', () => {
     expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('IdeogramOutput');
     expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('```json');
     expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Example response format');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Return ONLY a single valid ```json code block');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).not.toContain('You may briefly explain');
   });
 
   it('应不包含旧的模糊约束文本', () => {

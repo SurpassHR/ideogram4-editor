@@ -3,7 +3,7 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { useCanvasChat } from '../useCanvasChat';
 import { useEditorStore } from '../../store';
 import { getLlmProviders } from '../../components/llm/api';
-import { sendChatMessageStream } from '../../services/llm-stream';
+import { sendChatMessageWithOptions } from '../../services/llm-stream';
 import type { ChatMessage } from '../../types/chat';
 
 vi.mock('../../components/llm/api', () => ({
@@ -11,7 +11,7 @@ vi.mock('../../components/llm/api', () => ({
 }));
 
 vi.mock('../../services/llm-stream', () => ({
-  sendChatMessageStream: vi.fn(),
+  sendChatMessageWithOptions: vi.fn(),
 }));
 
 function makeCanvasSession(id: string, messages: ChatMessage[] = []) {
@@ -64,7 +64,7 @@ describe('useCanvasChat', () => {
   });
 
   it('JSON 解析失败时只请求一次并写入 parse_failed 请求日志', async () => {
-    vi.mocked(sendChatMessageStream).mockImplementation(
+    vi.mocked(sendChatMessageWithOptions).mockImplementation(
       async (_provider, _model, _messages, _systemPrompt, callbacks) => {
         callbacks.onDone('This response does not contain a JSON code block.');
       },
@@ -80,7 +80,7 @@ describe('useCanvasChat', () => {
       await result.current.sendMessage('生成一张咖啡海报');
     });
 
-    expect(sendChatMessageStream).toHaveBeenCalledTimes(1);
+    expect(sendChatMessageWithOptions).toHaveBeenCalledTimes(1);
 
     const state = useEditorStore.getState();
     expect(state.isCanvasChatLoading).toBe(false);

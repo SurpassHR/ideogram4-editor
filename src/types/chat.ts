@@ -3,6 +3,9 @@
 import type { IdeogramOutput } from './index';
 import type { LayoutQualityReport } from '../services/layout-validator';
 
+/** Chat 请求的显式思考强度设置 */
+export type ChatThinkingLevel = 'off' | 'low' | 'medium' | 'high';
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';

@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useEditorStore } from '../store';
 import { getLlmProviders } from '../components/llm/api';
-import { sendChatMessageStream } from '../services/llm-stream';
+import { sendChatMessageWithOptions } from '../services/llm-stream';
 import { CANVAS_CHAT_SYSTEM_PROMPT, buildCanvasChatContext, buildLayoutFeedbackPrompt, extractAndValidateIdeogramJSON } from '../services/llm-canvas-chat';
 import { validateLayout } from '../services/layout-validator';
 import { generateMessageId, createUserMessage, createAssistantMessage } from '../types/chat';
@@ -72,6 +72,8 @@ export function useCanvasChat() {
   const finishCanvasChatRequest = useEditorStore(s => s.finishCanvasChatRequest);
   const chatModel = useEditorStore(s => s.chatModel);
   const chatResponseLang = useEditorStore(s => s.chatResponseLang);
+  const chatStreamEnabled = useEditorStore(s => s.chatStreamEnabled);
+  const chatThinkingLevel = useEditorStore(s => s.chatThinkingLevel);
   const setChatModel = useEditorStore(s => s.setChatModel);
   const setChatResponseLang = useEditorStore(s => s.setChatResponseLang);
   const pendingQualityReport = useEditorStore(s => s.pendingQualityReport);
@@ -300,7 +302,7 @@ export function useCanvasChat() {
         resolve();
       };
 
-      const streamResult = sendChatMessageStream(provider, parsed.modelName, apiMessages, CANVAS_CHAT_SYSTEM_PROMPT + langHint, {
+      const streamResult = sendChatMessageWithOptions(provider, parsed.modelName, apiMessages, CANVAS_CHAT_SYSTEM_PROMPT + langHint, {
         onChunk: ({ type, text }) => {
           if (type === 'thinking') {
             accumulatedThinking.push(text);
@@ -347,22 +349,12 @@ export function useCanvasChat() {
               detail: `${parsedJson.compositional_deconstruction.elements.length} elements`,
             });
 
-            const rawElements = parsedJson.compositional_deconstruction.elements;
-            const bboxSystem = detectBboxSystem(rawElements);
-            const normCw = parsedJson.canvasW ?? canvasW;
-            const normCh = parsedJson.canvasH ?? canvasH;
-            const normElements = bboxSystem === 'normalized' ? rawElements : rawElements.map(el => {
-              const [y1, x1, y2, x2] = el.bbox;
-              if (bboxSystem === 'fractional') return { ...el, bbox: [y1 * 1000, x1 * 1000, y2 * 1000, x2 * 1000] as [number, number, number, number] };
-              return { ...el, bbox: [(y1 / normCh) * 1000, (x1 / normCw) * 1000, (y2 / normCh) * 1000, (x2 / normCw) * 1000] as [number, number, number, number] };
-            });
-            const qualityReport = validateLayout(normElements, normCw, normCh);
-            setPendingQualityReport(qualityReport.overallPass ? null : qualityReport);
+            setPendingQualityReport(null);
             appendCanvasChatRequestStep(requestId, {
-              kind: 'layout_validation',
+              kind: 'done',
               status: 'success',
-              label: 'Validate layout quality',
-              detail: qualityReport.overallPass ? 'All metrics passed' : qualityReport.userSummary,
+              label: 'Ready to apply',
+              detail: 'JSON is valid. Layout quality will be diagnosed after Apply.',
             });
             finishCanvasChatRequest(requestId, 'success');
           } else {
@@ -379,6 +371,9 @@ export function useCanvasChat() {
           resolve();
         },
         onError: finishWithError,
+      }, {
+        streamEnabled: chatStreamEnabled,
+        thinkingLevel: chatThinkingLevel,
       });
 
       void Promise.resolve(streamResult).catch(err => {
@@ -390,20 +385,11 @@ export function useCanvasChat() {
     parseModel, chatModel, finishCanvasChatRequest,
     boxes, canvasW, canvasH, globalPalette, highLevelDescription,
     aesthetics, lighting, medium, artStyle, background, photoArtStyleMode,
-    canvasChatMessages, chatResponseLang, setPendingIdeogramOutput, setPendingQualityReport,
+    canvasChatMessages, chatResponseLang, chatStreamEnabled, chatThinkingLevel, setPendingIdeogramOutput, setPendingQualityReport,
   ]);
 
-  /** Apply 确认弹窗的选中状态 */
-  const [applySelections, setApplySelections] = useState<ApplySelections>({
-    boxes: true,
-    globalDesc: true,
-    styleParams: true,
-    globalPalette: true,
-    modeSwitch: true,
-  });
-
-  /** 选择性 Apply pendingIdeogramOutput 到画布 */
-  const applyOutput = useCallback((selections: ApplySelections) => {
+  /** Apply pendingIdeogramOutput 到画布，并基于已落地布局生成质量诊断 */
+  const applyOutput = useCallback(() => {
     if (!pendingIdeogramOutput) return 0;
 
     const store = useEditorStore.getState();
@@ -412,50 +398,47 @@ export function useCanvasChat() {
         (pendingIdeogramOutput.canvasW !== store.canvasW || pendingIdeogramOutput.canvasH !== store.canvasH)) {
       store.setCanvasDimensions(pendingIdeogramOutput.canvasW, pendingIdeogramOutput.canvasH);
     }
-    if (selections.boxes) {
-      const elements = pendingIdeogramOutput.compositional_deconstruction.elements;
-      const system = detectBboxSystem(elements);
-      const cw = pendingIdeogramOutput.canvasW ?? store.canvasW;
-      const ch = pendingIdeogramOutput.canvasH ?? store.canvasH;
+    const elements = pendingIdeogramOutput.compositional_deconstruction.elements;
+    const system = detectBboxSystem(elements);
+    const cw = pendingIdeogramOutput.canvasW ?? store.canvasW;
+    const ch = pendingIdeogramOutput.canvasH ?? store.canvasH;
 
-      store.clearBoxes();
-      elements.forEach(el => {
-        const { x, y, w, h } = bboxToPixels(el.bbox, cw, ch, system);
-        store.addBox({
-          x, y, w, h,
-          mode: el.type,
-          text: el.text || '',
-          desc: el.desc || '',
-          colors: el.color_palette || [],
-          imageDataUrl: null,
-          imageRole: 'both' as const,
-        });
+    store.clearBoxes();
+    elements.forEach(el => {
+      const { x, y, w, h } = bboxToPixels(el.bbox, cw, ch, system);
+      store.addBox({
+        x, y, w, h,
+        mode: el.type,
+        text: el.text || '',
+        desc: el.desc || '',
+        colors: el.color_palette || [],
+        imageDataUrl: null,
+        imageRole: 'both' as const,
       });
-    }
+    });
 
     const sd = pendingIdeogramOutput.style_description;
-    if (selections.globalDesc) {
-      store.setGlobalSetting('highLevelDescription', pendingIdeogramOutput.high_level_description || '');
+    store.setGlobalSetting('highLevelDescription', pendingIdeogramOutput.high_level_description || '');
+    store.setGlobalSetting('aesthetics', sd.aesthetics || '');
+    store.setGlobalSetting('lighting', sd.lighting || '');
+    store.setGlobalSetting('background', pendingIdeogramOutput.compositional_deconstruction.background || '');
+    if ('photo' in sd) {
+      store.setPhotoArtStyleMode(MODE_PHOTO);
+      store.setGlobalSetting('medium', (sd.photo as string) || '');
+      store.setGlobalSetting('artStyle', sd.medium || '');
+    } else {
+      store.setPhotoArtStyleMode(MODE_ARTSTYLE);
+      store.setGlobalSetting('medium', sd.medium || '');
+      store.setGlobalSetting('artStyle', sd.art_style || '');
     }
-    if (selections.styleParams) {
-      store.setGlobalSetting('aesthetics', sd.aesthetics || '');
-      store.setGlobalSetting('lighting', sd.lighting || '');
-      store.setGlobalSetting('background', pendingIdeogramOutput.compositional_deconstruction.background || '');
-      if ('photo' in sd) {
-        store.setPhotoArtStyleMode(MODE_PHOTO);
-        store.setGlobalSetting('medium', (sd.photo as string) || '');
-        store.setGlobalSetting('artStyle', sd.medium || '');
-      } else {
-        store.setPhotoArtStyleMode(MODE_ARTSTYLE);
-        store.setGlobalSetting('medium', sd.medium || '');
-        store.setGlobalSetting('artStyle', sd.art_style || '');
-      }
-    }
-    if (selections.globalPalette) {
-      // clearGlobalPalette not available as single action — set directly
-      (sd.color_palette || []).forEach(c => store.addGlobalColor(c));
-    }
-    // modeSwitch is already handled by styleParams (photo vs art_style detection)
+    (sd.color_palette || []).forEach(c => store.addGlobalColor(c));
+
+    const normalizedElements = system === 'normalized' ? elements : elements.map(el => {
+      const [y1, x1, y2, x2] = el.bbox;
+      if (system === 'fractional') return { ...el, bbox: [y1 * 1000, x1 * 1000, y2 * 1000, x2 * 1000] as [number, number, number, number] };
+      return { ...el, bbox: [(y1 / ch) * 1000, (x1 / cw) * 1000, (y2 / ch) * 1000, (x2 / cw) * 1000] as [number, number, number, number] };
+    });
+    store.setPendingQualityReport(validateLayout(normalizedElements, cw, ch));
 
     return pendingIdeogramOutput.compositional_deconstruction.elements.length;
   }, [pendingIdeogramOutput]);
@@ -526,8 +509,6 @@ export function useCanvasChat() {
     chatResponseLang,
     sendMessage,
     applyOutput,
-    applySelections,
-    setApplySelections,
     handleClose,
     handleClearHistory,
     handleSelectModel: setChatModel,

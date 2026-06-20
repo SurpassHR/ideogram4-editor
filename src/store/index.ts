@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { Box, IdeogramOutput, GenerationStatus, PhotoArtStyleMode } from '../types';
-import type { CanvasChatRequestLogStep, CanvasChatSession, ChatMessage } from '../types/chat';
+import type { CanvasChatRequestLogStep, CanvasChatSession, ChatMessage, ChatThinkingLevel } from '../types/chat';
 import type { PromptPreset } from '../types/presets';
 import { PRESETS_STORAGE_KEY, createBuiltinPresets } from '../types/presets';
 import { MODE_ARTSTYLE, MODE_PHOTO } from '../types';
@@ -61,6 +61,21 @@ function canvasChatTitleFromMessage(message: ChatMessage): string {
   const text = message.content.trim();
   if (!text) return '新会话';
   return text.length > 24 ? `${text.slice(0, 24)}...` : text;
+}
+
+const CHAT_STREAM_ENABLED_STORAGE_KEY = 'ideogram4-chat-stream-enabled';
+const CHAT_THINKING_LEVEL_STORAGE_KEY = 'ideogram4-chat-thinking-level';
+const CHAT_THINKING_LEVELS: ChatThinkingLevel[] = ['off', 'low', 'medium', 'high'];
+
+function loadChatStreamEnabled(): boolean {
+  return localStorage.getItem(CHAT_STREAM_ENABLED_STORAGE_KEY) !== 'false';
+}
+
+function loadChatThinkingLevel(): ChatThinkingLevel {
+  const raw = localStorage.getItem(CHAT_THINKING_LEVEL_STORAGE_KEY);
+  return CHAT_THINKING_LEVELS.includes(raw as ChatThinkingLevel)
+    ? raw as ChatThinkingLevel
+    : 'medium';
 }
 
 // ─── 预设持久化辅助 ────────────────────────────────────────────
@@ -169,6 +184,9 @@ interface EditorStore {
   pendingIdeogramOutput: IdeogramOutput | null;
   createCanvasChatSession: (title?: string) => string;
   selectCanvasChatSession: (sessionId: string) => void;
+  renameCanvasChatSession: (sessionId: string, title: string) => void;
+  deleteCanvasChatSession: (sessionId: string) => void;
+  clearCanvasChatSession: (sessionId: string) => void;
   setCanvasChatMaximized: (maximized: boolean) => void;
   setCanvasChatOpen: (open: boolean) => void;
   addCanvasChatMessage: (message: ChatMessage) => void;
@@ -191,6 +209,10 @@ interface EditorStore {
   // LLM 回复语言偏好（persist）
   chatResponseLang: string;
   setChatResponseLang: (lang: string) => void;
+  chatStreamEnabled: boolean;
+  chatThinkingLevel: ChatThinkingLevel;
+  setChatStreamEnabled: (enabled: boolean) => void;
+  setChatThinkingLevel: (level: ChatThinkingLevel) => void;
 
   // Image 操作
   importImageToBox: (boxId: string, dataUrl: string) => void;
@@ -488,6 +510,77 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     };
   }),
 
+  renameCanvasChatSession: (sessionId, title) => {
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) return;
+    set(state => ({
+      canvasChatSessions: state.canvasChatSessions.map(session =>
+        session.id === sessionId
+          ? { ...session, title: trimmedTitle, updatedAt: Date.now() }
+          : session
+      ),
+    }));
+  },
+
+  deleteCanvasChatSession: (sessionId) => set(state => {
+    const targetIndex = state.canvasChatSessions.findIndex(session => session.id === sessionId);
+    if (targetIndex < 0) return {};
+
+    const remainingSessions = state.canvasChatSessions.filter(session => session.id !== sessionId);
+    if (remainingSessions.length === 0) {
+      const session = createCanvasChatSessionRecord();
+      return {
+        canvasChatSessions: [session],
+        activeCanvasChatSessionId: session.id,
+        activeCanvasChatRequestId: null,
+        canvasChatMessages: [],
+        pendingIdeogramOutput: null,
+        pendingQualityReport: null,
+      };
+    }
+
+    if (state.activeCanvasChatSessionId !== sessionId) {
+      return { canvasChatSessions: remainingSessions };
+    }
+
+    const nextIndex = Math.min(targetIndex, remainingSessions.length - 1);
+    const nextSession = remainingSessions[nextIndex];
+    return {
+      canvasChatSessions: remainingSessions,
+      activeCanvasChatSessionId: nextSession.id,
+      activeCanvasChatRequestId: null,
+      canvasChatMessages: nextSession.messages,
+      pendingIdeogramOutput: nextSession.pendingIdeogramOutput,
+      pendingQualityReport: nextSession.pendingQualityReport,
+    };
+  }),
+
+  clearCanvasChatSession: (sessionId) => set(state => {
+    const isActiveSession = state.activeCanvasChatSessionId === sessionId;
+    return {
+      ...(isActiveSession
+        ? {
+            canvasChatMessages: [],
+            pendingIdeogramOutput: null,
+            pendingQualityReport: null,
+            activeCanvasChatRequestId: null,
+          }
+        : {}),
+      canvasChatSessions: state.canvasChatSessions.map(session =>
+        session.id === sessionId
+          ? {
+              ...session,
+              updatedAt: Date.now(),
+              messages: [],
+              pendingIdeogramOutput: null,
+              pendingQualityReport: null,
+              requestLogs: [],
+            }
+          : session
+      ),
+    };
+  }),
+
   setCanvasChatMaximized: (maximized) => set({ isCanvasChatMaximized: maximized }),
 
   setCanvasChatOpen: (open) => set({ isCanvasChatOpen: open }),
@@ -644,6 +737,16 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     localStorage.setItem('ideogram4-chat-lang', lang);
     set({ chatResponseLang: lang });
   },
+  chatStreamEnabled: loadChatStreamEnabled(),
+  chatThinkingLevel: loadChatThinkingLevel(),
+  setChatStreamEnabled: (enabled) => {
+    localStorage.setItem(CHAT_STREAM_ENABLED_STORAGE_KEY, String(enabled));
+    set({ chatStreamEnabled: enabled });
+  },
+  setChatThinkingLevel: (level) => {
+    localStorage.setItem(CHAT_THINKING_LEVEL_STORAGE_KEY, level);
+    set({ chatThinkingLevel: level });
+  },
 
   // Image 操作
   importImageToBox: (boxId, dataUrl) => set(state => ({
@@ -675,7 +778,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   updatePreset: (id, updates) => {
     const state = get();
     const newPresets = state.chatPresets.map(p =>
-      p.id === id ? { ...p, ...updates, updatedAt: Date.now() } : p,
+      p.id === id ? { ...p, ...updates, updatedAt: Math.max(Date.now(), p.updatedAt + 1) } : p,
     );
     savePresetsToStorage(newPresets);
     set({ chatPresets: newPresets });

@@ -227,6 +227,41 @@ describe('EditorStore', () => {
     });
   });
 
+  describe('chat run settings', () => {
+    beforeEach(() => {
+      localStorage.removeItem('ideogram4-chat-stream-enabled');
+      localStorage.removeItem('ideogram4-chat-thinking-level');
+      useEditorStore.setState({
+        chatStreamEnabled: true,
+        chatThinkingLevel: 'medium',
+      } as Partial<ReturnType<typeof useEditorStore.getState>>);
+    });
+
+    it('默认应开启流式并使用 medium 思考强度', () => {
+      const state = useEditorStore.getState();
+      expect(state.chatStreamEnabled).toBe(true);
+      expect(state.chatThinkingLevel).toBe('medium');
+    });
+
+    it('setChatStreamEnabled 应更新状态并持久化', () => {
+      useEditorStore.getState().setChatStreamEnabled(false);
+
+      expect(useEditorStore.getState().chatStreamEnabled).toBe(false);
+      expect(localStorage.getItem('ideogram4-chat-stream-enabled')).toBe('false');
+
+      useEditorStore.getState().setChatStreamEnabled(true);
+      expect(useEditorStore.getState().chatStreamEnabled).toBe(true);
+      expect(localStorage.getItem('ideogram4-chat-stream-enabled')).toBe('true');
+    });
+
+    it('setChatThinkingLevel 应更新四档思考强度并持久化', () => {
+      useEditorStore.getState().setChatThinkingLevel('high');
+
+      expect(useEditorStore.getState().chatThinkingLevel).toBe('high');
+      expect(localStorage.getItem('ideogram4-chat-thinking-level')).toBe('high');
+    });
+  });
+
   describe('importImageToBox', () => {
     it('应设置 box 的 imageDataUrl', () => {
       useEditorStore.setState({
@@ -390,6 +425,106 @@ describe('EditorStore', () => {
           title: '海报构图',
           messages: [],
         });
+        expect(state.canvasChatMessages).toEqual([]);
+      });
+
+      it('renameCanvasChatSession 应更新会话标题并忽略空标题', () => {
+        const store = useEditorStore.getState() as unknown as {
+          renameCanvasChatSession?: (sessionId: string, title: string) => void;
+        };
+        expect(typeof store.renameCanvasChatSession).toBe('function');
+
+        store.renameCanvasChatSession?.('session_1', '  构图方案 A  ');
+        expect(useEditorStore.getState().canvasChatSessions[0].title).toBe('构图方案 A');
+
+        store.renameCanvasChatSession?.('session_1', '   ');
+        expect(useEditorStore.getState().canvasChatSessions[0].title).toBe('构图方案 A');
+      });
+
+      it('deleteCanvasChatSession 应删除目标会话并切换到邻近会话', () => {
+        const firstMessage: ChatMessage = {
+          id: 'msg_1',
+          role: 'user',
+          content: '第一段需求',
+          timestamp: 1000,
+        };
+        const secondMessage: ChatMessage = {
+          id: 'msg_2',
+          role: 'assistant',
+          content: '第二个会话的回复',
+          timestamp: 2000,
+        };
+        useEditorStore.setState({
+          canvasChatSessions: [
+            makeCanvasSession('session_1', '第一会话', [firstMessage]),
+            makeCanvasSession('session_2', '第二会话', [secondMessage]),
+          ],
+          activeCanvasChatSessionId: 'session_2',
+          canvasChatMessages: [secondMessage],
+        } as Partial<ReturnType<typeof useEditorStore.getState>>);
+
+        const store = useEditorStore.getState() as unknown as {
+          deleteCanvasChatSession?: (sessionId: string) => void;
+        };
+        expect(typeof store.deleteCanvasChatSession).toBe('function');
+
+        store.deleteCanvasChatSession?.('session_2');
+
+        const state = useEditorStore.getState();
+        expect(state.canvasChatSessions.map(session => session.id)).toEqual(['session_1']);
+        expect(state.activeCanvasChatSessionId).toBe('session_1');
+        expect(state.canvasChatMessages).toEqual([firstMessage]);
+      });
+
+      it('deleteCanvasChatSession 删除最后一个会话时应保留新的空会话', () => {
+        const store = useEditorStore.getState() as unknown as {
+          deleteCanvasChatSession?: (sessionId: string) => void;
+        };
+
+        store.deleteCanvasChatSession?.('session_1');
+
+        const state = useEditorStore.getState();
+        expect(state.canvasChatSessions).toHaveLength(1);
+        expect(state.activeCanvasChatSessionId).toBe(state.canvasChatSessions[0].id);
+        expect(state.canvasChatSessions[0].messages).toEqual([]);
+        expect(state.canvasChatMessages).toEqual([]);
+      });
+
+      it('clearCanvasChatSession 应清空指定会话并在清空当前会话时同步当前消息', () => {
+        const firstMessage: ChatMessage = {
+          id: 'msg_1',
+          role: 'user',
+          content: '第一段需求',
+          timestamp: 1000,
+        };
+        const secondMessage: ChatMessage = {
+          id: 'msg_2',
+          role: 'assistant',
+          content: '第二个会话的回复',
+          timestamp: 2000,
+        };
+        useEditorStore.setState({
+          canvasChatSessions: [
+            makeCanvasSession('session_1', '第一会话', [firstMessage]),
+            makeCanvasSession('session_2', '第二会话', [secondMessage]),
+          ],
+          activeCanvasChatSessionId: 'session_1',
+          canvasChatMessages: [firstMessage],
+        } as Partial<ReturnType<typeof useEditorStore.getState>>);
+
+        const store = useEditorStore.getState() as unknown as {
+          clearCanvasChatSession?: (sessionId: string) => void;
+        };
+        expect(typeof store.clearCanvasChatSession).toBe('function');
+
+        store.clearCanvasChatSession?.('session_2');
+        let state = useEditorStore.getState();
+        expect(state.canvasChatSessions[1].messages).toEqual([]);
+        expect(state.canvasChatMessages).toEqual([firstMessage]);
+
+        store.clearCanvasChatSession?.('session_1');
+        state = useEditorStore.getState();
+        expect(state.canvasChatSessions[0].messages).toEqual([]);
         expect(state.canvasChatMessages).toEqual([]);
       });
 

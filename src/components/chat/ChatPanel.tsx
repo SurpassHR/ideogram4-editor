@@ -4,6 +4,7 @@ import { useI18n } from '../../i18n/context';
 import { useChatPanel } from '../../hooks/useChatPanel';
 import ChatMessage from './ChatMessage';
 import SelectMenu from './SelectMenu';
+import ChatRunControls from './ChatRunControls';
 import LlmConfigPanel from '../llm/LlmConfigPanel';
 import { computeChatPanelPosition } from '../../utils/panelPosition';
 import { resolveTemplate } from '../../utils/resolveTemplate';
@@ -292,6 +293,8 @@ export default function ChatPanel() {
             value={chatResponseLang}
             onChange={setChatResponseLang}
           />
+
+          <ChatRunControls />
 
           <span className="chat-header-spacer" />
 

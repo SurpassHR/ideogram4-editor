@@ -42,12 +42,34 @@ export default function SelectMenu({
     const btn = buttonRef.current;
     if (!btn) return;
     const rect = btn.getBoundingClientRect();
-    setDropdownStyle({
+    const viewportPadding = 8;
+    const preferredMaxHeight = 220;
+    const availableBelow = window.innerHeight - rect.bottom - viewportPadding;
+    const availableAbove = rect.top - viewportPadding;
+    const shouldOpenUp = availableBelow < 160 && availableAbove > availableBelow;
+    const maxHeight = Math.max(
+      96,
+      Math.min(preferredMaxHeight, shouldOpenUp ? availableAbove : availableBelow),
+    );
+
+    const baseStyle: React.CSSProperties = {
       position: 'fixed',
-      top: `${rect.bottom + 2}px`,
       left: `${rect.left}px`,
       minWidth: `${Math.max(rect.width, 100)}px`,
-    });
+      maxHeight: `${maxHeight}px`,
+    };
+
+    setDropdownStyle(shouldOpenUp
+      ? {
+          ...baseStyle,
+          top: 'auto',
+          bottom: `${window.innerHeight - rect.top + 2}px`,
+        }
+      : {
+          ...baseStyle,
+          top: `${rect.bottom + 2}px`,
+          bottom: 'auto',
+        });
   }, []);
 
   const handleToggle = useCallback(() => {
@@ -136,7 +158,7 @@ export default function SelectMenu({
   );
 
   return (
-    <div className={`select-menu-wrapper ${className}`}>
+    <div className={`select-menu-wrapper select-menu${open ? ' open' : ''} ${className}`}>
       <button
         ref={buttonRef}
         className="select-menu-trigger"

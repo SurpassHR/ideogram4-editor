@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 
 export interface ContextMenuItem {
   label: string;
+  icon?: string;
   shortcut?: string;
   danger?: boolean;
   onClick: () => void;
@@ -70,12 +71,18 @@ export default function ContextMenu({ x, y, items, onClose }: ContextMenuProps) 
           <button
             key={i}
             className={`context-menu-item${item.danger ? ' danger' : ''}`}
+            aria-label={item.icon ? `${item.icon} ${item.label}` : item.label}
             onClick={() => {
               item.onClick();
               onClose();
             }}
           >
-            <span className="context-menu-item-label">{item.label}</span>
+            <span className="context-menu-item-main">
+              {item.icon && (
+                <span className="context-menu-item-icon">{item.icon}</span>
+              )}
+              <span className="context-menu-item-label">{item.label}</span>
+            </span>
             {item.shortcut && (
               <span className="context-menu-item-shortcut">{item.shortcut}</span>
             )}
