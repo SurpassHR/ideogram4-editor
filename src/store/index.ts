@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { Box, IdeogramOutput, GenerationStatus, PhotoArtStyleMode } from '../types';
-import type { ChatMessage } from '../types/chat';
+import type { CanvasChatRequestLogStep, CanvasChatSession, ChatMessage } from '../types/chat';
 import type { PromptPreset } from '../types/presets';
 import { PRESETS_STORAGE_KEY, createBuiltinPresets } from '../types/presets';
 import { MODE_ARTSTYLE, MODE_PHOTO } from '../types';
@@ -34,6 +34,33 @@ function uncheckedSelectionState(ids: string[]) {
 
 function idsFromInput(ids: string | string[]): string[] {
   return Array.isArray(ids) ? ids : [ids];
+}
+
+function generateCanvasChatId(prefix: string): string {
+  const hex = Math.random().toString(16).slice(2, 6);
+  return `${prefix}_${Date.now()}_${hex}`;
+}
+
+function createCanvasChatSessionRecord(title = '新会话'): CanvasChatSession {
+  const now = Date.now();
+  return {
+    id: generateCanvasChatId('canvas_session'),
+    title,
+    createdAt: now,
+    updatedAt: now,
+    messages: [],
+    pendingIdeogramOutput: null,
+    pendingQualityReport: null,
+    requestLogs: [],
+  };
+}
+
+const initialCanvasChatSession = createCanvasChatSessionRecord();
+
+function canvasChatTitleFromMessage(message: ChatMessage): string {
+  const text = message.content.trim();
+  if (!text) return '新会话';
+  return text.length > 24 ? `${text.slice(0, 24)}...` : text;
 }
 
 // ─── 预设持久化辅助 ────────────────────────────────────────────
@@ -134,8 +161,15 @@ interface EditorStore {
 
   // Canvas Chat 状态（画布级 AI 构图对话）
   isCanvasChatOpen: boolean;
+  isCanvasChatMaximized: boolean;
+  canvasChatSessions: CanvasChatSession[];
+  activeCanvasChatSessionId: string;
+  activeCanvasChatRequestId: string | null;
   canvasChatMessages: ChatMessage[];
   pendingIdeogramOutput: IdeogramOutput | null;
+  createCanvasChatSession: (title?: string) => string;
+  selectCanvasChatSession: (sessionId: string) => void;
+  setCanvasChatMaximized: (maximized: boolean) => void;
   setCanvasChatOpen: (open: boolean) => void;
   addCanvasChatMessage: (message: ChatMessage) => void;
   setPendingIdeogramOutput: (output: IdeogramOutput | null) => void;
@@ -143,6 +177,12 @@ interface EditorStore {
   isCanvasChatLoading: boolean;
   setCanvasChatLoading: (loading: boolean) => void;
   updateCanvasChatMessage: (messageId: string, updates: Partial<Omit<ChatMessage, 'id'>>) => void;
+  startCanvasChatRequest: (promptPreview: string) => string;
+  appendCanvasChatRequestStep: (
+    requestId: string,
+    step: Omit<CanvasChatRequestLogStep, 'id' | 'at'>,
+  ) => void;
+  finishCanvasChatRequest: (requestId: string, status: 'success' | 'error', detail?: string) => void;
 
   // 布局质量检测结果
   pendingQualityReport: LayoutQualityReport | null;
@@ -415,32 +455,188 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
   // Canvas Chat 状态（画布级 AI 构图对话）
   isCanvasChatOpen: false,
+  isCanvasChatMaximized: false,
+  canvasChatSessions: [initialCanvasChatSession],
+  activeCanvasChatSessionId: initialCanvasChatSession.id,
+  activeCanvasChatRequestId: null,
   canvasChatMessages: [],
   isCanvasChatLoading: false,
   pendingIdeogramOutput: null,
 
+  createCanvasChatSession: (title) => {
+    const session = createCanvasChatSessionRecord(title);
+    set(state => ({
+      canvasChatSessions: [...state.canvasChatSessions, session],
+      activeCanvasChatSessionId: session.id,
+      activeCanvasChatRequestId: null,
+      canvasChatMessages: [],
+      pendingIdeogramOutput: null,
+      pendingQualityReport: null,
+    }));
+    return session.id;
+  },
+
+  selectCanvasChatSession: (sessionId) => set(state => {
+    const session = state.canvasChatSessions.find(s => s.id === sessionId);
+    if (!session) return {};
+    return {
+      activeCanvasChatSessionId: session.id,
+      activeCanvasChatRequestId: null,
+      canvasChatMessages: session.messages,
+      pendingIdeogramOutput: session.pendingIdeogramOutput,
+      pendingQualityReport: session.pendingQualityReport,
+    };
+  }),
+
+  setCanvasChatMaximized: (maximized) => set({ isCanvasChatMaximized: maximized }),
+
   setCanvasChatOpen: (open) => set({ isCanvasChatOpen: open }),
 
-  addCanvasChatMessage: (message) => set(state => ({
-    canvasChatMessages: [...state.canvasChatMessages, message],
+  addCanvasChatMessage: (message) => set(state => {
+    const nextMessages = [...state.canvasChatMessages, message];
+    return {
+      canvasChatMessages: nextMessages,
+      canvasChatSessions: state.canvasChatSessions.map(session => {
+        if (session.id !== state.activeCanvasChatSessionId) return session;
+        const shouldUpdateTitle = session.messages.length === 0 && message.role === 'user';
+        return {
+          ...session,
+          title: shouldUpdateTitle ? canvasChatTitleFromMessage(message) : session.title,
+          updatedAt: Date.now(),
+          messages: [...session.messages, message],
+        };
+      }),
+    };
+  }),
+
+  setPendingIdeogramOutput: (output) => set(state => ({
+    pendingIdeogramOutput: output,
+    canvasChatSessions: state.canvasChatSessions.map(session =>
+      session.id === state.activeCanvasChatSessionId
+        ? { ...session, pendingIdeogramOutput: output, updatedAt: Date.now() }
+        : session
+    ),
   })),
 
-  setPendingIdeogramOutput: (output) => set({ pendingIdeogramOutput: output }),
-
-  clearCanvasChat: () => set({
+  clearCanvasChat: () => set(state => ({
     canvasChatMessages: [],
     pendingIdeogramOutput: null,
-  }),
+    pendingQualityReport: null,
+    activeCanvasChatRequestId: null,
+    canvasChatSessions: state.canvasChatSessions.map(session =>
+      session.id === state.activeCanvasChatSessionId
+        ? {
+            ...session,
+            updatedAt: Date.now(),
+            messages: [],
+            pendingIdeogramOutput: null,
+            pendingQualityReport: null,
+            requestLogs: [],
+          }
+        : session
+    ),
+  })),
   setCanvasChatLoading: (loading) => set({ isCanvasChatLoading: loading }),
   updateCanvasChatMessage: (messageId, updates) => set(state => ({
     canvasChatMessages: state.canvasChatMessages.map(m =>
       m.id === messageId ? { ...m, ...updates } : m
     ),
+    canvasChatSessions: state.canvasChatSessions.map(session => {
+      if (session.id !== state.activeCanvasChatSessionId) return session;
+      return {
+        ...session,
+        updatedAt: Date.now(),
+        messages: session.messages.map(m =>
+          m.id === messageId ? { ...m, ...updates } : m
+        ),
+      };
+    }),
+  })),
+
+  startCanvasChatRequest: (promptPreview) => {
+    const requestId = generateCanvasChatId('canvas_request');
+    const now = Date.now();
+    set(state => ({
+      activeCanvasChatRequestId: requestId,
+      canvasChatSessions: state.canvasChatSessions.map(session =>
+        session.id === state.activeCanvasChatSessionId
+          ? {
+              ...session,
+              updatedAt: now,
+              requestLogs: [
+                ...session.requestLogs,
+                {
+                  id: requestId,
+                  sessionId: session.id,
+                  promptPreview,
+                  status: 'running',
+                  startedAt: now,
+                  steps: [],
+                },
+              ],
+            }
+          : session
+      ),
+    }));
+    return requestId;
+  },
+
+  appendCanvasChatRequestStep: (requestId, step) => {
+    const logStep: CanvasChatRequestLogStep = {
+      ...step,
+      id: generateCanvasChatId('canvas_step'),
+      at: Date.now(),
+    };
+    set(state => ({
+      canvasChatSessions: state.canvasChatSessions.map(session => ({
+        ...session,
+        requestLogs: session.requestLogs.map(log =>
+          log.id === requestId
+            ? { ...log, steps: [...log.steps, logStep] }
+            : log
+        ),
+      })),
+    }));
+  },
+
+  finishCanvasChatRequest: (requestId, status, detail) => set(state => ({
+    canvasChatSessions: state.canvasChatSessions.map(session => ({
+      ...session,
+      requestLogs: session.requestLogs.map(log =>
+        log.id === requestId
+          ? {
+              ...log,
+              status,
+              endedAt: Date.now(),
+              steps: detail
+                ? [
+                    ...log.steps,
+                    {
+                      id: generateCanvasChatId('canvas_step'),
+                      at: Date.now(),
+                      kind: status === 'success' ? 'done' : 'error',
+                      status,
+                      label: status === 'success' ? 'Request completed' : 'Request failed',
+                      detail,
+                    },
+                  ]
+                : log.steps,
+            }
+          : log
+      ),
+    })),
   })),
 
   // 布局质量检测结果
   pendingQualityReport: null,
-  setPendingQualityReport: (report) => set({ pendingQualityReport: report }),
+  setPendingQualityReport: (report) => set(state => ({
+    pendingQualityReport: report,
+    canvasChatSessions: state.canvasChatSessions.map(session =>
+      session.id === state.activeCanvasChatSessionId
+        ? { ...session, pendingQualityReport: report, updatedAt: Date.now() }
+        : session
+    ),
+  })),
 
   // LLM 回复语言偏好
   chatResponseLang: localStorage.getItem('ideogram4-chat-lang') || 'auto',

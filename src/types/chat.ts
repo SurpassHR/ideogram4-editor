@@ -1,5 +1,8 @@
 /** AI 对话与优化功能的消息类型定义 */
 
+import type { IdeogramOutput } from './index';
+import type { LayoutQualityReport } from '../services/layout-validator';
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
@@ -11,6 +14,50 @@ export interface ChatMessage {
   thinking?: string;
   /** 消息发送时刻的画布截图 Data URL（仅 Canvas Chat 使用） */
   canvasSnapshotUrl?: string;
+}
+
+/** Canvas Chat 的单个会话，后续可直接持久化到 localStorage */
+export interface CanvasChatSession {
+  id: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  messages: ChatMessage[];
+  pendingIdeogramOutput: IdeogramOutput | null;
+  pendingQualityReport: LayoutQualityReport | null;
+  requestLogs: CanvasChatRequestLog[];
+}
+
+/** Canvas Chat 的一次请求日志 */
+export interface CanvasChatRequestLog {
+  id: string;
+  sessionId: string;
+  promptPreview: string;
+  status: 'running' | 'success' | 'error';
+  startedAt: number;
+  endedAt?: number;
+  steps: CanvasChatRequestLogStep[];
+}
+
+/** Canvas Chat 请求日志中的单个步骤 */
+export interface CanvasChatRequestLogStep {
+  id: string;
+  at: number;
+  kind:
+    | 'snapshot'
+    | 'build_context'
+    | 'provider_ready'
+    | 'stream_start'
+    | 'stream_chunk'
+    | 'stream_done'
+    | 'parse_success'
+    | 'parse_failed'
+    | 'layout_validation'
+    | 'done'
+    | 'error';
+  status: 'pending' | 'running' | 'success' | 'error';
+  label: string;
+  detail?: string;
 }
 
 /** 生成唯一消息 ID：`msg_<timestamp>_<随机4位>` */

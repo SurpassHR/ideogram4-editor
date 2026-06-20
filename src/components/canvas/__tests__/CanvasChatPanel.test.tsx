@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, fireEvent, act } from '@testing-library/react';
+import { render, fireEvent, act, within } from '@testing-library/react';
 import CanvasChatPanel from '../CanvasChatPanel';
 import { useEditorStore } from '../../../store';
 import { I18nProvider } from '../../../i18n/context';
@@ -61,8 +61,22 @@ describe('CanvasChatPanel', () => {
     vi.clearAllMocks();
     useEditorStore.setState({
       isCanvasChatOpen: false,
+      isCanvasChatMaximized: false,
       canvasChatMessages: [],
+      canvasChatSessions: [{
+        id: 'session_1',
+        title: '新会话',
+        createdAt: 1000,
+        updatedAt: 1000,
+        messages: [],
+        pendingIdeogramOutput: null,
+        pendingQualityReport: null,
+        requestLogs: [],
+      }],
+      activeCanvasChatSessionId: 'session_1',
+      activeCanvasChatRequestId: null,
       pendingIdeogramOutput: null,
+      pendingQualityReport: null,
       chatModel: 'mock:gpt-4',
     });
     window.location.hash = '#/';
@@ -129,6 +143,72 @@ describe('CanvasChatPanel', () => {
       fireEvent.click(addButton);
 
       expect(window.location.hash).toBe('#/settings');
+    });
+
+    it('点击最大化按钮应显示三栏工作台', async () => {
+      const { getByRole, getByText } = await renderWithPending();
+
+      const maximizeButton = getByRole('button', { name: 'Maximize Canvas Chat' });
+      fireEvent.click(maximizeButton);
+
+      expect(useEditorStore.getState().isCanvasChatMaximized).toBe(true);
+      expect(document.querySelector('.canvas-chat-workbench')).not.toBeNull();
+      expect(getByText('Sessions')).toBeInTheDocument();
+      expect(getByText('Terminal')).toBeInTheDocument();
+    });
+
+    it('最大化终端应显示当前会话的请求日志步骤', async () => {
+      useEditorStore.setState({
+        isCanvasChatOpen: true,
+        isCanvasChatMaximized: true,
+        canvasChatSessions: [{
+          id: 'session_1',
+          title: '调试会话',
+          createdAt: 1000,
+          updatedAt: 1000,
+          messages: [],
+          pendingIdeogramOutput: null,
+          pendingQualityReport: null,
+          requestLogs: [{
+            id: 'request_1',
+            sessionId: 'session_1',
+            promptPreview: '生成咖啡海报',
+            status: 'error',
+            startedAt: 1000,
+            endedAt: 2000,
+            steps: [{
+              id: 'step_1',
+              at: 1500,
+              kind: 'parse_failed',
+              status: 'error',
+              label: 'Parse Ideogram JSON failed',
+              detail: 'No json code block',
+            }],
+          }],
+        }],
+        activeCanvasChatSessionId: 'session_1',
+        activeCanvasChatRequestId: 'request_1',
+      });
+
+      const { getByText } = await renderWithPending();
+
+      expect(getByText('生成咖啡海报')).toBeInTheDocument();
+      expect(getByText('Parse Ideogram JSON failed')).toBeInTheDocument();
+      expect(getByText('No json code block')).toBeInTheDocument();
+    });
+
+    it('最大化工作台应保留输入框和发送按钮', async () => {
+      useEditorStore.setState({
+        isCanvasChatOpen: true,
+        isCanvasChatMaximized: true,
+      });
+
+      await renderWithPending();
+
+      const workbench = document.querySelector('.canvas-chat-workbench') as HTMLElement;
+      expect(workbench).not.toBeNull();
+      expect(within(workbench).getByPlaceholderText('Describe the scene you want to compose...')).toBeInTheDocument();
+      expect(within(workbench).getByRole('button', { name: 'Send' })).toBeInTheDocument();
     });
   });
 
