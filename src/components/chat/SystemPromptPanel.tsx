@@ -132,15 +132,6 @@ export default function SystemPromptPanel({ embedded, onClose }: Props) {
       </div>
 
       <div className="sysprompt-list">
-        {/* 内置默认提示词 — 始终显示 */}
-        <div className="sp-card builtin">
-          <div className="sp-card-main">
-            <span className="sp-card-name">{t('chat.systemPrompt.defaultBuiltin')}</span>
-            <span className="sp-card-scope">{t('chat.systemPrompt.scopeBoth')}</span>
-          </div>
-          <span className="sp-card-badge">{t('chat.systemPrompt.default')}</span>
-        </div>
-
         {systemPrompts.length === 0 && !isNew && (
           <div className="sp-empty">{t('chat.systemPrompt.noPrompts')}</div>
         )}
