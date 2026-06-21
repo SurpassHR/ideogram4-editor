@@ -37,6 +37,7 @@ export function useChatPanel() {
   const updateBox = useEditorStore(s => s.updateBox);
   const closeChat = useEditorStore(s => s.closeChat);
   const clearChatHistory = useEditorStore(s => s.clearChatHistory);
+  const setChatHistory = useEditorStore(s => s.setChatHistory);
   const setChatModel = useEditorStore(s => s.setChatModel);
 
 
@@ -119,7 +120,11 @@ export function useChatPanel() {
     thinkingRef.current = '';
 
     try {
-      const allMessages = [...messages, userMessage];
+      // 从 store 直接读取最新消息列表，避免闭包中 messages 过期（如 retry 截断后）
+      const currentMessages = activeChatBoxId
+        ? (useEditorStore.getState().chatHistories[activeChatBoxId] || [])
+        : [];
+      const allMessages = [...currentMessages];
       const systemPrompt = buildBoxChatSystemPrompt(currentBox, {
         highLevelDescription,
         aesthetics,
@@ -187,6 +192,47 @@ export function useChatPanel() {
     // dismiss 仅影响 UI 渲染，不修改 store 数据
   }, []);
 
+  // 重试：重新发送触发该 assistant 消息的用户消息，替换当前及后续消息
+  const retryResponse = useCallback((messageId: string) => {
+    if (!activeChatBoxId) return;
+    const msgs = chatHistories[activeChatBoxId] || [];
+    const idx = msgs.findIndex(m => m.id === messageId);
+    if (idx <= 0) return; // 需要前面有一条用户消息
+
+    // 找到该 assistant 消息之前的最后一条用户消息
+    let userMsgIdx = -1;
+    for (let i = idx - 1; i >= 0; i--) {
+      if (msgs[i].role === 'user') {
+        userMsgIdx = i;
+        break;
+      }
+    }
+    if (userMsgIdx < 0) return;
+
+    const userMsg = msgs[userMsgIdx];
+    // 截断：保留到用户消息之前（不含该用户消息及其之后的所有内容）
+    const kept = msgs.slice(0, userMsgIdx);
+    setChatHistory(activeChatBoxId, kept);
+
+    // 重新发送该用户消息
+    sendMessage(userMsg.content);
+  }, [activeChatBoxId, chatHistories, setChatHistory, sendMessage]);
+
+  // 编辑用户消息后重新发送
+  const editAndSend = useCallback((messageId: string, newContent: string) => {
+    if (!activeChatBoxId) return;
+    const msgs = chatHistories[activeChatBoxId] || [];
+    const idx = msgs.findIndex(m => m.id === messageId);
+    if (idx < 0) return;
+
+    // 截断：保留该消息之前的所有消息
+    const kept = msgs.slice(0, idx);
+    setChatHistory(activeChatBoxId, kept);
+
+    // 发送编辑后的消息
+    sendMessage(newContent);
+  }, [activeChatBoxId, chatHistories, setChatHistory, sendMessage]);
+
   // 清空历史
   const handleClearHistory = useCallback(() => {
     if (!activeChatBoxId) return;
@@ -241,6 +287,8 @@ export function useChatPanel() {
     sendMessage,
     adoptResponse,
     dismissResponse,
+    retryResponse,
+    editAndSend,
     handleClearHistory,
     handleClose,
     handleSelectModel,

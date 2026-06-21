@@ -13,7 +13,10 @@ interface ChatMessageProps {
   onAdopt?: (messageId: string) => void;
   onDismiss?: (messageId: string) => void;
   onApply?: (messageId: string) => void;
+  onRetry?: (messageId: string) => void;
+  onEdit?: (messageId: string) => void;
   dismissed?: boolean;
+  isLoading?: boolean;
 }
 
 function formatTime(ts: number): string {
@@ -32,7 +35,7 @@ function renderMarkdown(text: string): string {
   });
 }
 
-export default function ChatMessage({ message, onAdopt, onDismiss, onApply, dismissed }: ChatMessageProps) {
+export default function ChatMessage({ message, onAdopt, onDismiss, onApply, onRetry, onEdit, dismissed, isLoading }: ChatMessageProps) {
   const { t, lang } = useI18n();
   const timeLabel = useMemo(() => formatTime(message.timestamp), [message.timestamp]);
 
@@ -110,9 +113,14 @@ export default function ChatMessage({ message, onAdopt, onDismiss, onApply, dism
         )}
       </div>
 
-      {/* 操作栏：已采纳 / 采纳+忽略+复制 / 仅复制（用户消息） */}
+      {/* 操作栏：已采纳 / 采纳+忽略+重试+复制 / 仅复制+编辑（用户消息） */}
       {isUser ? (
         <div className="chat-msg-card-actions">
+          {onEdit && !isLoading && (
+            <button className="chat-edit-btn" onClick={() => onEdit(message.id)} title={t('chat.edit')}>
+              ✏️
+            </button>
+          )}
           <span className="chat-msg-card-actions-spacer" />
           <button className="chat-copy-btn" onClick={handleCopy} title={t('chat.copy')}>📋</button>
         </div>
@@ -120,9 +128,23 @@ export default function ChatMessage({ message, onAdopt, onDismiss, onApply, dism
         <div className="chat-msg-card-actions">
           <span className="chat-adopted-badge">✓ {t('chat.adopted')}</span>
           <span className="chat-msg-card-actions-spacer" />
+          {onRetry && !isLoading && (
+            <button className="chat-retry-btn" onClick={() => onRetry(message.id)} title={t('chat.retry')}>
+              🔄
+            </button>
+          )}
           <button className="chat-copy-btn" onClick={handleCopy} title={t('chat.copy')}>📋</button>
         </div>
-      ) : dismissed ? null : (
+      ) : dismissed ? (
+        <div className="chat-msg-card-actions">
+          {onRetry && !isLoading && (
+            <button className="chat-retry-btn" onClick={() => onRetry(message.id)} title={t('chat.retry')}>
+              🔄
+            </button>
+          )}
+          <span className="chat-msg-card-actions-spacer" />
+        </div>
+      ) : (
         <div className="chat-msg-card-actions">
           {onAdopt && (
             <button className="chat-adopt-btn" onClick={() => onAdopt(message.id)}>
@@ -135,6 +157,11 @@ export default function ChatMessage({ message, onAdopt, onDismiss, onApply, dism
             </button>
           )}
           <span className="chat-msg-card-actions-spacer" />
+          {onRetry && !isLoading && (
+            <button className="chat-retry-btn" onClick={() => onRetry(message.id)} title={t('chat.retry')}>
+              🔄
+            </button>
+          )}
           <button className="chat-copy-btn" onClick={handleCopy} title={t('chat.copy')}>📋</button>
           {showApply && (
             <button

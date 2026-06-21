@@ -20,6 +20,8 @@ export default function ChatPanel() {
     isLoading,
     error,
     sendMessage,
+    retryResponse,
+    editAndSend,
     adoptResponse,
     dismissResponse,
     handleClearHistory,
@@ -36,6 +38,7 @@ export default function ChatPanel() {
   const { t } = useI18n();
   const [inputText, setInputText] = useState('');
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [showLlmConfig, setShowLlmConfig] = useState(false);
   const [toolbarCollapsed, setToolbarCollapsed] = useState(false);
   const messagesRef = useRef<HTMLDivElement>(null);
@@ -183,16 +186,44 @@ export default function ChatPanel() {
     const resolvedText = selectedPreset && currentBox
       ? resolveTemplate(text, currentBox)
       : text;
-    sendMessage(resolvedText);
+
+    if (editingMessageId) {
+      // 编辑模式：替换用户消息并重新发送
+      setEditingMessageId(null);
+      editAndSend(editingMessageId, resolvedText);
+    } else {
+      sendMessage(resolvedText);
+    }
     handleSelectPreset(null); // 发送后清除预设选择
-  }, [inputText, isLoading, sendMessage, selectedPreset, currentBox, handleSelectPreset]);
+  }, [inputText, isLoading, sendMessage, editAndSend, selectedPreset, currentBox, handleSelectPreset, editingMessageId]);
+
+  const handleRetry = useCallback((messageId: string) => {
+    retryResponse(messageId);
+  }, [retryResponse]);
+
+  const handleEdit = useCallback((messageId: string) => {
+    const msg = messages.find(m => m.id === messageId);
+    if (!msg) return;
+    setInputText(msg.content);
+    setEditingMessageId(messageId);
+    requestAnimationFrame(autoResizeTextarea);
+    // 聚焦输入框
+    textareaRef.current?.focus();
+  }, [messages, autoResizeTextarea]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    // 编辑模式下按 Escape 取消编辑
+    if (e.key === 'Escape' && editingMessageId) {
+      setEditingMessageId(null);
+      setInputText('');
+      e.preventDefault();
+      return;
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
-  }, [handleSend]);
+  }, [handleSend, editingMessageId]);
 
   const handleLlmConfigClose = useCallback(() => {
     setShowLlmConfig(false);
@@ -254,7 +285,10 @@ export default function ChatPanel() {
               message={msg}
               onAdopt={msg.role === 'assistant' ? adoptResponse : undefined}
               onDismiss={msg.role === 'assistant' ? handleDismiss : undefined}
+              onRetry={msg.role === 'assistant' ? handleRetry : undefined}
+              onEdit={msg.role === 'user' ? handleEdit : undefined}
               dismissed={dismissedIds.has(msg.id)}
+              isLoading={isLoading}
             />
           ))}
           {isLoading && <div className="chat-loading">{t('chat.loading')}</div>}
@@ -315,9 +349,17 @@ export default function ChatPanel() {
       {/* Input */}
       {hasProviders && (
         <div className="chat-input-area">
+          {editingMessageId && (
+            <div className="chat-editing-indicator">
+              {t('chat.editingMessage')}
+              <button className="chat-editing-cancel" onClick={() => { setEditingMessageId(null); setInputText(''); }}>
+                ✕
+              </button>
+            </div>
+          )}
           <textarea
             ref={textareaRef}
-            className="chat-input"
+            className={`chat-input${editingMessageId ? ' editing' : ''}`}
             rows={1}
             value={inputText}
             onChange={handleInputChange}

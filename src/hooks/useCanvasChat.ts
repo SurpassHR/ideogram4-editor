@@ -282,7 +282,10 @@ export function useCanvasChat() {
     addCanvasChatMessage(placeholder);
 
     const contextJson = buildCanvasChatContext(snapshot);
-    const allMessages = [...canvasChatMessages, userMessage];
+    // 从 store 直接读取消息列表（retry 截断后需要最新状态）
+    // 过滤掉尚未完成的 stream 占位消息
+    const rawMessages = useEditorStore.getState().canvasChatMessages;
+    const allMessages = rawMessages.filter(m => !(m.role === 'assistant' && m.content === ''));
     const apiMessages: ChatMessageForApi[] = allMessages.map(m => ({ role: m.role, content: m.content }));
     const lastUserIdx = apiMessages.map((m, i) => (m.role === 'user' ? i : -1)).reduce((a, b) => Math.max(a, b), -1);
     if (lastUserIdx >= 0) {
@@ -548,6 +551,45 @@ export function useCanvasChat() {
     sendMessage(lastUserMsg.content, { feedback: report.summaryText });
   }, [sendMessage, setPendingQualityReport, setPendingIdeogramOutput]);
 
+  /** 重试：重新发送触发指定 assistant 消息的用户消息 */
+  const retryMessage = useCallback((messageId: string) => {
+    const msgs = useEditorStore.getState().canvasChatMessages;
+    const idx = msgs.findIndex(m => m.id === messageId);
+    if (idx <= 0) return;
+
+    // 找到该 assistant 消息之前的最后一条用户消息
+    let userMsgIdx = -1;
+    for (let i = idx - 1; i >= 0; i--) {
+      if (msgs[i].role === 'user') {
+        userMsgIdx = i;
+        break;
+      }
+    }
+    if (userMsgIdx < 0) return;
+
+    const userMsg = msgs[userMsgIdx];
+    // 截断：保留到用户消息之前
+    const kept = msgs.slice(0, userMsgIdx);
+    useEditorStore.getState().setCanvasChatMessages(kept);
+
+    // 重新发送
+    sendMessage(userMsg.content);
+  }, [sendMessage]);
+
+  /** 编辑用户消息后重新发送 */
+  const editAndSend = useCallback((messageId: string, newContent: string) => {
+    const msgs = useEditorStore.getState().canvasChatMessages;
+    const idx = msgs.findIndex(m => m.id === messageId);
+    if (idx < 0) return;
+
+    // 截断：保留该消息之前的所有消息
+    const kept = msgs.slice(0, idx);
+    useEditorStore.getState().setCanvasChatMessages(kept);
+
+    // 发送编辑后的消息
+    sendMessage(newContent);
+  }, [sendMessage]);
+
   return {
     isCanvasChatOpen,
     messages,
@@ -558,6 +600,8 @@ export function useCanvasChat() {
     chatModel,
     chatResponseLang,
     sendMessage,
+    retryMessage,
+    editAndSend,
     applyMessageOutput,
     handleClose,
     handleClearHistory,

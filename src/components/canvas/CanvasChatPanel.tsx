@@ -26,6 +26,8 @@ export default function CanvasChatPanel() {
     chatModel,
     chatResponseLang,
     sendMessage,
+    retryMessage,
+    editAndSend,
     applyMessageOutput,
     handleSelectModel,
     setChatResponseLang,
@@ -53,6 +55,7 @@ export default function CanvasChatPanel() {
 
   const { t } = useI18n();
   const [inputText, setInputText] = useState('');
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [sessionMenu, setSessionMenu] = useState<{ sessionId: string; x: number; y: number } | null>(null);
   const [renamingSessionId, setRenamingSessionId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState('');
@@ -222,6 +225,22 @@ export default function CanvasChatPanel() {
     setInputText(e.target.value);
   }, []);
 
+  const handleRetry = useCallback((messageId: string) => {
+    retryMessage(messageId);
+  }, [retryMessage]);
+
+  const handleEdit = useCallback((messageId: string) => {
+    const msg = messages.find(m => m.id === messageId);
+    if (!msg) return;
+    setInputText(msg.content);
+    setEditingMessageId(messageId);
+    // 聚焦输入框
+    setTimeout(() => {
+      const el = document.querySelector('.canvas-chat-input-area .chat-input');
+      if (el instanceof HTMLElement) el.focus();
+    }, 0);
+  }, [messages]);
+
   const handleSend = useCallback(() => {
     const text = inputText.trim();
     if (!text || isLoading) return;
@@ -230,16 +249,28 @@ export default function CanvasChatPanel() {
     const resolvedText = selectedPreset && selectedBox
       ? resolveTemplate(text, selectedBox)
       : text;
-    sendMessage(resolvedText);
+
+    if (editingMessageId) {
+      setEditingMessageId(null);
+      editAndSend(editingMessageId, resolvedText);
+    } else {
+      sendMessage(resolvedText);
+    }
     handleSelectPreset(null); // 发送后清除预设选择
-  }, [inputText, isLoading, sendMessage, selectedPreset, selectedBox, handleSelectPreset]);
+  }, [inputText, isLoading, sendMessage, editAndSend, selectedPreset, selectedBox, handleSelectPreset, editingMessageId]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Escape' && editingMessageId) {
+      setEditingMessageId(null);
+      setInputText('');
+      e.preventDefault();
+      return;
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
-  }, [handleSend]);
+  }, [handleSend, editingMessageId]);
 
   /** 选中预设：将模板文本填入输入框 */
   const handlePresetChange = useCallback((presetId: string) => {
@@ -416,6 +447,9 @@ export default function CanvasChatPanel() {
                   message={msg}
                   dismissed={false}
                   onApply={handleApplyMessage}
+                  onRetry={msg.role === 'assistant' ? handleRetry : undefined}
+                  onEdit={msg.role === 'user' ? handleEdit : undefined}
+                  isLoading={isLoading}
                 />
               ))}
               {isLoading && (
@@ -464,7 +498,7 @@ export default function CanvasChatPanel() {
               <div className="canvas-chat-input-row">
                 <textarea
                   ref={textareaRef}
-                  className="chat-input"
+                  className={`chat-input${editingMessageId ? ' editing' : ''}`}
                   rows={2}
                   value={inputText}
                   onChange={handleInputChange}
@@ -578,11 +612,22 @@ export default function CanvasChatPanel() {
                     message={msg}
                     dismissed={false}
                     onApply={handleApplyMessage}
+                    onRetry={msg.role === 'assistant' ? handleRetry : undefined}
+                    onEdit={msg.role === 'user' ? handleEdit : undefined}
+                    isLoading={isLoading}
                   />
                 ))}
               </div>
               {hasProviders && (
                 <div className="canvas-chat-input-area canvas-chat-workbench-input-area">
+                  {editingMessageId && (
+                    <div className="chat-editing-indicator">
+                      {t('chat.editingMessage')}
+                      <button className="chat-editing-cancel" onClick={() => { setEditingMessageId(null); setInputText(''); }}>
+                        ✕
+                      </button>
+                    </div>
+                  )}
                   <div className="canvas-chat-toolbar">
                     {chatPresets.length > 0 && (
                       <SelectMenu
@@ -616,7 +661,7 @@ export default function CanvasChatPanel() {
                   </div>
                   <div className="canvas-chat-input-row">
                     <textarea
-                      className="chat-input"
+                      className={`chat-input${editingMessageId ? ' editing' : ''}`}
                       rows={2}
                       value={inputText}
                       onChange={handleInputChange}

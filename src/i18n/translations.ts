@@ -240,6 +240,9 @@ export interface Translations {
     dismiss: string;
     adopted: string;
     you: string;
+    retry: string;
+    edit: string;
+    editingMessage: string;
     copy: string;
     copied: string;
     clearHistory: string;
@@ -609,6 +612,9 @@ const en: Translations = {
     dismiss: 'Dismiss',
     adopted: 'Adopted ✓',
     you: 'You',
+    retry: 'Retry',
+    edit: 'Edit',
+    editingMessage: 'Editing message — press Esc to cancel',
     copy: 'Copy',
     copied: 'Copied!',
     clearHistory: 'Clear',
@@ -978,6 +984,9 @@ const zh: Translations = {
     dismiss: '忽略',
     adopted: '已采纳 ✓',
     you: '你',
+    retry: '重试',
+    edit: '编辑',
+    editingMessage: '正在编辑消息 — 按 Esc 取消',
     copy: '复制',
     copied: '已复制！',
     clearHistory: '清空',

@@ -316,6 +316,7 @@ interface EditorStore {
   updateChatHistoryMessage: (boxId: string, messageId: string, updates: Partial<ChatMessage>) => void;
 
   clearChatHistory: (boxId: string) => void;
+  setChatHistory: (boxId: string, messages: ChatMessage[]) => void;
   setChatModel: (model: string) => void;
   setEditingBoxId: (id: string | null) => void;
 
@@ -335,6 +336,7 @@ interface EditorStore {
   setCanvasChatMaximized: (maximized: boolean) => void;
   setCanvasChatOpen: (open: boolean) => void;
   addCanvasChatMessage: (message: ChatMessage) => void;
+  setCanvasChatMessages: (messages: ChatMessage[]) => void;
   setPendingIdeogramOutput: (output: IdeogramOutput | null) => void;
   clearCanvasChat: () => void;
   isCanvasChatLoading: boolean;
@@ -644,6 +646,13 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     },
   })),
 
+  setChatHistory: (boxId, messages) => set(state => ({
+    chatHistories: {
+      ...state.chatHistories,
+      [boxId]: messages,
+    },
+  })),
+
   setChatModel: (model) => {
     localStorage.setItem('ideogram4-chat-model', model);
     set({ chatModel: model });
@@ -771,6 +780,10 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   setCanvasChatMaximized: (maximized) => set({ isCanvasChatMaximized: maximized }),
 
   setCanvasChatOpen: (open) => set({ isCanvasChatOpen: open }),
+
+  setCanvasChatMessages: (messages) => set(state => ({
+    canvasChatMessages: messages,
+  })),
 
   addCanvasChatMessage: (message) => {
     set(state => {
