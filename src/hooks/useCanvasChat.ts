@@ -79,6 +79,7 @@ export function useCanvasChat() {
   const chatResponseLang = useEditorStore(s => s.chatResponseLang);
   const chatStreamEnabled = useEditorStore(s => s.chatStreamEnabled);
   const systemPrompts = useEditorStore(s => s.systemPrompts);
+  const canvasBackgroundUrl = useEditorStore(s => s.canvasBackgroundUrl);
   const activeCanvasChatSystemPromptId = useEditorStore(s => s.activeCanvasChatSystemPromptId);
   const selectedCanvasSystemPrompt = activeCanvasChatSystemPromptId
     ? systemPrompts.find(p => p.id === activeCanvasChatSystemPromptId)
@@ -443,6 +444,7 @@ export function useCanvasChat() {
       }, {
         streamEnabled: chatStreamEnabled,
         thinkingLevel: chatThinkingLevel,
+        imageDataUrl: canvasBackgroundUrl || undefined,
       });
 
       void Promise.resolve(streamResult).catch(err => {
