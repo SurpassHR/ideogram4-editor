@@ -627,57 +627,47 @@ describe('buildLayoutFeedbackPrompt', () => {
 // ─── CANVAS_CHAT_SYSTEM_PROMPT ──────────────────────────────────────
 
 describe('CANVAS_CHAT_SYSTEM_PROMPT', () => {
-  it('应包含 Numerical Layout Rules 章节', () => {
-    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('## Constraints');
-    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('### Numerical Layout Rules');
-    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Total element coverage: 15%-60% of canvas');
-    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Minimum gap between elements');
-    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Element aspect ratio');
-    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Recommended element count: 2-6');
-    expect(CANVAS_CHAT_SYSTEM_PROMPT).not.toContain('max 16');
+  it('应包含 aspect ratio 和 bbox 指南', () => {
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Aspect ratio, resolution and bbox relationship');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Vertical landmark guide');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('ymin/ymax landmarks');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Pixel verification examples');
   });
-  it('应包含 Design Principles 章节', () => {
-    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('### Design Principles');
-    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Rule of thirds');
-    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Visual anchor');
-    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Breathing room');
-    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Avoid clustering');
-    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Text language');
-    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Spatial consistency');
-    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Focal coherence');
-    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Concrete descriptions');
+  it('应包含 Framing rules', () => {
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Framing rules');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Full body');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Knee-up');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Waist-up');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Bust-up');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Face close-up');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Horizontal placement guide');
   });
-  it('应包含 Retry Protocol 章节', () => {
-    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('## Retry Protocol');
-    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('[Layout Feedback]');
-    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('element_area');
-    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('coverage');
-    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('spacing');
-    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('margin');
-    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('aspect_ratio');
-    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('element_count');
+  it('应包含 bbox verification rule', () => {
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('bbox verification rule');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('vertical pixels');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('horizontal pixels');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('height_px');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('width_px');
   });
 
-  it('应保留原有的 JSON Schema 和 Output Format', () => {
-    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('## JSON Schema');
-    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('## Output Format');
-    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('IdeogramOutput');
-    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('```json');
-    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Example response format');
-    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Return ONLY a single valid ```json code block');
-    expect(CANVAS_CHAT_SYSTEM_PROMPT).not.toContain('You may briefly explain');
+  it('应包含 Output format 和 Rules', () => {
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('## Output format');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('## Rules');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Key order must be exactly');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('color_palette');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('elements listed background-to-foreground');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Output raw JSON only, nothing else');
   });
 
   it('应明确区分目标输出尺寸和 0-1000 bbox 坐标系统', () => {
-    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('target output canvas');
-    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('canvasW');
-    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('canvasH');
-    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('0-1000 normalized');
-    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Do not use 1024 as a default canvas size');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('aspect ratio');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('0-1000');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('pixel dimensions');
   });
 
   it('应不包含旧的模糊约束文本', () => {
     expect(CANVAS_CHAT_SYSTEM_PROMPT).not.toContain('Elements: 1-8 boxes total');
     expect(CANVAS_CHAT_SYSTEM_PROMPT).not.toContain('Design a balanced composition');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).not.toContain('Do not use 1024');
   });
 });

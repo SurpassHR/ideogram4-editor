@@ -208,10 +208,9 @@ describe('useCanvasChat', () => {
 
     const [, , apiMessages, systemPrompt] = vi.mocked(sendChatMessageWithOptions).mock.calls[0];
     const lastUserMessage = apiMessages[apiMessages.length - 1];
-    expect(systemPrompt).toContain('target output canvas');
+    expect(systemPrompt).toContain('Ideogram 4 JSON caption');
     expect(lastUserMessage.content).toContain('Target output canvas: 4096 x 4096');
-    expect(lastUserMessage.content).toContain('Return "canvasW": 4096');
-    expect(lastUserMessage.content).toContain('"canvasH": 4096');
+    expect(lastUserMessage.content).toContain('Target output canvas: 4096 x 4096');
 
     const detail = useEditorStore.getState().canvasChatSessions[0].requestLogs[0].detail;
     expect(detail?.metadata).toMatchObject({

@@ -297,7 +297,6 @@ export function useCanvasChat() {
     if (lastUserIdx >= 0) {
       const targetHint = [
         `Target output canvas: ${canvasChatTargetSize} x ${canvasChatTargetSize}`,
-        `Return "canvasW": ${canvasChatTargetSize} and "canvasH": ${canvasChatTargetSize}.`,
         'Keep bbox values in the 0-1000 normalized coordinate system; do not use 1024 as a default canvas size.',
       ].join('\n');
       let enriched = `${targetHint}\n\nCurrent canvas state (JSON prompt):\n\`\`\`json\n${contextJson}\n\`\`\`\n\nMy composition request: ${apiMessages[lastUserIdx].content}`;
