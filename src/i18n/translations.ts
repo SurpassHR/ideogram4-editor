@@ -133,7 +133,6 @@ export interface Translations {
     previewMode: string;
     placeholder: string;
     invalidJson: string;
-    previewEmpty: string;
   };
   comfyui: {
     generation: string;
@@ -506,7 +505,6 @@ const en: Translations = {
     previewMode: 'Preview',
     placeholder: 'JSON output will appear here...',
     invalidJson: 'Invalid JSON: {error}',
-    previewEmpty: 'No elements to preview.',
   },
   comfyui: {
     generation: 'Generation',
@@ -879,7 +877,6 @@ const zh: Translations = {
     previewMode: '预览',
     placeholder: 'JSON 输出将显示在此处...',
     invalidJson: '无效的 JSON：{error}',
-    previewEmpty: '暂无可预览元素。',
   },
   comfyui: {
     generation: '图像生成',

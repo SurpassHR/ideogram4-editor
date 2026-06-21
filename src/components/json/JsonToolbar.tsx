@@ -3,12 +3,56 @@ import { useEditorStore } from '../../store';
 import { useI18n } from '../../i18n/context';
 import type { IdeogramOutput } from '../../types';
 
+/** 300ms 防抖自动同步：从 store 状态变更到 JSON 重新生成的冷却时间 */
+const AUTO_SYNC_DEBOUNCE_MS = 300;
+
 export default function JsonToolbar() {
-  const [jsonText, setJsonText] = useState('');
+  const [jsonText, setJsonText] = useState(() =>
+    JSON.stringify(useEditorStore.getState().generateJSON(), null, 2),
+  );
   const [mode, setMode] = useState<'json' | 'preview'>('json');
   const generateJSON = useEditorStore(s => s.generateJSON);
   const loadFromJSON = useEditorStore(s => s.loadFromJSON);
   const { t } = useI18n();
+
+  // ── 订阅所有影响 JSON 输出的 store 字段 ──────────────
+  const boxes = useEditorStore(s => s.boxes);
+  const canvasW = useEditorStore(s => s.canvasW);
+  const canvasH = useEditorStore(s => s.canvasH);
+  const globalPalette = useEditorStore(s => s.globalPalette);
+  const highLevelDescription = useEditorStore(s => s.highLevelDescription);
+  const aesthetics = useEditorStore(s => s.aesthetics);
+  const lighting = useEditorStore(s => s.lighting);
+  const medium = useEditorStore(s => s.medium);
+  const artStyle = useEditorStore(s => s.artStyle);
+  const background = useEditorStore(s => s.background);
+  const photoArtStyleMode = useEditorStore(s => s.photoArtStyleMode);
+
+  // ── 标志位：用户正在手动编辑 textarea 时暂停自动同步 ─
+  const isUserEditingRef = useRef(false);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  // ── 防抖自动同步 ─────────────────────────────────────
+  useEffect(() => {
+    if (isUserEditingRef.current) return;
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = setTimeout(() => {
+      const output = generateJSON();
+      setJsonText(JSON.stringify(output, null, 2));
+    }, AUTO_SYNC_DEBOUNCE_MS);
+    return () => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    };
+  }, [
+    boxes, canvasW, canvasH, globalPalette,
+    highLevelDescription, aesthetics, lighting,
+    medium, artStyle, background, photoArtStyleMode,
+    generateJSON,
+  ]);
+
+  const handleUserEditing = useCallback((editing: boolean) => {
+    isUserEditingRef.current = editing;
+  }, []);
 
   const handleGenerate = () => {
     const output = generateJSON();
@@ -108,6 +152,13 @@ export default function JsonToolbar() {
               ta.style.height = Math.max(60, ta.scrollHeight) + 'px';
             }}
             placeholder={t('json.placeholder')}
+            onFocus={() => handleUserEditing(true)}
+            onBlur={() => {
+              handleUserEditing(false);
+              // 用户离开 textarea 时立即同步一次
+              const output = generateJSON();
+              setJsonText(JSON.stringify(output, null, 2));
+            }}
           />
         ) : (
           <div className="json-preview-panel">
@@ -121,9 +172,6 @@ export default function JsonToolbar() {
                 className="json-preview-canvas"
                 style={{ aspectRatio: `${preview.output.canvasW || 1} / ${preview.output.canvasH || 1}` }}
               >
-                {preview.output.compositional_deconstruction.elements.length === 0 && (
-                  <div className="json-preview-empty">{t('json.previewEmpty')}</div>
-                )}
                 {preview.output.compositional_deconstruction.elements.map((element, index) => {
                   const [y1, x1, y2, x2] = element.bbox;
                   return (
