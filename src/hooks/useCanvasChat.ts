@@ -221,9 +221,10 @@ export function useCanvasChat() {
       return;
     }
 
-    // 构造上下文（在循环外快照一次，避免循环内依赖变化）
+    // 从 store 实时读取最新状态，避免闭包中的过时数据
+    const state = useEditorStore.getState();
     const snapshot = {
-      boxes: boxes.map(b => ({
+      boxes: state.boxes.map(b => ({
         x: b.x, y: b.y, w: b.w, h: b.h,
         mode: b.mode,
         text: b.text,
@@ -232,16 +233,16 @@ export function useCanvasChat() {
         imageDataUrl: b.imageDataUrl,
         imageRole: b.imageRole,
       })),
-      canvasW,
-      canvasH,
-      globalPalette,
-      highLevelDescription,
-      aesthetics,
-      lighting,
-      medium,
-      artStyle,
-      background,
-      photoArtStyleMode,
+      canvasW: state.canvasW,
+      canvasH: state.canvasH,
+      globalPalette: state.globalPalette,
+      highLevelDescription: state.highLevelDescription,
+      aesthetics: state.aesthetics,
+      lighting: state.lighting,
+      medium: state.medium,
+      artStyle: state.artStyle,
+      background: state.background,
+      photoArtStyleMode: state.photoArtStyleMode,
     };
     appendCanvasChatRequestStep(requestId, {
       kind: 'build_context',
