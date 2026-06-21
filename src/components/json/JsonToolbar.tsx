@@ -170,7 +170,7 @@ export default function JsonToolbar() {
             )}
               <div
                 className="json-preview-canvas"
-                style={{ aspectRatio: `${preview.output.canvasW || 1} / ${preview.output.canvasH || 1}` }}
+                style={{ aspectRatio: `${canvasW || 1} / ${canvasH || 1}` }}
               >
                 {preview.output.compositional_deconstruction.elements.map((element, index) => {
                   const [y1, x1, y2, x2] = element.bbox;

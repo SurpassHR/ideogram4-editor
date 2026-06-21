@@ -17,6 +17,7 @@
   --text-muted: #5a5a7a;
   --danger: #ff5252;
   --danger-hover: #ff1744;
+  --orange: #ff9800;
   --canvas-checker: #2a2a40;
   --canvas-bg: #1a1a30;
   --box-border: #ff5252;
@@ -3682,6 +3683,106 @@ input[type="color"]::-webkit-color-swatch {
 .preset-manager-embedded .preset-manager-body {
   flex: 1;
   min-height: 0;
+}
+
+/* ─── System Prompt Panel ─────────────────────────────────────── */
+
+.sysprompt-embedded {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: 100%;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.sysprompt-info {
+  background: rgba(124, 92, 252, 0.06);
+  border: 1px solid rgba(124, 92, 252, 0.15);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.sysprompt-section {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--surface-raised);
+}
+
+.sysprompt-section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  gap: 12px;
+}
+
+.sysprompt-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.sysprompt-section-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.sysprompt-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.sysprompt-textarea {
+  width: 100%;
+  min-height: 180px;
+  max-height: 400px;
+  padding: 14px 16px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  resize: vertical;
+  outline: none;
+}
+
+.sysprompt-textarea:focus {
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.sysprompt-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 16px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+}
+
+.sysprompt-status {
+  font-size: 11px;
+}
+
+.sysprompt-status.default {
+  color: var(--text-muted);
+}
+
+.sysprompt-status.custom {
+  color: var(--orange, #ff9800);
+}
+
+.sysprompt-char-count {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ─── LLM Config Body ─────────────────────────────────────────── */

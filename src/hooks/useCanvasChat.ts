@@ -78,6 +78,7 @@ export function useCanvasChat() {
   const chatModel = useEditorStore(s => s.chatModel);
   const chatResponseLang = useEditorStore(s => s.chatResponseLang);
   const chatStreamEnabled = useEditorStore(s => s.chatStreamEnabled);
+  const customCanvasSystemPrompt = useEditorStore(s => s.canvasChatSystemPrompt);
   const chatThinkingLevel = useEditorStore(s => s.chatThinkingLevel);
   const canvasChatTargetSize = useEditorStore(s => s.canvasChatTargetSize);
   const setChatModel = useEditorStore(s => s.setChatModel);
@@ -298,7 +299,7 @@ export function useCanvasChat() {
       if (retryContext?.feedback) enriched += buildLayoutFeedbackPrompt(retryContext.feedback);
       apiMessages[lastUserIdx] = { role: 'user', content: enriched };
     }
-    const systemPrompt = CANVAS_CHAT_SYSTEM_PROMPT + langHint;
+    const systemPrompt = (customCanvasSystemPrompt || CANVAS_CHAT_SYSTEM_PROMPT) + langHint;
     updateCanvasChatRequestDetail(requestId, {
       systemPrompt,
       messages: apiMessages,
@@ -447,7 +448,7 @@ export function useCanvasChat() {
     parseModel, chatModel, finishCanvasChatRequest,
     boxes, canvasW, canvasH, globalPalette, highLevelDescription,
     aesthetics, lighting, medium, artStyle, background, photoArtStyleMode,
-    canvasChatMessages, chatResponseLang, chatStreamEnabled, chatThinkingLevel, canvasChatTargetSize, setPendingIdeogramOutput, setPendingQualityReport,
+    canvasChatMessages, chatResponseLang, chatStreamEnabled, chatThinkingLevel, canvasChatTargetSize, customCanvasSystemPrompt, setPendingIdeogramOutput, setPendingQualityReport,
   ]);
 
   /** 将给定的 IdeogramOutput 应用到画布，并基于已落地布局生成质量诊断 */

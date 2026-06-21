@@ -1,18 +1,27 @@
 import { useMemo, useState } from 'react';
 import LlmConfigPanel from '../llm/LlmConfigPanel';
 import PresetManagerPanel from '../chat/PresetManagerPanel';
+import SystemPromptPanel from '../chat/SystemPromptPanel';
 import { useI18n } from '../../i18n/context';
 import { useEditorStore } from '../../store';
 import WorkspacePanel from './WorkspacePanel';
 
-type SettingsModuleId = 'llm' | 'presets' | 'workspace';
+type SettingsModuleId = 'llm' | 'presets' | 'sysprompt' | 'workspace';
 
 export default function SettingsPage() {
   const { t } = useI18n();
   const presetCount = useEditorStore(s => s.chatPresets.length);
   const favoriteCount = useEditorStore(s => s.canvasFavorites.length);
   const gistId = useEditorStore(s => s.workspaceBackupSettings.gistId);
+  const canvasChatSystemPrompt = useEditorStore(s => s.canvasChatSystemPrompt);
+  const boxChatSystemPrompt = useEditorStore(s => s.boxChatSystemPrompt);
   const [activeModule, setActiveModule] = useState<SettingsModuleId>('llm');
+
+  const hasCustomCanvas = canvasChatSystemPrompt !== null;
+  const hasCustomBox = boxChatSystemPrompt !== null;
+  const sysPromptStatus = (hasCustomCanvas || hasCustomBox)
+    ? `${t('chat.systemPrompt.custom')}: ${hasCustomCanvas ? 'Canvas' : ''}${hasCustomCanvas && hasCustomBox ? ', ' : ''}${hasCustomBox ? 'Box' : ''}`
+    : t('chat.systemPrompt.default');
 
   const modules = useMemo(() => [
     {
@@ -30,6 +39,13 @@ export default function SettingsPage() {
       status: t('settings.modules.presets.status', { count: presetCount }),
     },
     {
+      id: 'sysprompt' as const,
+      marker: 'SP',
+      title: t('chat.systemPrompt.title'),
+      description: t('chat.systemPrompt.moduleDesc'),
+      status: sysPromptStatus,
+    },
+    {
       id: 'workspace' as const,
       marker: 'WS',
       title: t('settings.modules.workspace.title'),
@@ -38,7 +54,7 @@ export default function SettingsPage() {
         ? t('settings.modules.workspace.statusWithGist', { count: favoriteCount })
         : t('settings.modules.workspace.status', { count: favoriteCount }),
     },
-  ], [favoriteCount, gistId, presetCount, t]);
+  ], [favoriteCount, gistId, presetCount, sysPromptStatus, t]);
 
   const activeConfig = modules.find(module => module.id === activeModule) ?? modules[0];
 
@@ -46,6 +62,8 @@ export default function SettingsPage() {
     switch (activeModule) {
       case 'presets':
         return <PresetManagerPanel embedded />;
+      case 'sysprompt':
+        return <SystemPromptPanel embedded />;
       case 'workspace':
         return <WorkspacePanel embedded />;
       case 'llm':

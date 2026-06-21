@@ -322,6 +322,20 @@ export interface Translations {
       delete: string;
       duplicate: string;
     };
+    systemPrompt: {
+      title: string;
+      moduleDesc: string;
+      info: string;
+      canvasTitle: string;
+      canvasDesc: string;
+      boxTitle: string;
+      boxDesc: string;
+      apply: string;
+      reset: string;
+      default: string;
+      customized: string;
+      custom: string;
+    };
     image: {
       uploadHint: string;
       clear: string;
@@ -700,6 +714,20 @@ const en: Translations = {
       delete: 'Delete',
       duplicate: 'Duplicate',
     },
+    systemPrompt: {
+      title: 'System Prompts',
+      moduleDesc: 'Edit Canvas & Box chat system prompts',
+      info: 'Customize the system prompts that guide AI behavior. Changes affect new conversations only. Reset to restore the default prompt.',
+      canvasTitle: 'Canvas Chat System Prompt',
+      canvasDesc: 'Guides the AI composition dialog behavior and output format',
+      boxTitle: 'Per-Box Chat System Prompt',
+      boxDesc: 'Guides per-box AI chat for prompt optimization',
+      apply: 'Apply',
+      reset: 'Reset',
+      default: 'Default',
+      customized: 'Customized',
+      custom: 'Custom',
+    },
     image: {
       uploadHint: 'Upload an image',
       clear: 'Remove image',
@@ -1077,6 +1105,20 @@ const zh: Translations = {
       cancel: '取消',
       delete: '删除',
       duplicate: '复制',
+    },
+    systemPrompt: {
+      title: '系统提示词',
+      moduleDesc: '编辑 Canvas Chat 和 Per-Box Chat 的系统提示词',
+      info: '自定义 AI 行为的系统提示词。修改仅影响新对话。点击 Reset 恢复默认。',
+      canvasTitle: 'Canvas Chat 系统提示词',
+      canvasDesc: '引导画布级 AI 构图对话的行为和输出格式',
+      boxTitle: 'Per-Box Chat 系统提示词',
+      boxDesc: '引导单框 AI 对话的提示词优化行为',
+      apply: '应用',
+      reset: '重置',
+      default: '默认',
+      customized: '已自定义',
+      custom: '自定义',
     },
     image: {
       uploadHint: '上传图像',

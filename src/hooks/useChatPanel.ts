@@ -31,6 +31,7 @@ export function useChatPanel() {
   const setChatResponseLang = useEditorStore(s => s.setChatResponseLang);
   const chatStreamEnabled = useEditorStore(s => s.chatStreamEnabled);
   const chatThinkingLevel = useEditorStore(s => s.chatThinkingLevel);
+  const customBoxSystemPrompt = useEditorStore(s => s.boxChatSystemPrompt);
 
   const addChatMessage = useEditorStore(s => s.addChatMessage);
   const markChatMessageAdopted = useEditorStore(s => s.markChatMessageAdopted);
@@ -134,7 +135,7 @@ export function useChatPanel() {
         background,
         globalPalette,
         photoArtStyleMode,
-      }, chatResponseLang);
+      }, chatResponseLang, customBoxSystemPrompt || undefined);
 
       const apiMessages = allMessages.map(m => ({ role: m.role, content: m.content }));
 
@@ -179,7 +180,7 @@ export function useChatPanel() {
       setError(err instanceof Error ? err.message : 'Unknown error');
       setIsLoading(false);
     }
-  }, [activeChatBoxId, currentBox, messages, chatModel, getCurrentProvider, parseModel, addChatMessage, highLevelDescription, aesthetics, lighting, medium, artStyle, background, globalPalette, photoArtStyleMode, canSendImage, chatResponseLang, chatStreamEnabled, chatThinkingLevel]);
+  }, [activeChatBoxId, currentBox, messages, chatModel, getCurrentProvider, parseModel, addChatMessage, highLevelDescription, aesthetics, lighting, medium, artStyle, background, globalPalette, photoArtStyleMode, canSendImage, chatResponseLang, chatStreamEnabled, chatThinkingLevel, customBoxSystemPrompt]);
 
   // 采纳 AI 回复
   const adoptResponse = useCallback((messageId: string) => {

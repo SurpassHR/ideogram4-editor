@@ -128,10 +128,11 @@ export interface BoxChatContext {
   photoArtStyleMode: number;
 }
 
-export function buildBoxChatSystemPrompt(box: Box, ctx: BoxChatContext, responseLang?: string): string {
+export function buildBoxChatSystemPrompt(box: Box, ctx: BoxChatContext, responseLang?: string, customSystemPrompt?: string): string {
   const modeLabel = box.mode === 'text' ? 'text' : 'object';
+  const basePrompt = customSystemPrompt || BOX_CHAT_SYSTEM_PROMPT;
   const lines = [
-    BOX_CHAT_SYSTEM_PROMPT,
+    basePrompt,
     '',
     `Current box properties:`,
     `- Mode: ${modeLabel}`,

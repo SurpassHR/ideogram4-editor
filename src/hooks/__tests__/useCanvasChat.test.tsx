@@ -210,8 +210,8 @@ describe('useCanvasChat', () => {
     const lastUserMessage = apiMessages[apiMessages.length - 1];
     expect(systemPrompt).toContain('target output canvas');
     expect(lastUserMessage.content).toContain('Target output canvas: 4096 x 4096');
-    expect(lastUserMessage.content).toContain('"canvasW": 1024');
-    expect(lastUserMessage.content).toContain('"canvasH": 1024');
+    expect(lastUserMessage.content).toContain('Return "canvasW": 4096');
+    expect(lastUserMessage.content).toContain('"canvasH": 4096');
 
     const detail = useEditorStore.getState().canvasChatSessions[0].requestLogs[0].detail;
     expect(detail?.metadata).toMatchObject({

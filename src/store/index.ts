@@ -368,6 +368,12 @@ interface EditorStore {
   setChatThinkingLevel: (level: ChatThinkingLevel) => void;
   setCanvasChatTargetSize: (size: number) => void;
 
+  // 自定义系统提示词（persist，null = 使用默认值）
+  canvasChatSystemPrompt: string | null;
+  boxChatSystemPrompt: string | null;
+  setCanvasChatSystemPrompt: (prompt: string | null) => void;
+  setBoxChatSystemPrompt: (prompt: string | null) => void;
+
   // Image 操作
   importImageToBox: (boxId: string, dataUrl: string) => void;
   clearBoxImage: (boxId: string) => void;
@@ -1010,6 +1016,26 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     const nextSize = normalizeCanvasChatTargetSize(size);
     localStorage.setItem(CANVAS_CHAT_TARGET_SIZE_STORAGE_KEY, String(nextSize));
     set({ canvasChatTargetSize: nextSize });
+  },
+
+  // 自定义系统提示词
+  canvasChatSystemPrompt: localStorage.getItem('ideogram4-canvas-system-prompt') || null,
+  boxChatSystemPrompt: localStorage.getItem('ideogram4-box-system-prompt') || null,
+  setCanvasChatSystemPrompt: (prompt) => {
+    if (prompt) {
+      localStorage.setItem('ideogram4-canvas-system-prompt', prompt);
+    } else {
+      localStorage.removeItem('ideogram4-canvas-system-prompt');
+    }
+    set({ canvasChatSystemPrompt: prompt });
+  },
+  setBoxChatSystemPrompt: (prompt) => {
+    if (prompt) {
+      localStorage.setItem('ideogram4-box-system-prompt', prompt);
+    } else {
+      localStorage.removeItem('ideogram4-box-system-prompt');
+    }
+    set({ boxChatSystemPrompt: prompt });
   },
 
   // Image 操作
