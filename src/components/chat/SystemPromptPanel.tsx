@@ -1,9 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useEditorStore } from '../../store';
 import { useI18n } from '../../i18n/context';
 import { CANVAS_CHAT_SYSTEM_PROMPT } from '../../services/llm-canvas-chat';
 import { BOX_CHAT_SYSTEM_PROMPT } from '../../services/llm-chat';
-import { IconClose, IconTrash, IconCopy } from '../ui/icons';
+import { IconClose, IconTrash, IconCopy, IconArrowRight } from '../ui/icons';
 import type { SystemPromptEntry } from '../../types/chat';
 
 interface Props {
@@ -18,15 +18,12 @@ export default function SystemPromptPanel({ embedded, onClose }: Props) {
   const addSystemPrompt = useEditorStore(s => s.addSystemPrompt);
   const updateSystemPrompt = useEditorStore(s => s.updateSystemPrompt);
   const deleteSystemPrompt = useEditorStore(s => s.deleteSystemPrompt);
-  const activeCanvasChatSystemPromptId = useEditorStore(s => s.activeCanvasChatSystemPromptId);
-  const activeBoxChatSystemPromptId = useEditorStore(s => s.activeBoxChatSystemPromptId);
-  const setActiveCanvasChatSystemPrompt = useEditorStore(s => s.setActiveCanvasChatSystemPrompt);
-  const setActiveBoxChatSystemPrompt = useEditorStore(s => s.setActiveBoxChatSystemPrompt);
   const { t } = useI18n();
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<{ name: string; content: string; scope: SystemPromptEntry['scope'] }>(EMPTY_FORM);
   const [toast, setToast] = useState<string | null>(null);
+  const [expandedDefault, setExpandedDefault] = useState<'canvas' | 'box' | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
@@ -110,6 +107,11 @@ export default function SystemPromptPanel({ embedded, onClose }: Props) {
     }
   };
 
+  const toggleDefault = (which: 'canvas' | 'box') => {
+    setExpandedDefault(expandedDefault === which ? null : which);
+    setExpandedId(null);
+  };
+
   const content = (
     <>
       <div className="modal-header">
@@ -132,6 +134,38 @@ export default function SystemPromptPanel({ embedded, onClose }: Props) {
       </div>
 
       <div className="sysprompt-list">
+        {/* ─── Built-in defaults (read-only) ─── */}
+        <div className="sp-card sp-builtin">
+          <button className="sp-card-expand" onClick={() => toggleDefault('canvas')}>
+            <span className="sp-card-main">
+              <span className="sp-card-name">{t('chat.systemPrompt.defaultBuiltinCanvas')}</span>
+              <span className="sp-card-scope">Canvas</span>
+            </span>
+            <span className="sp-card-badge">{t('chat.systemPrompt.default')}</span>
+            <span className="sp-card-arrow">{expandedDefault === 'canvas' ? '▲' : '▼'}</span>
+          </button>
+          {expandedDefault === 'canvas' && (
+            <pre className="sp-card-preview">{CANVAS_CHAT_SYSTEM_PROMPT.slice(0, 800)}{CANVAS_CHAT_SYSTEM_PROMPT.length > 800 ? '...' : ''}</pre>
+          )}
+        </div>
+
+        <div className="sp-card sp-builtin">
+          <button className="sp-card-expand" onClick={() => toggleDefault('box')}>
+            <span className="sp-card-main">
+              <span className="sp-card-name">{t('chat.systemPrompt.defaultBuiltinBox')}</span>
+              <span className="sp-card-scope">Box</span>
+            </span>
+            <span className="sp-card-badge">{t('chat.systemPrompt.default')}</span>
+            <span className="sp-card-arrow">{expandedDefault === 'box' ? '▲' : '▼'}</span>
+          </button>
+          {expandedDefault === 'box' && (
+            <pre className="sp-card-preview">{BOX_CHAT_SYSTEM_PROMPT}</pre>
+          )}
+        </div>
+
+        {/* ─── Section title ─── */}
+        <div className="sp-section-label">{t('chat.systemPrompt.customSection')}</div>
+
         {systemPrompts.length === 0 && !isNew && (
           <div className="sp-empty">{t('chat.systemPrompt.noPrompts')}</div>
         )}

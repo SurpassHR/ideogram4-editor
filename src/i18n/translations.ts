@@ -329,7 +329,9 @@ export interface Translations {
       sp: string;
       addPrompt: string;
       noPrompts: string;
-      defaultBuiltin: string;
+      defaultBuiltinCanvas: string;
+      defaultBuiltinBox: string;
+      customSection: string;
       scope: string;
       scopeBoth: string;
       apply: string;
@@ -723,7 +725,9 @@ const en: Translations = {
       sp: 'SP',
       addPrompt: 'Add Prompt',
       noPrompts: 'No custom prompts yet. Add one to get started.',
-      defaultBuiltin: 'Default (Built-in)',
+      defaultBuiltinCanvas: 'Default (Canvas Chat)',
+      defaultBuiltinBox: 'Default (Box Chat)',
+      customSection: 'Custom Prompts',
       scope: 'Scope',
       scopeBoth: 'Canvas + Box',
       apply: 'Apply',
@@ -1117,7 +1121,9 @@ const zh: Translations = {
       sp: '提示词',
       addPrompt: '添加提示词',
       noPrompts: '暂无自定义提示词，添加一个开始使用。',
-      defaultBuiltin: '默认（内置）',
+      defaultBuiltinCanvas: '默认（Canvas Chat）',
+      defaultBuiltinBox: '默认（Box Chat）',
+      customSection: '自定义提示词',
       scope: '作用范围',
       scopeBoth: 'Canvas + Box',
       apply: '应用',
