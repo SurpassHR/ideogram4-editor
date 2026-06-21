@@ -432,20 +432,18 @@ export function useCanvasChat() {
     canvasChatMessages, chatResponseLang, chatStreamEnabled, chatThinkingLevel, canvasChatTargetSize, setPendingIdeogramOutput, setPendingQualityReport,
   ]);
 
-  /** Apply pendingIdeogramOutput 到画布，并基于已落地布局生成质量诊断 */
-  const applyOutput = useCallback(() => {
-    if (!pendingIdeogramOutput) return 0;
-
+  /** 将给定的 IdeogramOutput 应用到画布，并基于已落地布局生成质量诊断 */
+  const applyIdeogramOutput = useCallback((output: IdeogramOutput): number => {
     const store = useEditorStore.getState();
     // 如果 LLM 返回的画布尺寸与 store 不同，同步更新
-    if (pendingIdeogramOutput.canvasW && pendingIdeogramOutput.canvasH &&
-        (pendingIdeogramOutput.canvasW !== store.canvasW || pendingIdeogramOutput.canvasH !== store.canvasH)) {
-      store.setCanvasDimensions(pendingIdeogramOutput.canvasW, pendingIdeogramOutput.canvasH);
+    if (output.canvasW && output.canvasH &&
+        (output.canvasW !== store.canvasW || output.canvasH !== store.canvasH)) {
+      store.setCanvasDimensions(output.canvasW, output.canvasH);
     }
-    const elements = pendingIdeogramOutput.compositional_deconstruction.elements;
+    const elements = output.compositional_deconstruction.elements;
     const system = detectBboxSystem(elements);
-    const cw = pendingIdeogramOutput.canvasW ?? store.canvasW;
-    const ch = pendingIdeogramOutput.canvasH ?? store.canvasH;
+    const cw = output.canvasW ?? store.canvasW;
+    const ch = output.canvasH ?? store.canvasH;
 
     store.clearBoxes();
     elements.forEach(el => {
@@ -461,11 +459,11 @@ export function useCanvasChat() {
       });
     });
 
-    const sd = pendingIdeogramOutput.style_description;
-    store.setGlobalSetting('highLevelDescription', pendingIdeogramOutput.high_level_description || '');
+    const sd = output.style_description;
+    store.setGlobalSetting('highLevelDescription', output.high_level_description || '');
     store.setGlobalSetting('aesthetics', sd.aesthetics || '');
     store.setGlobalSetting('lighting', sd.lighting || '');
-    store.setGlobalSetting('background', pendingIdeogramOutput.compositional_deconstruction.background || '');
+    store.setGlobalSetting('background', output.compositional_deconstruction.background || '');
     if ('photo' in sd) {
       store.setPhotoArtStyleMode(MODE_PHOTO);
       store.setGlobalSetting('medium', (sd.photo as string) || '');
@@ -484,8 +482,16 @@ export function useCanvasChat() {
     });
     store.setPendingQualityReport(validateLayout(normalizedElements, cw, ch));
 
-    return pendingIdeogramOutput.compositional_deconstruction.elements.length;
-  }, [pendingIdeogramOutput]);
+    return output.compositional_deconstruction.elements.length;
+  }, []);
+
+  /** 解析消息内容中的 IdeogramOutput 并应用到画布 */
+  const applyMessageOutput = useCallback((message: ChatMessage): number | null => {
+    const parsed = extractAndValidateIdeogramJSON(message.content);
+    if (!parsed) return null;
+    setPendingIdeogramOutput(parsed);
+    return applyIdeogramOutput(parsed);
+  }, [applyIdeogramOutput, setPendingIdeogramOutput]);
 
   /** 手动折叠 */
   const handleClose = useCallback(() => {
@@ -552,7 +558,7 @@ export function useCanvasChat() {
     chatModel,
     chatResponseLang,
     sendMessage,
-    applyOutput,
+    applyMessageOutput,
     handleClose,
     handleClearHistory,
     handleSelectModel: setChatModel,

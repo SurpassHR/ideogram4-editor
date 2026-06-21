@@ -3,7 +3,6 @@ import { render, fireEvent, act, within } from '@testing-library/react';
 import CanvasChatPanel from '../CanvasChatPanel';
 import { useEditorStore } from '../../../store';
 import { I18nProvider } from '../../../i18n/context';
-import type { IdeogramOutput } from '../../../types';
 import { getLlmProviders } from '../../../components/llm/api';
 
 // Mock getLlmProviders 以确保 hasProviders 为 true
@@ -26,53 +25,14 @@ function renderPanel() {
 }
 
 /** 渲染展开态（设置 chatModel），等待异步 providers 加载 */
-async function renderWithPending(pendingOutput?: IdeogramOutput | null) {
+async function renderWithPending() {
   useEditorStore.setState({
     chatModel: 'mock:gpt-4',
-    pendingIdeogramOutput: pendingOutput ?? null,
+    pendingIdeogramOutput: null,
   });
   const result = render(<I18nProvider><CanvasChatPanel /></I18nProvider>);
   await act(() => new Promise(r => setTimeout(r, 50)));
   return result;
-}
-
-function makePendingOutput(): IdeogramOutput {
-  return {
-    high_level_description: 'Test scene',
-    style_description: {
-      aesthetics: 'Minimal',
-      lighting: 'Soft',
-      medium: 'digital art',
-      art_style: 'flat design',
-      color_palette: ['#FF0000', '#00FF00'],
-    },
-    compositional_deconstruction: {
-      background: 'White background',
-      elements: [
-        { type: 'obj' as const, bbox: [0, 0, 500, 500], desc: 'A red circle' },
-        { type: 'text' as const, bbox: [600, 100, 700, 300], desc: 'Title text', text: 'Hello' },
-      ],
-    },
-  };
-}
-
-function makePoorPendingOutput(): IdeogramOutput {
-  return {
-    high_level_description: 'Tiny scene',
-    style_description: {
-      aesthetics: 'Minimal',
-      lighting: 'Soft',
-      medium: 'digital art',
-      art_style: 'flat design',
-      color_palette: ['#FF0000'],
-    },
-    compositional_deconstruction: {
-      background: 'White background',
-      elements: [
-        { type: 'obj' as const, bbox: [10, 10, 30, 30], desc: 'A tiny red dot' },
-      ],
-    },
-  };
 }
 
 describe('CanvasChatPanel', () => {
@@ -130,17 +90,123 @@ describe('CanvasChatPanel', () => {
       expect(header!.textContent).toContain('Canvas AI Compose');
     });
 
-    it('pendingIdeogramOutput 为 null 时不应显示 Apply 按钮', async () => {
-      await renderWithPending(null);
-      const applyBtn = document.querySelector('.canvas-chat-apply-btn');
-      expect(applyBtn).toBeNull();
+    it('pendingIdeogramOutput 为 null 且消息不含 JSON 时不应显示 Apply pill', async () => {
+      await renderWithPending();
+      const applyPill = document.querySelector('.chat-msg-card-apply');
+      expect(applyPill).toBeNull();
     });
 
-    it('pendingIdeogramOutput 非 null 时应显示 Apply 按钮', async () => {
-      await renderWithPending(makePendingOutput());
-      const applyBtn = document.querySelector('.canvas-chat-apply-btn');
-      expect(applyBtn).not.toBeNull();
-      expect(applyBtn!.textContent).toContain('Apply');
+    it('含 JSON 代码块的 assistant 卡应渲染 Apply pill', async () => {
+      const message = {
+        id: 'msg_with_json',
+        role: 'assistant' as const,
+        content: `\`\`\`json
+{
+  "high_level_description": "Test scene",
+  "canvasW": 1024,
+  "canvasH": 1024,
+  "style_description": {
+    "aesthetics": "Minimal",
+    "lighting": "Soft",
+    "medium": "digital art",
+    "art_style": "flat design",
+    "color_palette": []
+  },
+  "compositional_deconstruction": {
+    "background": "White",
+    "elements": [
+      {
+        "type": "obj",
+        "bbox": [0, 0, 500, 500],
+        "desc": "A red circle",
+        "color_palette": []
+      }
+    ]
+  }
+}
+\`\`\``,
+        timestamp: 1000,
+      };
+      useEditorStore.setState({
+        canvasChatMessages: [message],
+        canvasChatSessions: [{
+          id: 'session_1',
+          title: '会话',
+          createdAt: 1000,
+          updatedAt: 1000,
+          messages: [message],
+          pendingIdeogramOutput: null,
+          pendingQualityReport: null,
+          requestLogs: [],
+        }],
+      });
+
+      const { getByRole } = await renderWithPending();
+
+      const applyPill = getByRole('button', { name: 'Apply this composition to canvas' });
+      expect(applyPill).not.toBeNull();
+      expect(applyPill!.textContent).toContain('Apply');
+      expect(applyPill!.className).toContain('chat-msg-card-apply');
+      expect(applyPill!.closest('.chat-msg-card')?.className).toContain('has-apply');
+    });
+
+    it('点击 Apply pill 应调用 applyMessageOutput 并显示 toast', async () => {
+      const message = {
+        id: 'msg_apply_test',
+        role: 'assistant' as const,
+        content: `\`\`\`json
+{
+  "high_level_description": "Test scene",
+  "style_description": {
+    "aesthetics": "Minimal",
+    "lighting": "Soft",
+    "medium": "digital art",
+    "art_style": "flat design",
+    "color_palette": ["#FF0000"]
+  },
+  "compositional_deconstruction": {
+    "background": "White",
+    "elements": [
+      {
+        "type": "obj",
+        "bbox": [0, 0, 500, 500],
+        "desc": "A red circle",
+        "color_palette": []
+      }
+    ]
+  }
+}
+\`\`\``,
+        timestamp: 1000,
+      };
+      useEditorStore.setState({
+        canvasChatMessages: [message],
+        canvasChatSessions: [{
+          id: 'session_1',
+          title: '会话',
+          createdAt: 1000,
+          updatedAt: 1000,
+          messages: [message],
+          pendingIdeogramOutput: null,
+          pendingQualityReport: null,
+          requestLogs: [],
+        }],
+      });
+
+      const { getByRole } = await renderWithPending();
+
+      const applyPill = getByRole('button', { name: 'Apply this composition to canvas' });
+      fireEvent.click(applyPill);
+
+      const state = useEditorStore.getState();
+      expect(state.boxes).toHaveLength(1);
+      expect(state.highLevelDescription).toBe('Test scene');
+      expect(state.globalPalette).toEqual(['#FF0000']);
+      expect(state.pendingQualityReport).not.toBeNull();
+
+      const toast = document.querySelector('.canvas-chat-toast');
+      expect(toast).not.toBeNull();
+      expect(toast!.textContent).toContain('Applied 1 boxes');
     });
 
     it('工具条应显示 Stream 开关和 Think 四档滑块，并写入共享设置', async () => {
@@ -172,10 +238,53 @@ describe('CanvasChatPanel', () => {
       expect(sizeSlider.value).toBe('4096');
     });
 
-    it('点击 Apply 应直接应用布局并生成布局质量诊断，不弹确认窗', async () => {
-      await renderWithPending(makePoorPendingOutput());
-      const applyBtn = document.querySelector('.canvas-chat-apply-btn')!;
-      fireEvent.click(applyBtn);
+    it('点击 per-message Apply pill 应直接应用布局并生成布局质量诊断，不弹确认窗', async () => {
+      const message = {
+        id: 'msg_poor',
+        role: 'assistant' as const,
+        content: `\`\`\`json
+{
+  "high_level_description": "Tiny scene",
+  "style_description": {
+    "aesthetics": "Minimal",
+    "lighting": "Soft",
+    "medium": "digital art",
+    "art_style": "flat design",
+    "color_palette": ["#FF0000"]
+  },
+  "compositional_deconstruction": {
+    "background": "White background",
+    "elements": [
+      {
+        "type": "obj",
+        "bbox": [10, 10, 30, 30],
+        "desc": "A tiny red dot",
+        "color_palette": []
+      }
+    ]
+  }
+}
+\`\`\``,
+        timestamp: 1000,
+      };
+      useEditorStore.setState({
+        canvasChatMessages: [message],
+        canvasChatSessions: [{
+          id: 'session_1',
+          title: '会话',
+          createdAt: 1000,
+          updatedAt: 1000,
+          messages: [message],
+          pendingIdeogramOutput: null,
+          pendingQualityReport: null,
+          requestLogs: [],
+        }],
+      });
+
+      await renderWithPending();
+      const applyPill = document.querySelector('.chat-msg-card-apply')!;
+      expect(applyPill).not.toBeNull();
+      fireEvent.click(applyPill);
 
       const dialog = document.querySelector('.canvas-chat-confirm');
       expect(dialog).toBeNull();
@@ -459,12 +568,64 @@ describe('CanvasChatPanel', () => {
     });
   });
 
-  // ─── Apply 一键应用 ─────────────────────────────────────────
+  // ─── Apply 一键应用（per-message card） ─────────────────────────
 
-  describe('Apply 一键应用', () => {
-    it('点击 Apply 应写入全部 AI 输出并显示 toast', async () => {
-      await renderWithPending(makePendingOutput());
-      fireEvent.click(document.querySelector('.canvas-chat-apply-btn')!);
+  describe('Apply — per-message card corner pill', () => {
+    it('含 JSON 代码块的 assistant 卡点击 Apply pill 应写入全部 AI 输出并显示 toast', async () => {
+      const message = {
+        id: 'msg_full_apply',
+        role: 'assistant' as const,
+        content: `\`\`\`json
+{
+  "high_level_description": "Test scene",
+  "style_description": {
+    "aesthetics": "Minimal",
+    "lighting": "Soft",
+    "medium": "digital art",
+    "art_style": "flat design",
+    "color_palette": ["#FF0000", "#00FF00"]
+  },
+  "compositional_deconstruction": {
+    "background": "White background",
+    "elements": [
+      {
+        "type": "obj",
+        "bbox": [0, 0, 500, 500],
+        "desc": "A red circle",
+        "color_palette": []
+      },
+      {
+        "type": "text",
+        "bbox": [600, 100, 700, 300],
+        "desc": "Title text",
+        "text": "Hello",
+        "color_palette": []
+      }
+    ]
+  }
+}
+\`\`\``,
+        timestamp: 1000,
+      };
+      useEditorStore.setState({
+        canvasChatMessages: [message],
+        canvasChatSessions: [{
+          id: 'session_1',
+          title: '会话',
+          createdAt: 1000,
+          updatedAt: 1000,
+          messages: [message],
+          pendingIdeogramOutput: null,
+          pendingQualityReport: null,
+          requestLogs: [],
+        }],
+      });
+
+      await renderWithPending();
+
+      const applyPill = document.querySelector('.chat-msg-card-apply')!;
+      expect(applyPill).not.toBeNull();
+      fireEvent.click(applyPill);
 
       const state = useEditorStore.getState();
       expect(document.querySelector('.canvas-chat-confirm')).toBeNull();

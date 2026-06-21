@@ -227,36 +227,41 @@ describe('useCanvasChat', () => {
   });
 
   it('应用带 canvasW/canvasH 的 Canvas Chat 输出时应同步比例下拉状态', () => {
-    useEditorStore.setState({
-      pendingIdeogramOutput: {
-        high_level_description: '横版海报',
-        canvasW: 1024,
-        canvasH: 768,
-        style_description: {
-          aesthetics: 'clean',
-          lighting: 'soft',
-          medium: 'digital art',
-          art_style: 'flat',
-          color_palette: [],
-        },
-        compositional_deconstruction: {
-          background: 'studio',
-          elements: [
-            {
-              type: 'obj',
-              bbox: [100, 100, 500, 700],
-              desc: '主视觉对象',
-              color_palette: [],
-            },
-          ],
-        },
-      },
-    });
-
     const { result } = renderHook(() => useCanvasChat());
 
+    const message = {
+      id: 'msg_apply',
+      role: 'assistant' as const,
+      content: `\`\`\`json
+{
+  "high_level_description": "横版海报",
+  "canvasW": 1024,
+  "canvasH": 768,
+  "style_description": {
+    "aesthetics": "clean",
+    "lighting": "soft",
+    "medium": "digital art",
+    "art_style": "flat",
+    "color_palette": []
+  },
+  "compositional_deconstruction": {
+    "background": "studio",
+    "elements": [
+      {
+        "type": "obj",
+        "bbox": [100, 100, 500, 700],
+        "desc": "主视觉对象",
+        "color_palette": []
+      }
+    ]
+  }
+}
+\`\`\``,
+      timestamp: 1000,
+    };
+
     act(() => {
-      expect(result.current.applyOutput()).toBe(1);
+      expect(result.current.applyMessageOutput(message)).toBe(1);
     });
 
     const state = useEditorStore.getState();

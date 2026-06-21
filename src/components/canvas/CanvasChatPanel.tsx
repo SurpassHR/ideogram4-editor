@@ -21,13 +21,12 @@ function formatDebugMessages(log: CanvasChatRequestLog): string {
 export default function CanvasChatPanel() {
   const {
     messages,
-    pendingIdeogramOutput,
     isLoading,
     modelOptions,
     chatModel,
     chatResponseLang,
     sendMessage,
-    applyOutput,
+    applyMessageOutput,
     handleSelectModel,
     setChatResponseLang,
     canvasChatTargetSize,
@@ -358,10 +357,12 @@ export default function CanvasChatPanel() {
     );
   };
 
-  const handleApply = useCallback(() => {
-    const count = applyOutput();
-    setApplyToast(`Applied ${count} boxes`);
-  }, [applyOutput]);
+  const handleApplyMessage = useCallback((messageId: string) => {
+    const msg = messages.find(m => m.id === messageId);
+    if (!msg) return;
+    const count = applyMessageOutput(msg);
+    if (count) setApplyToast(`Applied ${count} boxes`);
+  }, [applyMessageOutput, messages]);
 
   // ─── 始终渲染：底部横杠可点击 toggle + JS 状态驱动面板 ──────
   return (
@@ -411,6 +412,8 @@ export default function CanvasChatPanel() {
                   key={msg.id}
                   message={msg}
                   dismissed={false}
+                  onApply={handleApplyMessage}
+                  applyDisabled={isLoading}
                 />
               ))}
               {isLoading && (
@@ -479,15 +482,6 @@ export default function CanvasChatPanel() {
                       <span className="canvas-chat-spinner" />
                     ) : '➤'}
                   </button>
-                  {pendingIdeogramOutput !== null && (
-                    <button
-                      className="canvas-chat-apply-btn"
-                      onClick={handleApply}
-                      disabled={isLoading}
-                    >
-                      Apply
-                    </button>
-                  )}
                 </div>
               </div>
             </div>
@@ -581,6 +575,8 @@ export default function CanvasChatPanel() {
                     key={msg.id}
                     message={msg}
                     dismissed={false}
+                    onApply={handleApplyMessage}
+                    applyDisabled={isLoading}
                   />
                 ))}
               </div>
@@ -639,15 +635,6 @@ export default function CanvasChatPanel() {
                           <span className="canvas-chat-spinner" />
                         ) : '➤'}
                       </button>
-                      {pendingIdeogramOutput !== null && (
-                        <button
-                          className="canvas-chat-apply-btn"
-                          onClick={handleApply}
-                          disabled={isLoading}
-                        >
-                          Apply
-                        </button>
-                      )}
                     </div>
                   </div>
                 </div>

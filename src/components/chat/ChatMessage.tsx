@@ -4,11 +4,14 @@ import DOMPurify from 'dompurify';
 import type { ChatMessage as ChatMessageType } from '../../types/chat';
 import { useI18n } from '../../i18n/context';
 import { useEditorStore } from '../../store';
+import { extractAndValidateIdeogramJSON } from '../../services/llm-canvas-chat';
 
 interface ChatMessageProps {
   message: ChatMessageType;
   onAdopt?: (messageId: string) => void;
   onDismiss?: (messageId: string) => void;
+  onApply?: (messageId: string) => void;
+  applyDisabled?: boolean;
   dismissed?: boolean;
 }
 
@@ -28,7 +31,7 @@ function renderMarkdown(text: string): string {
   });
 }
 
-export default function ChatMessage({ message, onAdopt, onDismiss, dismissed }: ChatMessageProps) {
+export default function ChatMessage({ message, onAdopt, onDismiss, onApply, applyDisabled, dismissed }: ChatMessageProps) {
   const { t, lang } = useI18n();
   const timeLabel = useMemo(() => formatTime(message.timestamp), [message.timestamp]);
 
@@ -37,6 +40,12 @@ export default function ChatMessage({ message, onAdopt, onDismiss, dismissed }: 
   const avatarLetter = isUser ? 'U' : 'A';
   const responseLang = useEditorStore(s => s.chatResponseLang);
   const isChinese = responseLang === 'zh' || (responseLang === 'auto' && lang === 'zh');
+
+  const parsedOutput = useMemo(
+    () => (isUser ? null : extractAndValidateIdeogramJSON(message.content)),
+    [isUser, message.content],
+  );
+  const showApply = parsedOutput !== null && !!onApply;
 
   const handleCopy = async () => {
     try {
@@ -47,7 +56,19 @@ export default function ChatMessage({ message, onAdopt, onDismiss, dismissed }: 
   };
 
   return (
-    <div className={`chat-msg-card ${isUser ? 'user' : 'assistant'}`}>
+    <div className={`chat-msg-card ${isUser ? 'user' : 'assistant'}${showApply ? ' has-apply' : ''}`}>
+      {showApply && (
+        <button
+          type="button"
+          className="chat-msg-card-apply"
+          disabled={applyDisabled}
+          onClick={() => onApply!(message.id)}
+          aria-label="Apply this composition to canvas"
+          title="Apply this composition to canvas"
+        >
+          ✓ Apply
+        </button>
+      )}
       {/* 标签栏 */}
       <div className="chat-msg-card-header">
         <span className="chat-msg-card-avatar">{avatarLetter}</span>
