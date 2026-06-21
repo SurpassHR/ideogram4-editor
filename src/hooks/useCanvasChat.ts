@@ -243,6 +243,7 @@ export function useCanvasChat() {
       artStyle: state.artStyle,
       background: state.background,
       photoArtStyleMode: state.photoArtStyleMode,
+      canvasBackgroundUrl: state.canvasBackgroundUrl,
     };
     appendCanvasChatRequestStep(requestId, {
       kind: 'build_context',

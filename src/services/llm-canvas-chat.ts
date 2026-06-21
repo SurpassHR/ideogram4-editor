@@ -200,6 +200,8 @@ export interface CanvasChatStoreSnapshot {
   artStyle: string;
   background: string;
   photoArtStyleMode: 0 | 1;
+  /** 画布背景参考图 Data URL */
+  canvasBackgroundUrl?: string | null;
 }
 
 /**
@@ -223,6 +225,12 @@ export function buildCanvasChatContext(snapshot: CanvasChatStoreSnapshot): strin
     snapshot.background,
     snapshot.photoArtStyleMode,
   );
+
+  // 如果画布有背景参考图，在 JSON 后附加说明（不嵌入 data URL，只告知 LLM 存在）
+  if (snapshot.canvasBackgroundUrl) {
+    const result = JSON.stringify(json, null, 2);
+    return `${result}\n\n[Canvas Background Reference]\nA background reference image is set on the canvas. The background description above should be updated to match the reference image's content and mood. The reference image is not shown here — use the user's description and the background field to infer its content.\n`;
+  }
 
   return JSON.stringify(json, null, 2);
 }
