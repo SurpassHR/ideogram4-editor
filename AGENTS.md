@@ -283,7 +283,38 @@ kanban task create --title "Task 1" --prompt "..." --base-ref main --project-pat
 
 **依赖链规则**：见 @KANBAN.md
 
-### 4. 不重复造轮子：优先复用项目中已有的 UI 模式
+### 4. GitHub Pages 部署规则
+
+本项目的部署地址为 `https://gp.hrfuqiang.top/ideogram4-editor/`，自定义域名 `gp.hrfuqiang.top` 通过用户站点 `SurpassHR.github.io` 管理。
+
+#### 核心配置
+
+- **`vite.config.ts`** 中 `base` 必须使用动态模式：
+  ```ts
+  base: process.env.GITHUB_ACTIONS ? '/ideogram4-editor/' : '/',
+  ```
+  不要使用 `base: './'`（有已知 Vite bug，详见 [#15130](https://github.com/vitejs/vite/issues/15130)）
+- **自定义域名**通过 `public/CNAME` 文件配置，内容为 `gp.hrfuqiang.top`
+- **`package.json`** 中设置 `"homepage": "https://gp.hrfuqiang.top/ideogram4-editor/"`
+
+#### Workflow 规范
+
+- 使用官方 artifact 管线，**不要使用第三方 actions**（如 `peaceiris/actions-gh-pages`、`JamesIves/github-pages-deploy-action`）
+- 必须的 actions 和当前版本：
+  - `actions/checkout@v6`
+  - `actions/setup-node@v6`（`node-version: lts/*`, `cache: npm`）
+  - `actions/upload-pages-artifact@v5`（`path: ./dist`）
+  - `actions/deploy-pages@v5`
+- 所需 permissions：`contents: read`, `pages: write`, `id-token: write`
+- 不要随意降级 action 版本——旧版本有兼容性问题（`@v4` 在 Node 24 下不可用）
+
+#### 红线
+
+- **不要通过 API 删除 Pages 配置**（`DELETE /repos/{owner}/{repo}/pages`），重建后可能处于 `status: null` 的空转状态，导致站点 404
+- **不要修改 src/ 中的代码**来适配部署——本项目使用 hash 路由，无需 404.html 或 SPA fallback
+- GitHub Pages Source 必须在仓库 Settings → Pages 中设为 **GitHub Actions**（而非分支），这是手动步骤，不可在代码中配置
+
+### 5. 不重复造轮子：优先复用项目中已有的 UI 模式
 
 在修改或新增 UI 功能时，**必须先搜索项目中是否已有相同或相似的实现**，优先复用，而不是从头另写一套。
 
