@@ -11,7 +11,6 @@ interface ChatMessageProps {
   onAdopt?: (messageId: string) => void;
   onDismiss?: (messageId: string) => void;
   onApply?: (messageId: string) => void;
-  applyDisabled?: boolean;
   dismissed?: boolean;
 }
 
@@ -31,7 +30,7 @@ function renderMarkdown(text: string): string {
   });
 }
 
-export default function ChatMessage({ message, onAdopt, onDismiss, onApply, applyDisabled, dismissed }: ChatMessageProps) {
+export default function ChatMessage({ message, onAdopt, onDismiss, onApply, dismissed }: ChatMessageProps) {
   const { t, lang } = useI18n();
   const timeLabel = useMemo(() => formatTime(message.timestamp), [message.timestamp]);
 
@@ -45,7 +44,8 @@ export default function ChatMessage({ message, onAdopt, onDismiss, onApply, appl
     () => (isUser ? null : extractAndValidateIdeogramJSON(message.content)),
     [isUser, message.content],
   );
-  const showApply = parsedOutput !== null && !!onApply;
+  const showApply = parsedOutput !== null && !!onApply && !message.applied;
+  const showAppliedBadge = parsedOutput !== null && !!onApply && !!message.applied;
 
   const handleCopy = async () => {
     try {
@@ -56,19 +56,7 @@ export default function ChatMessage({ message, onAdopt, onDismiss, onApply, appl
   };
 
   return (
-    <div className={`chat-msg-card ${isUser ? 'user' : 'assistant'}${showApply ? ' has-apply' : ''}`}>
-      {showApply && (
-        <button
-          type="button"
-          className="chat-msg-card-apply"
-          disabled={applyDisabled}
-          onClick={() => onApply!(message.id)}
-          aria-label="Apply this composition to canvas"
-          title="Apply this composition to canvas"
-        >
-          ✓ Apply
-        </button>
-      )}
+    <div className={`chat-msg-card ${isUser ? 'user' : 'assistant'}`}>
       {/* 标签栏 */}
       <div className="chat-msg-card-header">
         <span className="chat-msg-card-avatar">{avatarLetter}</span>
@@ -138,6 +126,22 @@ export default function ChatMessage({ message, onAdopt, onDismiss, onApply, appl
           )}
           <span className="chat-msg-card-actions-spacer" />
           <button className="chat-copy-btn" onClick={handleCopy} title={t('chat.copy')}>📋</button>
+          {showApply && (
+            <button
+              type="button"
+              className="chat-msg-card-apply-ghost"
+              onClick={() => onApply!(message.id)}
+              aria-label="Apply this composition to canvas"
+              title="Apply this composition to canvas"
+            >
+              Apply
+            </button>
+          )}
+          {showAppliedBadge && (
+            <span className="chat-msg-card-applied-badge" aria-label="Composition applied to canvas">
+              ✓ Applied
+            </span>
+          )}
         </div>
       )}
     </div>

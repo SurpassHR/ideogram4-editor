@@ -1740,7 +1740,6 @@ input[type="color"]::-webkit-color-swatch {
   flex-shrink: 0;
   border-radius: 8px;
   overflow: hidden;
-  position: relative;
   animation: chat-msg-in 0.2s ease-out;
 }
 
@@ -1821,37 +1820,43 @@ input[type="color"]::-webkit-color-swatch {
   flex-shrink: 0;
 }
 
-/* 可 Apply 卡片隐藏右上角时间戳，为 Apply pill 让位 */
-.chat-msg-card.has-apply .chat-msg-card-time {
-  display: none;
-}
-
-/* 卡片右上角 Apply pill */
-.chat-msg-card-apply {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  z-index: 2;
-  padding: 3px 10px;
+/* Actions 行内嵌 Ghost Apply pill */
+.chat-msg-card-apply-ghost {
+  padding: 4px 12px;
   font-size: 10px;
   font-weight: 700;
   font-family: 'Inter', sans-serif;
   border-radius: 999px;
   border: none;
-  background: var(--accent);
-  color: #000;
+  background: rgba(0, 212, 170, 0.15);
+  color: var(--accent);
   cursor: pointer;
   transition: all 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.chat-msg-card-apply:hover:not(:disabled) {
-  background: #00e8bb;
-  box-shadow: 0 2px 10px rgba(0, 212, 170, 0.3);
+.chat-msg-card-apply-ghost:hover:not(:disabled) {
+  background: rgba(0, 212, 170, 0.25);
+  box-shadow: 0 2px 8px rgba(0, 212, 170, 0.2);
 }
 
-.chat-msg-card-apply:disabled {
+.chat-msg-card-apply-ghost:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+/* Actions 行内嵌 Applied 静态徽章 */
+.chat-msg-card-applied-badge {
+  padding: 4px 10px;
+  font-size: 10px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  border-radius: 999px;
+  background: rgba(0, 212, 170, 0.08);
+  color: rgba(0, 212, 170, 0.5);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 /* Card body */

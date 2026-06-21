@@ -11,8 +11,10 @@ export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   timestamp: number;
-  /** 标记此 assistant 回复是否已被用户采纳并写入 box */
+  /** 标记此 assistant 回复是否已被用户采纳并写入 box（per-box ChatPanel 使用） */
   adopted?: boolean;
+  /** Canvas Chat 中使用：该消息的 JSON 构图是否已被应用到画布（仅 assistant 消息） */
+  applied?: boolean;
   /** 模型推理过程文本，从流式事件中提取 */
   thinking?: string;
   /** 消息发送时刻的画布截图 Data URL（仅 Canvas Chat 使用） */

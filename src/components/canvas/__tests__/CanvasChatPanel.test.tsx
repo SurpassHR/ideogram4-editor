@@ -92,11 +92,11 @@ describe('CanvasChatPanel', () => {
 
     it('pendingIdeogramOutput 为 null 且消息不含 JSON 时不应显示 Apply pill', async () => {
       await renderWithPending();
-      const applyPill = document.querySelector('.chat-msg-card-apply');
+      const applyPill = document.querySelector('.chat-msg-card-apply-ghost');
       expect(applyPill).toBeNull();
     });
 
-    it('含 JSON 代码块的 assistant 卡应渲染 Apply pill', async () => {
+    it('含 JSON 代码块的 assistant 卡应渲染 Apply ghost pill', async () => {
       const message = {
         id: 'msg_with_json',
         role: 'assistant' as const,
@@ -146,8 +146,7 @@ describe('CanvasChatPanel', () => {
       const applyPill = getByRole('button', { name: 'Apply this composition to canvas' });
       expect(applyPill).not.toBeNull();
       expect(applyPill!.textContent).toContain('Apply');
-      expect(applyPill!.className).toContain('chat-msg-card-apply');
-      expect(applyPill!.closest('.chat-msg-card')?.className).toContain('has-apply');
+      expect(applyPill!.className).toContain('chat-msg-card-apply-ghost');
     });
 
     it('点击 Apply pill 应调用 applyMessageOutput 并显示 toast', async () => {
@@ -203,6 +202,13 @@ describe('CanvasChatPanel', () => {
       expect(state.highLevelDescription).toBe('Test scene');
       expect(state.globalPalette).toEqual(['#FF0000']);
       expect(state.pendingQualityReport).not.toBeNull();
+
+      // 应用后应变为 static Applied 徽章
+      const appliedBadge = document.querySelector('.chat-msg-card-applied-badge');
+      expect(appliedBadge).not.toBeNull();
+      expect(appliedBadge!.textContent).toContain('Applied');
+      // ghost pill 应消失
+      expect(document.querySelector('.chat-msg-card-apply-ghost')).toBeNull();
 
       const toast = document.querySelector('.canvas-chat-toast');
       expect(toast).not.toBeNull();
@@ -282,7 +288,7 @@ describe('CanvasChatPanel', () => {
       });
 
       await renderWithPending();
-      const applyPill = document.querySelector('.chat-msg-card-apply')!;
+      const applyPill = document.querySelector('.chat-msg-card-apply-ghost')!;
       expect(applyPill).not.toBeNull();
       fireEvent.click(applyPill);
 
@@ -290,6 +296,8 @@ describe('CanvasChatPanel', () => {
       expect(dialog).toBeNull();
       expect(useEditorStore.getState().boxes).toHaveLength(1);
       expect(useEditorStore.getState().pendingQualityReport).not.toBeNull();
+      // 应用后应显示 Applied 徽章
+      expect(document.querySelector('.chat-msg-card-applied-badge')).not.toBeNull();
     });
 
     it('无 LLM provider 时应显示添加提供商按钮并跳转到设置页', async () => {
@@ -623,7 +631,7 @@ describe('CanvasChatPanel', () => {
 
       await renderWithPending();
 
-      const applyPill = document.querySelector('.chat-msg-card-apply')!;
+      const applyPill = document.querySelector('.chat-msg-card-apply-ghost')!;
       expect(applyPill).not.toBeNull();
       fireEvent.click(applyPill);
 
@@ -633,6 +641,10 @@ describe('CanvasChatPanel', () => {
       expect(state.highLevelDescription).toBe('Test scene');
       expect(state.aesthetics).toBe('Minimal');
       expect(state.pendingQualityReport).not.toBeNull();
+
+      // 应用后应显示 Applied 徽章，ghost pill 应消失
+      expect(document.querySelector('.chat-msg-card-applied-badge')).not.toBeNull();
+      expect(document.querySelector('.chat-msg-card-apply-ghost')).toBeNull();
 
       const toast = document.querySelector('.canvas-chat-toast');
       expect(toast).not.toBeNull();

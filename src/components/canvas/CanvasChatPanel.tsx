@@ -361,7 +361,10 @@ export default function CanvasChatPanel() {
     const msg = messages.find(m => m.id === messageId);
     if (!msg) return;
     const count = applyMessageOutput(msg);
-    if (count) setApplyToast(`Applied ${count} boxes`);
+    if (count) {
+      setApplyToast(`Applied ${count} boxes`);
+      useEditorStore.getState().updateCanvasChatMessage(messageId, { applied: true });
+    }
   }, [applyMessageOutput, messages]);
 
   // ─── 始终渲染：底部横杠可点击 toggle + JS 状态驱动面板 ──────
@@ -413,7 +416,6 @@ export default function CanvasChatPanel() {
                   message={msg}
                   dismissed={false}
                   onApply={handleApplyMessage}
-                  applyDisabled={isLoading}
                 />
               ))}
               {isLoading && (
@@ -576,7 +578,6 @@ export default function CanvasChatPanel() {
                     message={msg}
                     dismissed={false}
                     onApply={handleApplyMessage}
-                    applyDisabled={isLoading}
                   />
                 ))}
               </div>
