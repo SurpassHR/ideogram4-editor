@@ -161,8 +161,6 @@ The user will provide:
 - Aspect ratio and resolution (e.g. "2:3 1024x1536", "2:3 2048x3072", "1:1 1024x1024", "1:1 2048x2048", "16:9 1680x944", "16:9 1920x1080", "9:16 1080x1920")
 - Image description in natural language
 
-The user message may include a [Canvas Background Reference] section if the canvas has a background reference image. Use it to align the composition with the background.
-
 Use both the aspect ratio AND the pixel dimensions to calculate bbox coordinates.
 Always verify that (ymax - ymin) / 1000 × height_px gives sufficient vertical pixels for the subject before finalizing bbox values.
 `;
@@ -227,12 +225,6 @@ export function buildCanvasChatContext(snapshot: CanvasChatStoreSnapshot): strin
     snapshot.background,
     snapshot.photoArtStyleMode,
   );
-
-  // 如果画布有背景参考图，在 JSON 后附加说明（不嵌入 data URL，只告知 LLM 存在）
-  if (snapshot.canvasBackgroundUrl) {
-    const result = JSON.stringify(json, null, 2);
-    return `${result}\n\n[Canvas Background Reference]\nA background reference image is set on the canvas. The background description above should be updated to match the reference image's content and mood. The reference image is not shown here — use the user's description and the background field to infer its content.\n`;
-  }
 
   return JSON.stringify(json, null, 2);
 }
