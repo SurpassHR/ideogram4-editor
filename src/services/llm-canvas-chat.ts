@@ -25,10 +25,10 @@ The 0-1000 grid maps to actual pixel dimensions according to the resolution.
 You MUST use both aspect ratio AND pixel dimensions when placing elements.
 
 For example:
-- At 1024x1536: (ymax - ymin) / 1000 \u00d7 1536px = actual vertical pixels for the element
-- At 2048x3072: (ymax - ymin) / 1000 \u00d7 3072px = actual vertical pixels for the element
-- At 1024x1024: (ymax - ymin) / 1000 \u00d7 1024px = actual vertical pixels for the element
-- At 1680x944: (ymax - ymin) / 1000 \u00d7 944px = actual vertical pixels for the element
+- At 1024x1536: (ymax - ymin) / 1000 × 1536px = actual vertical pixels for the element
+- At 2048x3072: (ymax - ymin) / 1000 × 3072px = actual vertical pixels for the element
+- At 1024x1024: (ymax - ymin) / 1000 × 1024px = actual vertical pixels for the element
+- At 1680x944: (ymax - ymin) / 1000 × 944px = actual vertical pixels for the element
 - Always verify that bbox gives enough pixel space for the described subject
 
 ### Vertical landmark guide by aspect ratio
@@ -50,20 +50,20 @@ For a full standing figure, use these approximate ymin/ymax landmarks:
 ### Pixel verification examples
 
 At 1024x1536 (2:3):
-- Full body ymin=30, ymax=950 \u2192 (950-30)/1000 \u00d7 1536 = 1413px \u2713 sufficient
-- Wrong: ymin=100, ymax=800 \u2192 (800-100)/1000 \u00d7 1536 = 1075px \u2717 too tight, will crop
+- Full body ymin=30, ymax=950 → (950-30)/1000 × 1536 = 1413px ✓ sufficient
+- Wrong: ymin=100, ymax=800 → (800-100)/1000 × 1536 = 1075px ✗ too tight, will crop
 
 At 2048x3072 (2:3):
-- Full body ymin=30, ymax=950 \u2192 (950-30)/1000 \u00d7 3072 = 2826px \u2713 sufficient
+- Full body ymin=30, ymax=950 → (950-30)/1000 × 3072 = 2826px ✓ sufficient
 
 At 2048x2048 (1:1):
-- Full body ymin=30, ymax=970 \u2192 (970-30)/1000 \u00d7 2048 = 1925px \u2713 sufficient
+- Full body ymin=30, ymax=970 → (970-30)/1000 × 2048 = 1925px ✓ sufficient
 
 At 1024x1024 (1:1):
-- Full body ymin=30, ymax=970 \u2192 (970-30)/1000 \u00d7 1024 = 962px \u2713 sufficient
+- Full body ymin=30, ymax=970 → (970-30)/1000 × 1024 = 962px ✓ sufficient
 
 At 1680x944 (16:9):
-- Waist-up ymin=80, ymax=700 \u2192 (700-80)/1000 \u00d7 944 = 585px \u2713 sufficient
+- Waist-up ymin=80, ymax=700 → (700-80)/1000 × 944 = 585px ✓ sufficient
 - Full body is not recommended for 16:9 — vertical space (944px) is too limited for a standing figure
 - Prefer waist-up, bust-up, or scene/group compositions for 16:9
 
@@ -79,7 +79,7 @@ Always perform this verification before finalizing bbox values.
 - Scene/cinematic: multiple subjects or environment — distribute horizontally for 16:9
 
 For portrait 2:3, a subject filling the frame vertically should use:
-  ymin: 20\u201350, ymax: 930\u2013970
+  ymin: 20–50, ymax: 930–970
 Never place a full standing figure with ymin > 100 or ymax < 850 in 2:3 portrait.
 
 ### Horizontal placement guide
@@ -88,14 +88,14 @@ Never place a full standing figure with ymin > 100 or ymax < 850 in 2:3 portrait
 - Slight left offset: xmin ~100, xmax ~650
 - Slight right offset: xmin ~350, xmax ~900
 - Full width: xmin ~50, xmax ~950
-- For 16:9 multi-subject: distribute across xmin ~50\u2013950 with subjects at ~150\u2013400, ~400\u2013650, ~600\u2013900
+- For 16:9 multi-subject: distribute across xmin ~50–950 with subjects at ~150–400, ~400–650, ~600–900
 
 ## Framing rules for full-body shots
 
 When the subject is a standing or full-body figure (portrait orientations only):
 - Always include in high_level_description: "full body visible from head to feet, no cropping, entire figure within frame"
 - Always include in the primary subject element desc: "full body visible, head to feet entirely within frame, no cropping at top or bottom"
-- Set subject bbox with sufficient vertical margin: ymin 20\u201350, ymax 930\u2013970
+- Set subject bbox with sufficient vertical margin: ymin 20–50, ymax 930–970
 - Never let the subject bbox touch or exceed the frame edges vertically
 
 When the user specifies a crop (knee-up, waist-up, bust-up):
@@ -110,11 +110,11 @@ For 16:9 landscape:
 ## bbox verification rule
 
 Before outputting, explicitly calculate:
-- vertical pixels = (ymax - ymin) / 1000 \u00d7 height_px
-- horizontal pixels = (xmax - xmin) / 1000 \u00d7 width_px
+- vertical pixels = (ymax - ymin) / 1000 × height_px
+- horizontal pixels = (xmax - xmin) / 1000 × width_px
 - If the user requested full body or knee-up, vertical pixels must be at least:
-  - full body: height_px \u00d7 0.85 or more
-  - knee-up: height_px \u00d7 0.70 or more
+  - full body: height_px × 0.85 or more
+  - knee-up: height_px × 0.70 or more
 - If the calculation fails, expand ymin toward 20 and ymax toward 950 and recalculate
 - For portrait orientation (height_px > width_px): the subject's bbox height (ymax - ymin) must always be greater than its bbox width (xmax - xmin). Never output a bbox where xmax - xmin > ymax - ymin for a portrait image.
 - For landscape orientation (width_px > height_px): the subject's bbox width (xmax - xmin) is naturally larger than height — this is expected and correct.
@@ -162,7 +162,7 @@ The user will provide:
 - Image description in natural language
 
 Use both the aspect ratio AND the pixel dimensions to calculate bbox coordinates.
-Always verify that (ymax - ymin) / 1000 \u00d7 height_px gives sufficient vertical pixels for the subject before finalizing bbox values.
+Always verify that (ymax - ymin) / 1000 × height_px gives sufficient vertical pixels for the subject before finalizing bbox values.
 `;
 
 // ─── Layout Feedback ─────────────────────────────────────────────────
