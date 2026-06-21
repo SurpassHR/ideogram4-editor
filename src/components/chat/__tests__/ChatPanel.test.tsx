@@ -39,6 +39,8 @@ function mockChatPanel() {
     handleClose: vi.fn(),
     handleSelectModel: vi.fn(),
     refreshProviders: vi.fn(),
+    systemPrompts: [],
+    activeBoxChatSystemPromptId: null,
     chatPresets: [],
     addPreset: vi.fn(),
     updatePreset: vi.fn(),

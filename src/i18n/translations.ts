@@ -326,10 +326,12 @@ export interface Translations {
       title: string;
       moduleDesc: string;
       info: string;
-      canvasTitle: string;
-      canvasDesc: string;
-      boxTitle: string;
-      boxDesc: string;
+      sp: string;
+      addPrompt: string;
+      noPrompts: string;
+      defaultBuiltin: string;
+      scope: string;
+      scopeBoth: string;
       apply: string;
       reset: string;
       default: string;
@@ -717,11 +719,13 @@ const en: Translations = {
     systemPrompt: {
       title: 'System Prompts',
       moduleDesc: 'Edit Canvas & Box chat system prompts',
-      info: 'Customize the system prompts that guide AI behavior. Changes affect new conversations only. Reset to restore the default prompt.',
-      canvasTitle: 'Canvas Chat System Prompt',
-      canvasDesc: 'Guides the AI composition dialog behavior and output format',
-      boxTitle: 'Per-Box Chat System Prompt',
-      boxDesc: 'Guides per-box AI chat for prompt optimization',
+      info: 'Create and manage system prompts that guide AI behavior. Select a prompt in the Chat Panel to override the default. Changes affect new conversations only.',
+      sp: 'SP',
+      addPrompt: 'Add Prompt',
+      noPrompts: 'No custom prompts yet. Add one to get started.',
+      defaultBuiltin: 'Default (Built-in)',
+      scope: 'Scope',
+      scopeBoth: 'Canvas + Box',
       apply: 'Apply',
       reset: 'Reset',
       default: 'Default',
@@ -1108,12 +1112,14 @@ const zh: Translations = {
     },
     systemPrompt: {
       title: '系统提示词',
-      moduleDesc: '编辑 Canvas Chat 和 Per-Box Chat 的系统提示词',
-      info: '自定义 AI 行为的系统提示词。修改仅影响新对话。点击 Reset 恢复默认。',
-      canvasTitle: 'Canvas Chat 系统提示词',
-      canvasDesc: '引导画布级 AI 构图对话的行为和输出格式',
-      boxTitle: 'Per-Box Chat 系统提示词',
-      boxDesc: '引导单框 AI 对话的提示词优化行为',
+      moduleDesc: '管理 Canvas Chat 和 Per-Box Chat 的系统提示词',
+      info: '创建和管理多个系统提示词。在 Chat Panel 中选择以覆盖默认提示词。修改仅影响新对话。',
+      sp: '提示词',
+      addPrompt: '添加提示词',
+      noPrompts: '暂无自定义提示词，添加一个开始使用。',
+      defaultBuiltin: '默认（内置）',
+      scope: '作用范围',
+      scopeBoth: 'Canvas + Box',
       apply: '应用',
       reset: '重置',
       default: '默认',

@@ -13,14 +13,11 @@ export default function SettingsPage() {
   const presetCount = useEditorStore(s => s.chatPresets.length);
   const favoriteCount = useEditorStore(s => s.canvasFavorites.length);
   const gistId = useEditorStore(s => s.workspaceBackupSettings.gistId);
-  const canvasChatSystemPrompt = useEditorStore(s => s.canvasChatSystemPrompt);
-  const boxChatSystemPrompt = useEditorStore(s => s.boxChatSystemPrompt);
+  const systemPrompts = useEditorStore(s => s.systemPrompts);
   const [activeModule, setActiveModule] = useState<SettingsModuleId>('llm');
 
-  const hasCustomCanvas = canvasChatSystemPrompt !== null;
-  const hasCustomBox = boxChatSystemPrompt !== null;
-  const sysPromptStatus = (hasCustomCanvas || hasCustomBox)
-    ? `${t('chat.systemPrompt.custom')}: ${hasCustomCanvas ? 'Canvas' : ''}${hasCustomCanvas && hasCustomBox ? ', ' : ''}${hasCustomBox ? 'Box' : ''}`
+  const sysPromptStatus = systemPrompts.length > 0
+    ? `${systemPrompts.length} prompts`
     : t('chat.systemPrompt.default');
 
   const modules = useMemo(() => [

@@ -2,6 +2,7 @@ import { useState, useLayoutEffect, useRef, useEffect, useCallback } from 'react
 import { createPortal } from 'react-dom';
 import { useI18n } from '../../i18n/context';
 import { useChatPanel } from '../../hooks/useChatPanel';
+import { useEditorStore } from '../../store';
 import ChatMessage from './ChatMessage';
 import SelectMenu from './SelectMenu';
 import ChatRunControls from './ChatRunControls';
@@ -35,6 +36,8 @@ export default function ChatPanel() {
     handleSelectPreset,
     chatResponseLang,
     setChatResponseLang,
+    systemPrompts,
+    activeBoxChatSystemPromptId,
   } = useChatPanel();
 
   const { t } = useI18n();
@@ -227,6 +230,25 @@ export default function ChatPanel() {
     }
   }, [handleSend, editingMessageId]);
 
+  const activeBoxChatSystemPrompt = activeBoxChatSystemPromptId
+    ? systemPrompts.find(p => p.id === activeBoxChatSystemPromptId)
+    : null;
+
+  const boxSystemPromptOptions = [
+    { value: '', label: 'Default' },
+    ...systemPrompts
+      .filter(p => p.scope === 'box' || p.scope === 'both')
+      .map(p => ({ value: p.id, label: p.name })),
+  ];
+
+  const handleBoxSystemPromptChange = useCallback((value: string) => {
+    if (!value) {
+      useEditorStore.getState().setActiveBoxChatSystemPrompt(null);
+    } else {
+      useEditorStore.getState().setActiveBoxChatSystemPrompt(value);
+    }
+  }, []);
+
   const handleLlmConfigClose = useCallback(() => {
     setShowLlmConfig(false);
     refreshProviders();
@@ -310,6 +332,14 @@ export default function ChatPanel() {
               placeholder={t('chat.presets.selectPreset')}
             />
           )}
+
+          <SelectMenu
+            className="chat-sp-select"
+            options={boxSystemPromptOptions}
+            value={activeBoxChatSystemPrompt?.id || ''}
+            onChange={handleBoxSystemPromptChange}
+            placeholder={t('chat.systemPrompt.sp')}
+          />
 
           <SelectMenu
             className="chat-model-select"

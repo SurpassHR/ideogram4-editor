@@ -86,6 +86,17 @@ export interface CanvasChatRequestLogStep {
   detail?: string;
 }
 
+/** 系统提示词条目 */
+export interface SystemPromptEntry {
+  id: string;
+  name: string;
+  content: string;
+  /** 适用范围：canvas（Canvas Chat）、box（Per-Box Chat）、both（两者） */
+  scope: 'canvas' | 'box' | 'both';
+  createdAt: number;
+  updatedAt: number;
+}
+
 /** 生成唯一消息 ID：`msg_<timestamp>_<随机4位>` */
 export function generateMessageId(): string {
   const hex = Math.random().toString(16).slice(2, 6);

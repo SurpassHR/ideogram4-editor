@@ -31,7 +31,12 @@ export function useChatPanel() {
   const setChatResponseLang = useEditorStore(s => s.setChatResponseLang);
   const chatStreamEnabled = useEditorStore(s => s.chatStreamEnabled);
   const chatThinkingLevel = useEditorStore(s => s.chatThinkingLevel);
-  const customBoxSystemPrompt = useEditorStore(s => s.boxChatSystemPrompt);
+  const systemPrompts = useEditorStore(s => s.systemPrompts);
+  const activeBoxChatSystemPromptId = useEditorStore(s => s.activeBoxChatSystemPromptId);
+  const selectedBoxSystemPrompt = activeBoxChatSystemPromptId
+    ? systemPrompts.find(p => p.id === activeBoxChatSystemPromptId)
+    : null;
+  const customBoxSystemPrompt = selectedBoxSystemPrompt?.content ?? null;
 
   const addChatMessage = useEditorStore(s => s.addChatMessage);
   const markChatMessageAdopted = useEditorStore(s => s.markChatMessageAdopted);
@@ -312,6 +317,9 @@ export function useChatPanel() {
     selectedPresetId,
     selectedPreset,
     handleSelectPreset,
+    // 系统提示词
+    systemPrompts,
+    activeBoxChatSystemPromptId,
     // LLM 回复语言
     chatResponseLang,
     setChatResponseLang,

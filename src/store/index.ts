@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { Box, IdeogramOutput, GenerationStatus, PhotoArtStyleMode } from '../types';
-import type { CanvasChatRequestLogDetail, CanvasChatRequestLogStep, CanvasChatSession, ChatMessage, ChatThinkingLevel } from '../types/chat';
+import type { CanvasChatRequestLogDetail, CanvasChatRequestLogStep, CanvasChatSession, ChatMessage, ChatThinkingLevel, SystemPromptEntry } from '../types/chat';
 import type { PromptPreset } from '../types/presets';
 import type { CanvasFavorite, CanvasSnapshotLite, PersistedCanvasChatStateV1, WorkspaceBackupSettings } from '../types/workspace';
 import { PRESETS_STORAGE_KEY, createBuiltinPresets } from '../types/presets';
@@ -224,6 +224,20 @@ function scaleBoxesToCanvas(boxes: Box[], scaleX: number, scaleY: number): Box[]
 
 // ─── 预设持久化辅助 ────────────────────────────────────────────
 
+/** 从 localStorage 加载系统提示词列表 */
+function loadSystemPromptsFromStorage(): SystemPromptEntry[] {
+  try {
+    const raw = localStorage.getItem('ideogram4-system-prompts');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch {
+    // ignore corrupt data
+  }
+  return [];
+}
+
 /** 从 localStorage 加载预设，首次使用自动初始化内置预设 */
 function loadPresetsFromStorage(): PromptPreset[] {
   try {
@@ -368,11 +382,15 @@ interface EditorStore {
   setChatThinkingLevel: (level: ChatThinkingLevel) => void;
   setCanvasChatTargetSize: (size: number) => void;
 
-  // 自定义系统提示词（persist，null = 使用默认值）
-  canvasChatSystemPrompt: string | null;
-  boxChatSystemPrompt: string | null;
-  setCanvasChatSystemPrompt: (prompt: string | null) => void;
-  setBoxChatSystemPrompt: (prompt: string | null) => void;
+  // 系统提示词列表（persist）
+  systemPrompts: SystemPromptEntry[];
+  activeCanvasChatSystemPromptId: string | null;
+  activeBoxChatSystemPromptId: string | null;
+  addSystemPrompt: (entry: Omit<SystemPromptEntry, 'id' | 'createdAt' | 'updatedAt'>) => string;
+  updateSystemPrompt: (id: string, updates: Partial<Omit<SystemPromptEntry, 'id' | 'createdAt'>>) => void;
+  deleteSystemPrompt: (id: string) => void;
+  setActiveCanvasChatSystemPrompt: (id: string | null) => void;
+  setActiveBoxChatSystemPrompt: (id: string | null) => void;
 
   // Image 操作
   importImageToBox: (boxId: string, dataUrl: string) => void;
@@ -1018,24 +1036,53 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     set({ canvasChatTargetSize: nextSize });
   },
 
-  // 自定义系统提示词
-  canvasChatSystemPrompt: localStorage.getItem('ideogram4-canvas-system-prompt') || null,
-  boxChatSystemPrompt: localStorage.getItem('ideogram4-box-system-prompt') || null,
-  setCanvasChatSystemPrompt: (prompt) => {
-    if (prompt) {
-      localStorage.setItem('ideogram4-canvas-system-prompt', prompt);
-    } else {
-      localStorage.removeItem('ideogram4-canvas-system-prompt');
-    }
-    set({ canvasChatSystemPrompt: prompt });
+  // 系统提示词列表
+  systemPrompts: loadSystemPromptsFromStorage(),
+  activeCanvasChatSystemPromptId: localStorage.getItem('ideogram4-active-canvas-sp') || null,
+  activeBoxChatSystemPromptId: localStorage.getItem('ideogram4-active-box-sp') || null,
+  addSystemPrompt: (entry) => {
+    const state = get();
+    const now = Date.now();
+    const id = `sp_${now}`;
+    const newEntry: SystemPromptEntry = { ...entry, id, createdAt: now, updatedAt: now };
+    const updated = [...state.systemPrompts, newEntry];
+    localStorage.setItem('ideogram4-system-prompts', JSON.stringify(updated));
+    set({ systemPrompts: updated });
+    return id;
   },
-  setBoxChatSystemPrompt: (prompt) => {
-    if (prompt) {
-      localStorage.setItem('ideogram4-box-system-prompt', prompt);
+  updateSystemPrompt: (id, updates) => {
+    const state = get();
+    const updated = state.systemPrompts.map(p =>
+      p.id === id ? { ...p, ...updates, updatedAt: Date.now() } : p,
+    );
+    localStorage.setItem('ideogram4-system-prompts', JSON.stringify(updated));
+    set({ systemPrompts: updated });
+  },
+  deleteSystemPrompt: (id) => {
+    const state = get();
+    const updated = state.systemPrompts.filter(p => p.id !== id);
+    localStorage.setItem('ideogram4-system-prompts', JSON.stringify(updated));
+    set({
+      systemPrompts: updated,
+      activeCanvasChatSystemPromptId: state.activeCanvasChatSystemPromptId === id ? null : state.activeCanvasChatSystemPromptId,
+      activeBoxChatSystemPromptId: state.activeBoxChatSystemPromptId === id ? null : state.activeBoxChatSystemPromptId,
+    });
+  },
+  setActiveCanvasChatSystemPrompt: (id) => {
+    if (id) {
+      localStorage.setItem('ideogram4-active-canvas-sp', id);
     } else {
-      localStorage.removeItem('ideogram4-box-system-prompt');
+      localStorage.removeItem('ideogram4-active-canvas-sp');
     }
-    set({ boxChatSystemPrompt: prompt });
+    set({ activeCanvasChatSystemPromptId: id });
+  },
+  setActiveBoxChatSystemPrompt: (id) => {
+    if (id) {
+      localStorage.setItem('ideogram4-active-box-sp', id);
+    } else {
+      localStorage.removeItem('ideogram4-active-box-sp');
+    }
+    set({ activeBoxChatSystemPromptId: id });
   },
 
   // Image 操作

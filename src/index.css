@@ -3708,83 +3708,199 @@ input[type="color"]::-webkit-color-swatch {
   line-height: 1.6;
 }
 
-.sysprompt-section {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  overflow: hidden;
-  background: var(--surface-raised);
-}
+/* ─── System Prompt List ─────────────────────────────────────── */
 
-.sysprompt-section-header {
+.sysprompt-toolbar {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--border);
-  gap: 12px;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
-.sysprompt-section-title {
+.sysprompt-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.sp-empty {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.sp-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-raised);
+  overflow: hidden;
+}
+
+.sp-card.builtin {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  gap: 12px;
+  opacity: 0.7;
+}
+
+.sp-card.builtin .sp-card-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.sp-card.builtin .sp-card-name {
   font-size: 13px;
   font-weight: 600;
   color: var(--text);
 }
 
-.sysprompt-section-sub {
-  font-size: 11px;
+.sp-card-badge {
+  font-size: 10px;
   color: var(--text-muted);
-  margin-top: 2px;
-}
-
-.sysprompt-actions {
-  display: flex;
-  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--surface);
+  white-space: nowrap;
   flex-shrink: 0;
 }
 
-.sysprompt-textarea {
+.sp-card-expand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   width: 100%;
-  min-height: 180px;
-  max-height: 400px;
-  padding: 14px 16px;
+  padding: 10px 14px;
   border: none;
   background: transparent;
   color: var(--text);
-  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  gap: 8px;
+}
+
+.sp-card-expand:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.sp-card-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.sp-card-name {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sp-card-scope {
+  font-size: 10px;
+  color: var(--text-muted);
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--surface);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.sp-card-arrow {
+  font-size: 10px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.sp-card-actions {
+  display: flex;
+  gap: 4px;
+  padding: 0 14px 10px;
+}
+
+.sp-card-preview {
+  margin: 0;
+  padding: 8px 14px;
+  border-top: 1px solid var(--border);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 200px;
+  overflow-y: auto;
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.sp-editor {
+  padding: 12px 14px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sp-editor .input-group {
+  margin-bottom: 0;
+}
+
+.sp-editor .input-group label {
+  display: block;
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.sp-editor .input-group input,
+.sp-editor .input-group select {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.sp-editor .input-group textarea {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px 10px;
   font-size: 12px;
-  line-height: 1.6;
+  font-family: 'SF Mono', 'Fira Code', monospace;
   resize: vertical;
   outline: none;
 }
 
-.sysprompt-textarea:focus {
-  box-shadow: inset 0 0 0 1px var(--primary);
+.sp-editor .input-group textarea:focus {
+  border-color: var(--primary);
 }
 
-.sysprompt-footer {
+.sp-editor-actions {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 16px;
-  border-top: 1px solid var(--border);
-  font-size: 11px;
+  gap: 8px;
 }
 
-.sysprompt-status {
-  font-size: 11px;
+/* ─── SP Select in Chat Toolbar ───────────────────────────────── */
+
+.chat-sp-select {
+  width: 64px;
+  flex: none;
 }
 
-.sysprompt-status.default {
-  color: var(--text-muted);
-}
-
-.sysprompt-status.custom {
-  color: var(--orange, #ff9800);
-}
-
-.sysprompt-char-count {
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
+.chat-sp-select .select-menu-trigger {
+  border-color: rgba(255, 152, 0, 0.3);
+  color: var(--orange);
 }
 
 /* ─── LLM Config Body ─────────────────────────────────────────── */

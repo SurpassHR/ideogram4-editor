@@ -40,6 +40,8 @@ export default function CanvasChatPanel() {
     selectedPreset,
     selectedBox,
     handleSelectPreset,
+    systemPrompts,
+    activeCanvasChatSystemPromptId,
   } = useCanvasChat();
 
   const isCanvasChatOpen = useEditorStore(s => s.isCanvasChatOpen);
@@ -283,6 +285,25 @@ export default function CanvasChatPanel() {
     }
   }, [chatPresets, handleSelectPreset]);
 
+  const activeCanvasChatSystemPrompt = activeCanvasChatSystemPromptId
+    ? systemPrompts.find(p => p.id === activeCanvasChatSystemPromptId)
+    : null;
+
+  const canvasSystemPromptOptions = [
+    { value: '', label: 'Default' },
+    ...systemPrompts
+      .filter(p => p.scope === 'canvas' || p.scope === 'both')
+      .map(p => ({ value: p.id, label: p.name })),
+  ];
+
+  const handleCanvasSystemPromptChange = useCallback((value: string) => {
+    if (!value) {
+      useEditorStore.getState().setActiveCanvasChatSystemPrompt(null);
+    } else {
+      useEditorStore.getState().setActiveCanvasChatSystemPrompt(value);
+    }
+  }, []);
+
   const handleTargetSizeChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     setCanvasChatTargetSize(Number(e.currentTarget.value));
   }, [setCanvasChatTargetSize]);
@@ -474,6 +495,13 @@ export default function CanvasChatPanel() {
                   />
                 )}
                 <SelectMenu
+                  className="chat-sp-select"
+                  options={canvasSystemPromptOptions}
+                  value={activeCanvasChatSystemPrompt?.id || ''}
+                  onChange={handleCanvasSystemPromptChange}
+                  placeholder={t('chat.systemPrompt.sp')}
+                />
+                <SelectMenu
                   className="chat-model-select"
                   options={modelOptions.map(opt => ({ value: opt.value, label: opt.label }))}
                   value={chatModel}
@@ -646,6 +674,13 @@ export default function CanvasChatPanel() {
                         placeholder={t('chat.presets.selectPreset')}
                       />
                     )}
+                    <SelectMenu
+                      className="chat-sp-select"
+                      options={canvasSystemPromptOptions}
+                      value={activeCanvasChatSystemPrompt?.id || ''}
+                      onChange={handleCanvasSystemPromptChange}
+                      placeholder={t('chat.systemPrompt.sp')}
+                    />
                     <SelectMenu
                       className="chat-model-select"
                       options={modelOptions.map(opt => ({ value: opt.value, label: opt.label }))}
