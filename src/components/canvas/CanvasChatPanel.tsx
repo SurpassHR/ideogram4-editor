@@ -15,7 +15,10 @@ function formatDebugMessages(log: CanvasChatRequestLog): string {
   const messages = log.detail?.messages ?? [];
   if (messages.length === 0) return 'Request payload was not sent.';
   return messages.map((message, index) => {
-    return `[${index + 1}] ${message.role}\n${message.content}`;
+    const content = typeof message.content === 'string'
+      ? message.content
+      : JSON.stringify(message.content, null, 2);
+    return `[${index + 1}] ${message.role}\n${content}`;
   }).join('\n\n');
 }
 
@@ -369,6 +372,7 @@ export default function CanvasChatPanel() {
           `targetSize: ${metadata.targetSize}`,
           `canvasSize: ${metadata.canvasSize.width}x${metadata.canvasSize.height}`,
           `boxCount: ${metadata.boxCount}`,
+          `backgroundImage: ${metadata.backgroundImageAttached ? 'yes' : 'no'}`,
         ].join('\n')
       : 'Request metadata was not captured.';
     return createPortal(

@@ -57,6 +57,7 @@ export interface CanvasChatRequestLogDetail {
     targetSize: number;
     canvasSize: { width: number; height: number };
     boxCount: number;
+    backgroundImageAttached?: boolean;
   };
   systemPrompt?: string;
   messages?: ChatMessageForApi[];

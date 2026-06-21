@@ -269,6 +269,7 @@ export function useCanvasChat() {
         targetSize: canvasChatTargetSize,
         canvasSize: { width: canvasW, height: canvasH },
         boxCount: snapshot.boxes.length,
+        backgroundImageAttached: !!canvasBackgroundUrl,
       },
     });
 
@@ -446,6 +447,15 @@ export function useCanvasChat() {
         thinkingLevel: chatThinkingLevel,
         imageDataUrl: canvasBackgroundUrl || undefined,
       });
+
+      if (canvasBackgroundUrl) {
+        appendCanvasChatRequestStep(requestId, {
+          kind: 'snapshot',
+          status: 'success',
+          label: 'Background image attached',
+          detail: `${canvasBackgroundUrl.slice(0, 40)}... (${Math.round(canvasBackgroundUrl.length * 0.75)} bytes)`,
+        });
+      }
 
       void Promise.resolve(streamResult).catch(err => {
         finishWithError(err instanceof Error ? err.message : String(err));
