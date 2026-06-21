@@ -32,7 +32,8 @@ src/
 ├── types/
 │   ├── index.ts                      # Box, IdeogramOutput, GenerationStatus 等类型
 │   ├── chat.ts                       # ChatMessage 类型（id, role, content, timestamp, adopted, thinking?, canvasSnapshotUrl?）
-│   └── presets.ts                    # PromptPreset 接口 + 4 个内置预设模板
+│   ├── presets.ts                    # PromptPreset 接口 + 4 个内置预设模板
+│   └── workspace.ts                  # WorkspaceBackupSettings, WorkspaceBackupPackageV1, 恢复模块类型
 ├── hooks/
 │   ├── usePointerInteraction.ts      # 画布 Pointer Events：绘制/拖拽/缩放 boxes + 单击/双击检测 + 全局键盘快捷键（Ctrl+D/C/X/V, Delete）
 │   ├── useImageDrop.ts               # 图片拖放导入，PNG 元数据提取
@@ -50,7 +51,8 @@ src/
 │   │   ├── App.tsx                   # 根组件：Hash 路由（#/ → CanvasPage, #/settings → SettingsPage）+ Header
 │   │   ├── HeaderControls.tsx        # 全局 Header：Logo + 居中 Canvas/Settings 导航 + 右侧快捷键+语言切换
 │   │   ├── MainContent.tsx           # CanvasPage：左列（Artboard） + 右列（面板）
-│   │   └── SettingsPage.tsx          # 设置页：左右两栏（LLM 提供商管理 + 提示词预设管理）
+│   │   ├── SettingsPage.tsx          # 设置页：左右两栏（LLM 提供商管理 + 提示词预设管理）
+│   │   └── WorkspacePanel.tsx        # 工作区备份：GitHub Token/Gist ID 输入、备份/恢复/跨客户端发现
 │   ├── canvas/
 │   │   ├── Artboard.tsx              # 画板容器：固定视口、滚轮缩放+中键平移、缩放控件 + 组合 ArtboardToolbar
 │   │   ├── ArtboardToolbar.tsx       # 画布上边缘悬浮工具栏：比例下拉 + 缩放滑块 + 自定义尺寸 + 实时尺寸 + 收藏
@@ -100,6 +102,9 @@ src/
 │   ├── llm-stream.ts                # sendChatMessageStream() SSE 流式服务层（OpenAI/Anthropic/Gemini）
 │   ├── llm-canvas-chat.ts           # Canvas Chat system prompt + JSON 提取验证 + 上下文构建
 │   ├── layout-validator.ts          # 布局质量软校验（元素面积/覆盖率/间距/边距/数量/宽高比）
+│   ├── gist-backup.ts               # GitHub Gist CRUD：创建/更新/读取备份，按文件名发现备份
+│   ├── workspace-backup.ts           # 备份包构建/解析/恢复预览生成
+│   ├── workspace-persistence.ts      # workspace 状态在 localStorage 中的持久化存取
 │   └── __tests__/
 │       └── llm-chat.test.ts         # 多模态消息格式测试（OpenAI/Anthropic/Gemini）
 └── workflow/

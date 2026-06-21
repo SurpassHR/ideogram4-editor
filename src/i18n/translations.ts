@@ -59,6 +59,7 @@ export interface Translations {
       fixedGist: string;
       githubToken: string;
       githubTokenPlaceholder: string;
+      createToken: string;
       gistId: string;
       gistIdPlaceholder: string;
       lastBackup: string;
@@ -67,6 +68,10 @@ export interface Translations {
       saveSettings: string;
       backUpNow: string;
       restoreFromGist: string;
+      findBackupGist: string;
+      findingBackup: string;
+      backupFound: string;
+      backupNotFound: string;
       clearSettings: string;
       securityNote: string;
       settingsSaved: string;
