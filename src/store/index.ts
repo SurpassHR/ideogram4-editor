@@ -1261,8 +1261,6 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
     return {
       high_level_description: highLevelDescription,
-      canvasW,
-      canvasH,
       style_description: styleDescription as IdeogramOutput['style_description'],
       compositional_deconstruction: {
         background,

@@ -51,8 +51,6 @@ export function generateJSON(
 
   return {
     high_level_description: highLevelDescription,
-    canvasW,
-    canvasH,
     style_description: styleDescription as IdeogramOutput['style_description'],
     compositional_deconstruction: {
       background,
