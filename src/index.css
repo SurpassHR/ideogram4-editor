@@ -2149,6 +2149,17 @@ input[type="color"]::-webkit-color-swatch {
   box-shadow: none;
 }
 
+.chat-send-btn.stop {
+  background: var(--danger);
+  color: white;
+  box-shadow: 0 2px 8px rgba(255, 82, 82, 0.3);
+}
+
+.chat-send-btn.stop:hover {
+  background: var(--danger-hover);
+  box-shadow: 0 4px 14px rgba(255, 82, 82, 0.5);
+}
+
 /* ─── Chat States ───────────────────────────────────────────────────── */
 
 .chat-no-provider {

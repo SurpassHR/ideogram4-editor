@@ -101,6 +101,11 @@ export const IconArrowRight = createIcon(
   <><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></>,
 );
 
+/** 停止方块 — 停止 AI 请求 */
+export const IconStop = createIcon(
+  <rect x="6" y="6" width="12" height="12" rx="1.5" />,
+);
+
 /** 地球 — 语言 */
 export const IconGlobe = createIcon(
   <><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></>,

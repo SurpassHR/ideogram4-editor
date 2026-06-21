@@ -5,7 +5,7 @@ import ChatMessage from '../chat/ChatMessage';
 import SelectMenu from '../chat/SelectMenu';
 import ChatRunControls from '../chat/ChatRunControls';
 import ContextMenu from './ContextMenu';
-import { IconClose, IconMaximize, IconArrowRight, IconMoreHorizontal, IconPencil, IconBroom, IconTrash } from '../ui/icons';
+import { IconClose, IconMaximize, IconArrowRight, IconStop, IconMoreHorizontal, IconPencil, IconBroom, IconTrash } from '../ui/icons';
 import { useI18n } from '../../i18n/context';
 import { useEditorStore } from '../../store';
 import { resolveTemplate } from '../../utils/resolveTemplate';
@@ -27,6 +27,7 @@ export default function CanvasChatPanel() {
     chatModel,
     chatResponseLang,
     sendMessage,
+    stopGeneration,
     retryMessage,
     editAndSend,
     applyMessageOutput,
@@ -453,6 +454,7 @@ export default function CanvasChatPanel() {
                 <div className="chat-loading">
                   <span className="canvas-chat-spinner" />
                   {' '}{t('chat.loading')}
+                  {' · '}<span className="chat-stop-hint" style={{ color: 'var(--danger)' }}>{t('chat.stop')}</span>
                 </div>
               )}
             </div>
@@ -504,17 +506,26 @@ export default function CanvasChatPanel() {
                   disabled={isLoading}
                 />
                 <div className="canvas-chat-input-actions">
-                  <button
-                    className="chat-send-btn"
-                    onClick={handleSend}
-                    disabled={isLoading || !inputText.trim()}
-                    aria-label={t('chat.send')}
-                    title={t('chat.send')}
-                  >
-                    {isLoading ? (
-                      <span className="canvas-chat-spinner" />
-                    ) : <IconArrowRight size={14} />}
-                  </button>
+                  {isLoading ? (
+                    <button
+                      className="chat-send-btn stop"
+                      onClick={stopGeneration}
+                      aria-label={t('chat.stop')}
+                      title={t('chat.stop')}
+                    >
+                      <IconStop size={14} />
+                    </button>
+                  ) : (
+                    <button
+                      className="chat-send-btn"
+                      onClick={handleSend}
+                      disabled={!inputText.trim()}
+                      aria-label={t('chat.send')}
+                      title={t('chat.send')}
+                    >
+                      <IconArrowRight size={14} />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -667,17 +678,26 @@ export default function CanvasChatPanel() {
                       disabled={isLoading}
                     />
                     <div className="canvas-chat-input-actions">
-                      <button
-                        className="chat-send-btn"
-                        onClick={handleSend}
-                        disabled={isLoading || !inputText.trim()}
-                        aria-label={t('chat.send')}
-                        title={t('chat.send')}
-                      >
-                        {isLoading ? (
-                          <span className="canvas-chat-spinner" />
-                        ) : <IconArrowRight size={14} />}
-                      </button>
+                      {isLoading ? (
+                        <button
+                          className="chat-send-btn stop"
+                          onClick={stopGeneration}
+                          aria-label={t('chat.stop')}
+                          title={t('chat.stop')}
+                        >
+                          <IconStop size={14} />
+                        </button>
+                      ) : (
+                        <button
+                          className="chat-send-btn"
+                          onClick={handleSend}
+                          disabled={!inputText.trim()}
+                          aria-label={t('chat.send')}
+                          title={t('chat.send')}
+                        >
+                          <IconArrowRight size={14} />
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

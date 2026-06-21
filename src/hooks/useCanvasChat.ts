@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useEditorStore } from '../store';
 import { getLlmProviders } from '../components/llm/api';
-import { sendChatMessageWithOptions } from '../services/llm-stream';
+import { sendChatMessageWithOptions, abortActiveRequest } from '../services/llm-stream';
 import { CANVAS_CHAT_SYSTEM_PROMPT, buildCanvasChatContext, buildLayoutFeedbackPrompt, extractAndValidateIdeogramJSON } from '../services/llm-canvas-chat';
 import { validateLayout } from '../services/layout-validator';
 import { generateMessageId, createUserMessage, createAssistantMessage } from '../types/chat';
@@ -315,11 +315,25 @@ export function useCanvasChat() {
       detail: `${provider.name || provider.id} · ${parsed.modelName}`,
     });
 
+    const abortHandler = (resolve: () => void) => {
+      const store = useEditorStore.getState();
+      store.updateCanvasChatMessage(placeholderId, { content: '\n\n[Request cancelled by user]' });
+      appendCanvasChatRequestStep(requestId, {
+        kind: 'error',
+        status: 'error',
+        label: 'Aborted by user',
+      });
+      finishCanvasChatRequest(requestId, 'error', 'Request stopped by user.');
+      setIsLoading(false);
+      resolve();
+    };
+
     await new Promise<void>((resolve) => {
       let settled = false;
+      const markSettled = () => { settled = true; };
       const finishWithError = (err: string) => {
         if (settled) return;
-        settled = true;
+        markSettled();
         const partialResponse = accumulatedContent.join('');
         const store = useEditorStore.getState();
         store.updateCanvasChatMessage(placeholderId, {
@@ -363,7 +377,7 @@ export function useCanvasChat() {
         },
         onDone: async (fullText) => {
           if (settled) return;
-          settled = true;
+          markSettled();
           const finalContent = accumulatedContent.join('') || fullText;
           const finalThinking = accumulatedThinking.join('');
           useEditorStore.getState().updateCanvasChatMessage(placeholderId, {
@@ -417,6 +431,7 @@ export function useCanvasChat() {
           setIsLoading(false);
           resolve();
         },
+        onAbort: () => abortHandler(resolve),
         onError: finishWithError,
       }, {
         streamEnabled: chatStreamEnabled,
@@ -590,6 +605,12 @@ export function useCanvasChat() {
     sendMessage(newContent);
   }, [sendMessage]);
 
+  // 手动停止当前生成请求
+  const stopGeneration = useCallback(() => {
+    setIsLoading(false);
+    abortActiveRequest();
+  }, []);
+
   return {
     isCanvasChatOpen,
     messages,
@@ -600,6 +621,7 @@ export function useCanvasChat() {
     chatModel,
     chatResponseLang,
     sendMessage,
+    stopGeneration,
     retryMessage,
     editAndSend,
     applyMessageOutput,

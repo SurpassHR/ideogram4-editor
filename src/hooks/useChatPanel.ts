@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useEditorStore } from '../store';
 import { getLlmProviders } from '../components/llm/api';
-import { sendChatMessageWithOptions } from '../services/llm-stream';
+import { sendChatMessageWithOptions, abortActiveRequest } from '../services/llm-stream';
 import { buildBoxChatSystemPrompt } from '../services/llm-chat';
 import { resolveTemplate } from '../utils/resolveTemplate';
 import type { LlmProvider } from '../components/llm/types';
@@ -155,6 +155,9 @@ export function useChatPanel() {
           onDone: () => {
             setIsLoading(false);
           },
+          onAbort: () => {
+            setIsLoading(false);
+          },
           onError: (err) => {
             const errorMsg = `\n\n[Stream Error: ${err}]`;
             contentRef.current += errorMsg;
@@ -274,6 +277,12 @@ export function useChatPanel() {
     [selectedPresetId, chatPresets],
   );
 
+  // 手动停止当前生成请求
+  const stopGeneration = useCallback(() => {
+    setIsLoading(false);
+    abortActiveRequest();
+  }, []);
+
   return {
     isChatOpen,
     activeChatBoxId,
@@ -289,6 +298,7 @@ export function useChatPanel() {
     dismissResponse,
     retryResponse,
     editAndSend,
+    stopGeneration,
     handleClearHistory,
     handleClose,
     handleSelectModel,

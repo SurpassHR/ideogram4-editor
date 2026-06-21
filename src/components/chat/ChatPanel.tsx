@@ -8,7 +8,7 @@ import ChatRunControls from './ChatRunControls';
 import LlmConfigPanel from '../llm/LlmConfigPanel';
 import { computeChatPanelPosition } from '../../utils/panelPosition';
 import { resolveTemplate } from '../../utils/resolveTemplate';
-import { IconClose, IconGlobe, IconTrash, IconArrowRight } from '../ui/icons';
+import { IconClose, IconGlobe, IconTrash, IconArrowRight, IconStop } from '../ui/icons';
 
 export default function ChatPanel() {
   const {
@@ -23,6 +23,7 @@ export default function ChatPanel() {
     sendMessage,
     retryResponse,
     editAndSend,
+    stopGeneration,
     adoptResponse,
     dismissResponse,
     handleClearHistory,
@@ -368,14 +369,24 @@ export default function ChatPanel() {
             placeholder={t('chat.inputPlaceholder')}
             disabled={isLoading}
           />
-          <button
-            className="chat-send-btn"
-            onClick={handleSend}
-            disabled={isLoading || !inputText.trim()}
-            title={t('chat.send')}
-          >
-            <IconArrowRight size={14} />
-          </button>
+          {isLoading ? (
+            <button
+              className="chat-send-btn stop"
+              onClick={stopGeneration}
+              title={t('chat.stop')}
+            >
+              <IconStop size={14} />
+            </button>
+          ) : (
+            <button
+              className="chat-send-btn"
+              onClick={handleSend}
+              disabled={!inputText.trim()}
+              title={t('chat.send')}
+            >
+              <IconArrowRight size={14} />
+            </button>
+          )}
         </div>
       )}
 

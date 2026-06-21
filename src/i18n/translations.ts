@@ -252,6 +252,7 @@ export interface Translations {
     copied: string;
     clearHistory: string;
     loading: string;
+    stop: string;
     error: string;
     emptyHint: string;
     langAuto: string;
@@ -629,6 +630,7 @@ const en: Translations = {
     copied: 'Copied!',
     clearHistory: 'Clear',
     loading: 'AI is thinking...',
+    stop: 'Stop',
     error: 'Error: {error}',
     emptyHint: 'Send a message to start the conversation',
     langAuto: 'Auto',
@@ -1006,6 +1008,7 @@ const zh: Translations = {
     copied: '已复制！',
     clearHistory: '清空',
     loading: 'AI 正在思考...',
+    stop: '停止',
     error: '错误：{error}',
     emptyHint: '发送消息开始对话',
     langAuto: '自动',

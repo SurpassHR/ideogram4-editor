@@ -12,6 +12,7 @@ export interface StreamCallbacks {
   onChunk: (chunk: StreamChunk) => void;
   onDone: (fullText: string) => void;
   onError: (error: string) => void;
+  onAbort?: () => void;
 }
 
 export interface ChatRunOptions {
@@ -22,6 +23,17 @@ export interface ChatRunOptions {
 
 interface StreamRequestOptions {
   thinkingLevel?: ChatThinkingLevel;
+}
+
+/** 当前活跃的 AbortController，用于外部手动终止请求 */
+let activeAbortController: AbortController | null = null;
+
+/** 手动终止当前正在进行的 LLM 请求 */
+export function abortActiveRequest(): void {
+  if (activeAbortController) {
+    activeAbortController.abort();
+    activeAbortController = null;
+  }
 }
 
 export const STREAM_TIMEOUT_MS = 120_000;
@@ -96,6 +108,7 @@ export async function sendChatMessageStream(
 
   const controller = new AbortController();
   let timedOut = false;
+  activeAbortController = controller;
   const timeoutId = setTimeout(() => {
     timedOut = true;
     controller.abort(new Error(`Request timed out after ${STREAM_TIMEOUT_MS / 1000} seconds.`));
@@ -109,10 +122,17 @@ export async function sendChatMessageStream(
     clearTimeout(timeoutId);
   } catch (err) {
     clearTimeout(timeoutId);
+    // 用户手动终止请求 — 不显示错误，调用 onAbort 回调
+    if (err instanceof Error && err.name === 'AbortError') {
+      callbacks.onAbort?.();
+      return;
+    }
     const msg = timedOut
       ? `Request timed out after ${STREAM_TIMEOUT_MS / 1000} seconds. The model did not start or finish a streaming response in time.`
       : err instanceof Error ? err.message : String(err);
     callbacks.onError(msg);
+  } finally {
+    activeAbortController = null;
   }
 }
 
