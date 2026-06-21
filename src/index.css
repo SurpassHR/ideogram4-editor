@@ -129,6 +129,20 @@ body {
   padding-right: 28px;
 }
 
+.input-group-helper {
+  display: inline-block;
+  font-size: 11px;
+  color: var(--primary);
+  margin-top: 4px;
+  text-decoration: none;
+  transition: opacity 0.15s;
+}
+
+.input-group-helper:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
+
 .btn {
   background: var(--primary);
   color: white;

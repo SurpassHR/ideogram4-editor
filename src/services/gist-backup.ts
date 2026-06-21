@@ -71,6 +71,29 @@ export async function updateBackupGist(token: string, gistId: string, packageJso
   }
 }
 
+export async function findBackupGist(token: string): Promise<GistResult> {
+  try {
+    /* 遍历当前用户的前 30 个 Gist，查找匹配的备份文件 */
+    const resp = await fetch('https://api.github.com/gists?per_page=30', {
+      method: 'GET',
+      headers: headers(token),
+    });
+    if (!resp.ok) return { ok: false, error: await responseError(resp) };
+    const gists = await resp.json();
+    if (!Array.isArray(gists)) {
+      return { ok: false, error: 'GitHub 返回了意外的响应格式。' };
+    }
+    for (const gist of gists) {
+      if (gist?.files?.[BACKUP_FILE_NAME]) {
+        return { ok: true, gistId: gist.id };
+      }
+    }
+    return { ok: false, error: '未找到 Ideogram workspace backup Gist。请先在任一台设备上执行一次备份。' };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
 export async function loadBackupGist(token: string, gistId: string): Promise<GistLoadResult> {
   try {
     const resp = await fetch(`https://api.github.com/gists/${gistId}`, {

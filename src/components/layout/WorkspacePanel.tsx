@@ -14,7 +14,7 @@ import {
   createRestorePreview,
   parseWorkspaceBackupPackage,
 } from '../../services/workspace-backup';
-import { createBackupGist, loadBackupGist, updateBackupGist } from '../../services/gist-backup';
+import { createBackupGist, findBackupGist, loadBackupGist, updateBackupGist } from '../../services/gist-backup';
 
 const RESTORE_MODULES: WorkspaceRestoreModule[] = [
   'currentCanvas',
@@ -89,6 +89,7 @@ export default function WorkspacePanel({ embedded = false }: WorkspacePanelProps
   const trimmedToken = githubToken.trim();
   const trimmedGistId = gistId.trim();
   const canBackup = trimmedToken.length > 0 && !isBusy;
+  const canFindGist = trimmedToken.length > 0 && !isBusy;
   const canRestore = trimmedToken.length > 0 && trimmedGistId.length > 0 && !isBusy;
 
   const restorePreview = useMemo(
@@ -160,6 +161,28 @@ export default function WorkspacePanel({ embedded = false }: WorkspacePanelProps
     }
   };
 
+  const handleFindBackupGist = async () => {
+    if (!trimmedToken) return;
+    setIsBusy(true);
+    setStatus(t('settings.workspace.findingBackup'));
+    try {
+      const result = await findBackupGist(trimmedToken);
+      if (!result.ok) {
+        setStatus(result.error);
+        return;
+      }
+      setGistId(result.gistId);
+      setWorkspaceBackupSettings({
+        gistId: result.gistId,
+      });
+      setStatus(t('settings.workspace.backupFound'));
+    } catch (error) {
+      setStatus(messageFromError(error));
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
   const handleLoadRestore = async () => {
     if (!trimmedToken || !trimmedGistId) return;
     setIsBusy(true);
@@ -175,6 +198,11 @@ export default function WorkspacePanel({ embedded = false }: WorkspacePanelProps
         setStatus(parsed.error);
         return;
       }
+      /* 从备份包的 exportedAt 同步最后备份时间，跨客户端共享 Gist ID 时生效 */
+      setWorkspaceBackupSettings({
+        gistId: trimmedGistId,
+        lastBackupAt: parsed.package.exportedAt,
+      });
       const preview = createRestorePreview(parsed.package);
       const selections = createEmptySelections();
       preview.forEach(item => {
@@ -301,6 +329,14 @@ export default function WorkspacePanel({ embedded = false }: WorkspacePanelProps
                 onChange={event => setGithubToken(event.target.value)}
                 placeholder={t('settings.workspace.githubTokenPlaceholder')}
               />
+              <a
+                className="input-group-helper"
+                href="https://github.com/settings/tokens/new?scopes=gist&description=Ideogram4%20Editor%20Workspace%20Backup"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {t('settings.workspace.createToken')} ↗
+              </a>
             </div>
             <div className="input-group">
               <label htmlFor="workspace-gist-id">{t('settings.workspace.gistId')}</label>
@@ -331,6 +367,9 @@ export default function WorkspacePanel({ embedded = false }: WorkspacePanelProps
             </button>
             <button className="btn" type="button" onClick={handleBackup} disabled={!canBackup}>
               {t('settings.workspace.backUpNow')}
+            </button>
+            <button className="btn" type="button" onClick={handleFindBackupGist} disabled={!canFindGist}>
+              {t('settings.workspace.findBackupGist')}
             </button>
             <button className="btn" type="button" onClick={handleLoadRestore} disabled={!canRestore}>
               {t('settings.workspace.restoreFromGist')}
