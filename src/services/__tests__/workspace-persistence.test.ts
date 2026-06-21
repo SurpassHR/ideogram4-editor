@@ -80,6 +80,67 @@ describe('workspace-persistence', () => {
     expect(state?.sessions[0].requestLogs[0].steps.at(-1)?.detail).toContain('页面刷新前中断');
   });
 
+  it('应加载 Canvas Chat 请求日志详情并过滤异常字段', () => {
+    localStorage.setItem(CANVAS_CHAT_STORAGE_KEY, JSON.stringify({
+      schemaVersion: 1,
+      activeSessionId: 'session_1',
+      savedAt: 1234,
+      sessions: [
+        {
+          id: 'session_1',
+          title: '调试会话',
+          createdAt: 1000,
+          updatedAt: 1000,
+          messages: [],
+          pendingIdeogramOutput: null,
+          pendingQualityReport: null,
+          requestLogs: [
+            {
+              id: 'request_1',
+              sessionId: 'session_1',
+              promptPreview: '生成海报',
+              status: 'error',
+              startedAt: 1000,
+              steps: [],
+              detail: {
+                metadata: {
+                  providerId: 'mock',
+                  providerName: 'Mock',
+                  modelName: 'gpt-4',
+                  responseLang: 'auto',
+                  streamEnabled: true,
+                  thinkingLevel: 'medium',
+                  targetSize: 2048,
+                  canvasSize: { width: 1024, height: 1024 },
+                  boxCount: 2,
+                },
+                systemPrompt: 'SYSTEM',
+                messages: [
+                  { role: 'user', content: '完整请求' },
+                  { role: 'assistant', content: 123 },
+                ],
+                responseText: 'raw response',
+                parsedJsonText: '{"ok":true}',
+                parseError: 'bad bbox',
+              },
+            },
+          ],
+        },
+      ],
+    }));
+
+    const log = loadCanvasChatState()?.sessions[0].requestLogs[0] as any;
+
+    expect(log.detail.metadata).toMatchObject({
+      providerId: 'mock',
+      targetSize: 2048,
+      canvasSize: { width: 1024, height: 1024 },
+    });
+    expect(log.detail.messages).toEqual([{ role: 'user', content: '完整请求' }]);
+    expect(log.detail.responseText).toBe('raw response');
+    expect(log.detail.parseError).toBe('bad bbox');
+  });
+
   it('应保存并加载画布收藏列表', () => {
     const favorites: CanvasFavorite[] = [
       {

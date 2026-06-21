@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, type ChangeEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { useCanvasChat } from '../../hooks/useCanvasChat';
 import ChatMessage from '../chat/ChatMessage';
@@ -8,6 +8,15 @@ import ContextMenu from './ContextMenu';
 import { useI18n } from '../../i18n/context';
 import { useEditorStore } from '../../store';
 import { resolveTemplate } from '../../utils/resolveTemplate';
+import type { CanvasChatRequestLog } from '../../types/chat';
+
+function formatDebugMessages(log: CanvasChatRequestLog): string {
+  const messages = log.detail?.messages ?? [];
+  if (messages.length === 0) return 'Request payload was not sent.';
+  return messages.map((message, index) => {
+    return `[${index + 1}] ${message.role}\n${message.content}`;
+  }).join('\n\n');
+}
 
 export default function CanvasChatPanel() {
   const {
@@ -21,6 +30,8 @@ export default function CanvasChatPanel() {
     applyOutput,
     handleSelectModel,
     setChatResponseLang,
+    canvasChatTargetSize,
+    setCanvasChatTargetSize,
     hasProviders,
     chatPresets,
     selectedPreset,
@@ -47,12 +58,15 @@ export default function CanvasChatPanel() {
   const [renamingSessionId, setRenamingSessionId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState('');
   const [applyToast, setApplyToast] = useState<string | null>(null);
+  const [detailLogId, setDetailLogId] = useState<string | null>(null);
+  const [copiedSection, setCopiedSection] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const activeSession = canvasChatSessions.find(session => session.id === activeCanvasChatSessionId) ?? canvasChatSessions[0];
   const terminalLogs = activeSession?.requestLogs ?? [];
   const activeTerminalLog = terminalLogs.find(log => log.id === activeCanvasChatRequestId) ?? terminalLogs[terminalLogs.length - 1] ?? null;
+  const detailLog = detailLogId ? terminalLogs.find(log => log.id === detailLogId) ?? null : null;
   const renamingSession = renamingSessionId
     ? canvasChatSessions.find(session => session.id === renamingSessionId) ?? null
     : null;
@@ -75,6 +89,10 @@ export default function CanvasChatPanel() {
     if (!isCanvasChatOpen) return;
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
+      if (detailLogId) {
+        setDetailLogId(null);
+        return;
+      }
       if (isCanvasChatMaximized) {
         setCanvasChatMaximized(false);
       } else {
@@ -83,7 +101,7 @@ export default function CanvasChatPanel() {
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [isCanvasChatMaximized, isCanvasChatOpen, setCanvasChatMaximized, setCanvasChatOpen]);
+  }, [detailLogId, isCanvasChatMaximized, isCanvasChatOpen, setCanvasChatMaximized, setCanvasChatOpen]);
 
   const handleToggle = useCallback(() => {
     setCanvasChatOpen(!isCanvasChatOpen);
@@ -237,6 +255,109 @@ export default function CanvasChatPanel() {
     }
   }, [chatPresets, handleSelectPreset]);
 
+  const handleTargetSizeChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+    setCanvasChatTargetSize(Number(e.currentTarget.value));
+  }, [setCanvasChatTargetSize]);
+
+  const handleCopyDebugText = useCallback(async (section: string, text: string) => {
+    try {
+      await navigator.clipboard?.writeText(text);
+      setCopiedSection(section);
+      window.setTimeout(() => setCopiedSection(null), 1200);
+    } catch {
+      setCopiedSection(null);
+    }
+  }, []);
+
+  const targetSizeLabel = canvasChatTargetSize >= 4096
+    ? '4K'
+    : canvasChatTargetSize >= 2048
+      ? '2K'
+      : '1K';
+
+  const renderTargetSizeControl = () => (
+    <label className="canvas-chat-target-size-control" title={t('chat.targetSizeHint')}>
+      <span className="chat-run-label">{t('chat.targetSizeShort')}: {targetSizeLabel}</span>
+      <input
+        type="range"
+        min={1024}
+        max={4096}
+        step={1024}
+        aria-label={t('chat.targetImageSize')}
+        value={canvasChatTargetSize}
+        onChange={handleTargetSizeChange}
+      />
+    </label>
+  );
+
+  const renderDebugBlock = (title: string, text: string, section: string) => (
+    <section className="canvas-chat-request-detail-section">
+      <div className="canvas-chat-request-detail-section-header">
+        <h4>{title}</h4>
+        <button
+          type="button"
+          className="canvas-chat-request-detail-copy"
+          onClick={() => handleCopyDebugText(section, text)}
+        >
+          {copiedSection === section ? t('chat.canvasSessions.copied') : t('chat.canvasSessions.copy')}
+        </button>
+      </div>
+      <pre className="canvas-chat-request-detail-pre">{text || '—'}</pre>
+    </section>
+  );
+
+  const renderRequestDetailModal = () => {
+    if (!detailLog) return null;
+    const detail = detailLog.detail;
+    const metadata = detail?.metadata;
+    const metadataText = metadata
+      ? [
+          `${metadata.providerName} · ${metadata.modelName}`,
+          `providerId: ${metadata.providerId}`,
+          `responseLang: ${metadata.responseLang}`,
+          `streamEnabled: ${metadata.streamEnabled}`,
+          `thinkingLevel: ${metadata.thinkingLevel}`,
+          `targetSize: ${metadata.targetSize}`,
+          `canvasSize: ${metadata.canvasSize.width}x${metadata.canvasSize.height}`,
+          `boxCount: ${metadata.boxCount}`,
+        ].join('\n')
+      : 'Request metadata was not captured.';
+    return createPortal(
+      <div className="modal-overlay canvas-chat-request-detail-overlay" onClick={() => setDetailLogId(null)}>
+        <div
+          className="canvas-chat-request-detail-modal"
+          role="dialog"
+          aria-label={t('chat.canvasSessions.requestDetails')}
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="canvas-chat-request-detail-header">
+            <div>
+              <p className="canvas-chat-request-detail-kicker">{detailLog.status}</p>
+              <h3>{t('chat.canvasSessions.requestDetails')}</h3>
+            </div>
+            <button
+              type="button"
+              className="canvas-chat-icon-btn"
+              aria-label={t('chat.canvasSessions.closeDetails')}
+              title={t('chat.canvasSessions.closeDetails')}
+              onClick={() => setDetailLogId(null)}
+            >
+              ×
+            </button>
+          </div>
+          <div className="canvas-chat-request-detail-body">
+            {renderDebugBlock('Metadata', metadataText, 'metadata')}
+            {renderDebugBlock('Request', `${detail?.systemPrompt ?? 'System prompt was not captured.'}\n\n${formatDebugMessages(detailLog)}`, 'request')}
+            {renderDebugBlock('Response', detail?.responseText ?? 'Response was not captured.', 'response')}
+            {renderDebugBlock('Parsed JSON', detail?.parsedJsonText ?? 'No JSON code block was extracted.', 'parsed-json')}
+            {renderDebugBlock('Error', detail?.parseError ?? 'Request completed without a parse error.', 'error')}
+          </div>
+        </div>
+      </div>,
+      document.body,
+    );
+  };
+
   const handleApply = useCallback(() => {
     const count = applyOutput();
     setApplyToast(`Applied ${count} boxes`);
@@ -331,6 +452,7 @@ export default function CanvasChatPanel() {
                   value={chatResponseLang}
                   onChange={setChatResponseLang}
                 />
+                {renderTargetSizeControl()}
                 <ChatRunControls />
                 <span className="chat-header-spacer" />
               </div>
@@ -491,6 +613,7 @@ export default function CanvasChatPanel() {
                       value={chatResponseLang}
                       onChange={setChatResponseLang}
                     />
+                    {renderTargetSizeControl()}
                     <ChatRunControls />
                     <span className="chat-header-spacer" />
                   </div>
@@ -545,7 +668,12 @@ export default function CanvasChatPanel() {
                   </div>
                   <div className="canvas-chat-terminal-steps">
                     {activeTerminalLog.steps.map(step => (
-                      <div key={step.id} className={`canvas-chat-terminal-step ${step.status}`}>
+                      <button
+                        key={step.id}
+                        type="button"
+                        className={`canvas-chat-terminal-step ${step.status}`}
+                        onClick={() => setDetailLogId(activeTerminalLog.id)}
+                      >
                         <div className="canvas-chat-terminal-step-row">
                           <span className="canvas-chat-terminal-step-kind">{step.kind}</span>
                           <span className="canvas-chat-terminal-step-label">{step.label}</span>
@@ -553,7 +681,7 @@ export default function CanvasChatPanel() {
                         {step.detail && (
                           <div className="canvas-chat-terminal-step-detail">{step.detail}</div>
                         )}
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -636,6 +764,7 @@ export default function CanvasChatPanel() {
         </div>,
         document.body,
       )}
+      {renderRequestDetailModal()}
     </>
   );
 }

@@ -52,7 +52,12 @@ function messageFromError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-export default function WorkspacePanel() {
+interface WorkspacePanelProps {
+  /** 内嵌到 Settings 模块舞台时，隐藏重复标题并交给外层控制台承载层级。 */
+  embedded?: boolean;
+}
+
+export default function WorkspacePanel({ embedded = false }: WorkspacePanelProps) {
   const { lang, setLang, t } = useI18n();
   const favorites = useEditorStore(s => s.canvasFavorites);
   const backupSettings = useEditorStore(s => s.workspaceBackupSettings);
@@ -237,14 +242,14 @@ export default function WorkspacePanel() {
   };
 
   return (
-    <section className="settings-page-workspace">
-      <h2 className="settings-section-title">{t('settings.workspace.heading')}</h2>
+    <section className={`settings-page-workspace ${embedded ? 'workspace-panel-embedded' : ''}`}>
+      {!embedded && <h2 className="settings-section-title">{t('settings.workspace.heading')}</h2>}
 
       <div className="workspace-panel-body">
         <div className="workspace-pane workspace-favorites-pane">
           <div className="workspace-pane-header">
-            <h3>{t('settings.workspace.favorites')}</h3>
-            <span>{t('settings.workspace.favoriteCount', { count: favorites.length })}</span>
+            <h3 className="workspace-pane-title">{t('settings.workspace.favorites')}</h3>
+            <span className="workspace-pane-meta">{t('settings.workspace.favoriteCount', { count: favorites.length })}</span>
           </div>
 
           {favorites.length === 0 ? (
@@ -282,8 +287,8 @@ export default function WorkspacePanel() {
 
         <div className="workspace-pane workspace-backup-pane">
           <div className="workspace-pane-header">
-            <h3>{t('settings.workspace.backup')}</h3>
-            <span>{t('settings.workspace.fixedGist')}</span>
+            <h3 className="workspace-pane-title">{t('settings.workspace.backup')}</h3>
+            <span className="workspace-pane-meta">{t('settings.workspace.fixedGist')}</span>
           </div>
 
           <div className="workspace-backup-grid">
@@ -342,8 +347,8 @@ export default function WorkspacePanel() {
           {restorePackage && (
             <div className="workspace-restore-preview">
               <div className="workspace-pane-header">
-                <h3>{t('settings.workspace.restorePreview')}</h3>
-                <span>{formatDate(restorePackage.exportedAt, t('settings.workspace.never'))}</span>
+                <h3 className="workspace-pane-title">{t('settings.workspace.restorePreview')}</h3>
+                <span className="workspace-pane-meta">{formatDate(restorePackage.exportedAt, t('settings.workspace.never'))}</span>
               </div>
               <div className="workspace-restore-list">
                 {restorePreview.map(item => (

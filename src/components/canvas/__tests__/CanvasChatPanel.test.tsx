@@ -157,6 +157,21 @@ describe('CanvasChatPanel', () => {
       expect(useEditorStore.getState().chatThinkingLevel).toBe('high');
     });
 
+    it('工具条应显示 Canvas Chat 目标尺寸滑块，并写入共享设置', async () => {
+      const { getByLabelText } = await renderWithPending();
+
+      expect(document.querySelector('.canvas-chat-size-marks')).toBeNull();
+
+      const sizeSlider = getByLabelText('Canvas Chat target image size') as HTMLInputElement;
+      expect(sizeSlider.value).toBe('1024');
+      expect(sizeSlider.closest('.canvas-chat-target-size-control')?.textContent).toContain('Size: 1K');
+
+      fireEvent.change(sizeSlider, { target: { value: '4096' } });
+
+      expect((useEditorStore.getState() as any).canvasChatTargetSize).toBe(4096);
+      expect(sizeSlider.value).toBe('4096');
+    });
+
     it('点击 Apply 应直接应用布局并生成布局质量诊断，不弹确认窗', async () => {
       await renderWithPending(makePoorPendingOutput());
       const applyBtn = document.querySelector('.canvas-chat-apply-btn')!;
@@ -194,6 +209,75 @@ describe('CanvasChatPanel', () => {
       expect(document.querySelector('.canvas-chat-workbench')).not.toBeNull();
       expect(getByText('Sessions')).toBeInTheDocument();
       expect(getByText('Terminal')).toBeInTheDocument();
+    });
+
+    it('点击 Terminal 步骤应打开请求详情弹窗并展示完整调试分区', async () => {
+      useEditorStore.setState({
+        isCanvasChatOpen: true,
+        isCanvasChatMaximized: true,
+        activeCanvasChatRequestId: 'request_1',
+        canvasChatSessions: [{
+          id: 'session_1',
+          title: '调试会话',
+          createdAt: 1000,
+          updatedAt: 1000,
+          messages: [],
+          pendingIdeogramOutput: null,
+          pendingQualityReport: null,
+          requestLogs: [{
+            id: 'request_1',
+            sessionId: 'session_1',
+            promptPreview: '生成海报',
+            status: 'error',
+            startedAt: 1000,
+            endedAt: 1200,
+            steps: [{
+              id: 'step_1',
+              at: 1100,
+              kind: 'parse_failed',
+              status: 'error',
+              label: 'Parse Ideogram JSON failed',
+              detail: 'bbox 错误',
+            }],
+            detail: {
+              metadata: {
+                providerId: 'mock',
+                providerName: 'Mock',
+                modelName: 'gpt-4',
+                responseLang: 'auto',
+                streamEnabled: true,
+                thinkingLevel: 'medium',
+                targetSize: 2048,
+                canvasSize: { width: 1024, height: 1024 },
+                boxCount: 1,
+              },
+              systemPrompt: 'SYSTEM PROMPT',
+              messages: [{ role: 'user', content: '完整请求 payload' }],
+              responseText: 'RAW RESPONSE',
+              parsedJsonText: '{"bbox":[100,100]}',
+              parseError: 'elements[0].bbox must be an array of 4 numbers.',
+            },
+          }],
+        } as any],
+      });
+
+      const { getByRole, getByText } = await renderWithPending();
+
+      fireEvent.click(getByText('Parse Ideogram JSON failed'));
+
+      const dialog = getByRole('dialog', { name: 'Request details' });
+      expect(within(dialog).getByText('Metadata')).toBeInTheDocument();
+      expect(within(dialog).getByText('Request')).toBeInTheDocument();
+      expect(within(dialog).getByText('Response')).toBeInTheDocument();
+      expect(within(dialog).getByText('Parsed JSON')).toBeInTheDocument();
+      expect(within(dialog).getByText('Error')).toBeInTheDocument();
+      expect(within(dialog).getByText(/Mock · gpt-4/)).toBeInTheDocument();
+      expect(within(dialog).getByText(/SYSTEM PROMPT/)).toBeInTheDocument();
+      expect(within(dialog).getByText('RAW RESPONSE')).toBeInTheDocument();
+      expect(within(dialog).getByText('elements[0].bbox must be an array of 4 numbers.')).toBeInTheDocument();
+
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(document.querySelector('.canvas-chat-request-detail-modal')).toBeNull();
     });
 
     it('最大化工作台滚轮事件不应冒泡到下层容器', async () => {

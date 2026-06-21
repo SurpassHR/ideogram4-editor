@@ -1,4 +1,12 @@
-import type { CanvasChatRequestLog, CanvasChatRequestLogStep, CanvasChatSession, ChatMessage } from '../types/chat';
+import type {
+  CanvasChatRequestLog,
+  CanvasChatRequestLogDetail,
+  CanvasChatRequestLogStep,
+  CanvasChatSession,
+  ChatMessage,
+  ChatMessageForApi,
+  ChatThinkingLevel,
+} from '../types/chat';
 import type {
   CanvasFavorite,
   CanvasSnapshotLite,
@@ -80,6 +88,57 @@ function sanitizeStep(value: unknown): CanvasChatRequestLogStep | null {
   };
 }
 
+function sanitizeChatMessageForApi(value: unknown): ChatMessageForApi | null {
+  if (!isRecord(value)) return null;
+  if ((value.role !== 'user' && value.role !== 'assistant') || typeof value.content !== 'string') return null;
+  return {
+    role: value.role,
+    content: value.content,
+  };
+}
+
+function sanitizeRequestLogMetadata(value: unknown): CanvasChatRequestLogDetail['metadata'] | undefined {
+  if (!isRecord(value)) return undefined;
+  const canvasSize = isRecord(value.canvasSize)
+    ? {
+        width: safeNumber(value.canvasSize.width, 0),
+        height: safeNumber(value.canvasSize.height, 0),
+      }
+    : { width: 0, height: 0 };
+  const thinkingLevel: ChatThinkingLevel =
+    value.thinkingLevel === 'off' || value.thinkingLevel === 'low' || value.thinkingLevel === 'medium' || value.thinkingLevel === 'high'
+      ? value.thinkingLevel
+      : 'medium';
+  return {
+    providerId: safeString(value.providerId),
+    providerName: safeString(value.providerName),
+    modelName: safeString(value.modelName),
+    responseLang: safeString(value.responseLang) || 'auto',
+    streamEnabled: typeof value.streamEnabled === 'boolean' ? value.streamEnabled : true,
+    thinkingLevel,
+    targetSize: safeNumber(value.targetSize, 1024),
+    canvasSize,
+    boxCount: safeNumber(value.boxCount, 0),
+  };
+}
+
+function sanitizeRequestLogDetail(value: unknown): CanvasChatRequestLogDetail | undefined {
+  if (!isRecord(value)) return undefined;
+  const detail: CanvasChatRequestLogDetail = {};
+  const metadata = sanitizeRequestLogMetadata(value.metadata);
+  if (metadata) detail.metadata = metadata;
+  if (typeof value.systemPrompt === 'string') detail.systemPrompt = value.systemPrompt;
+  if (Array.isArray(value.messages)) {
+    detail.messages = value.messages
+      .map(sanitizeChatMessageForApi)
+      .filter((message): message is ChatMessageForApi => message !== null);
+  }
+  if (typeof value.responseText === 'string') detail.responseText = value.responseText;
+  if (typeof value.parsedJsonText === 'string') detail.parsedJsonText = value.parsedJsonText;
+  if (typeof value.parseError === 'string') detail.parseError = value.parseError;
+  return Object.keys(detail).length > 0 ? detail : undefined;
+}
+
 function interruptedStep(): CanvasChatRequestLogStep {
   return {
     id: `canvas_step_${Date.now()}_restore`,
@@ -101,6 +160,7 @@ function sanitizeRequestLog(value: unknown): CanvasChatRequestLog | null {
     ? value.steps.map(sanitizeStep).filter((step): step is CanvasChatRequestLogStep => step !== null)
     : [];
   const wasRunning = status === 'running';
+  const detail = sanitizeRequestLogDetail(value.detail);
   return {
     id: value.id,
     sessionId: value.sessionId,
@@ -109,6 +169,7 @@ function sanitizeRequestLog(value: unknown): CanvasChatRequestLog | null {
     startedAt: safeNumber(value.startedAt, Date.now()),
     endedAt: wasRunning ? Date.now() : safeOptionalNumber(value.endedAt),
     steps: wasRunning ? [...steps, interruptedStep()] : steps,
+    ...(detail ? { detail } : {}),
   };
 }
 

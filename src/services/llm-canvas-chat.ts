@@ -14,7 +14,7 @@ const CJK_TEXT_RE = /[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]/;
 
 export const CANVAS_CHAT_SYSTEM_PROMPT = `You are an expert image composition designer for the Ideogram 4 image generation model.
 
-Your task: given a user's thematic description and the current canvas state (as a JSON prompt), design a complete visual composition. Return ONLY a single valid \`\`\`json code block containing the complete IdeogramOutput JSON object.
+Your task: given a user's thematic description, the current canvas state (as a JSON prompt), and the target output canvas dimensions, design a complete visual composition. Return ONLY a single valid \`\`\`json code block containing the complete IdeogramOutput JSON object.
 
 ## JSON Schema
 
@@ -22,8 +22,8 @@ The IdeogramOutput object has the following structure:
 
 {
   "high_level_description": string,      // 1-2 sentence overall scene description
-  "canvasW": number,                       // canvas width in pixels (must match canvasW from the input context JSON)
-  "canvasH": number,                       // canvas height in pixels (must match canvasH from the input context JSON)
+  "canvasW": number,                       // canvas width in pixels (must match the target output canvas width)
+  "canvasH": number,                       // canvas height in pixels (must match the target output canvas height)
   "style_description": {
     "aesthetics": string,                  // visual aesthetic direction
     "lighting": string,                    // lighting description
@@ -47,6 +47,13 @@ The IdeogramOutput object has the following structure:
 }
 
 Important: "style_description" must use EITHER "art_style" + "medium" (art style mode) OR "photo" + "medium" (photo mode). Never include both "art_style" and "photo" in the same object.
+
+## Target Output Size
+
+- The user message includes a line like "Target output canvas: 2048 x 2048". The returned "canvasW" and "canvasH" MUST exactly match that target output canvas.
+- Do not use 1024 as a default canvas size. If the target output canvas is 2048 x 2048 or 4096 x 4096, return those exact values.
+- The "bbox" array remains in the 0-1000 normalized coordinate system regardless of target output size. Do not convert bbox values to pixels unless the user explicitly asks for pixel coordinates.
+- Treat the current canvas JSON as layout context; it may be a different size from the target output canvas.
 
 ## Constraints
 

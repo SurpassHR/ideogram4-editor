@@ -6,7 +6,7 @@ import { CANVAS_CHAT_SYSTEM_PROMPT, buildCanvasChatContext, buildLayoutFeedbackP
 import { validateLayout } from '../services/layout-validator';
 import { generateMessageId, createUserMessage, createAssistantMessage } from '../types/chat';
 import type { LlmProvider } from '../components/llm/types';
-import type { ChatMessage } from '../types/chat';
+import type { ChatMessage, ChatMessageForApi } from '../types/chat';
 import type { IdeogramOutput } from '../types';
 import { MODE_PHOTO, MODE_ARTSTYLE } from '../types';
 import { detectBboxSystem, bboxToPixels } from '../utils/coordinates';
@@ -58,6 +58,10 @@ async function takeCanvasSnapshot(): Promise<string | undefined> {
   });
 }
 
+function extractJsonCodeBlock(text: string): string | undefined {
+  return text.match(/```json\s*([\s\S]*?)```/)?.[1]?.trim();
+}
+
 export function useCanvasChat() {
   const isCanvasChatOpen = useEditorStore(s => s.isCanvasChatOpen);
   const canvasChatMessages = useEditorStore(s => s.canvasChatMessages);
@@ -69,13 +73,16 @@ export function useCanvasChat() {
   const clearCanvasChat = useEditorStore(s => s.clearCanvasChat);
   const startCanvasChatRequest = useEditorStore(s => s.startCanvasChatRequest);
   const appendCanvasChatRequestStep = useEditorStore(s => s.appendCanvasChatRequestStep);
+  const updateCanvasChatRequestDetail = useEditorStore(s => s.updateCanvasChatRequestDetail);
   const finishCanvasChatRequest = useEditorStore(s => s.finishCanvasChatRequest);
   const chatModel = useEditorStore(s => s.chatModel);
   const chatResponseLang = useEditorStore(s => s.chatResponseLang);
   const chatStreamEnabled = useEditorStore(s => s.chatStreamEnabled);
   const chatThinkingLevel = useEditorStore(s => s.chatThinkingLevel);
+  const canvasChatTargetSize = useEditorStore(s => s.canvasChatTargetSize);
   const setChatModel = useEditorStore(s => s.setChatModel);
   const setChatResponseLang = useEditorStore(s => s.setChatResponseLang);
+  const setCanvasChatTargetSize = useEditorStore(s => s.setCanvasChatTargetSize);
   const pendingQualityReport = useEditorStore(s => s.pendingQualityReport);
 
   // 画布状态（用于上下文构建）
@@ -234,13 +241,26 @@ export function useCanvasChat() {
       kind: 'build_context',
       status: 'success',
       label: 'Build canvas context',
-      detail: `${snapshot.boxes.length} boxes, ${canvasW}x${canvasH}, ${globalPalette.length} global colors`,
+      detail: `${snapshot.boxes.length} boxes, current ${canvasW}x${canvasH}, target ${canvasChatTargetSize}x${canvasChatTargetSize}, ${globalPalette.length} global colors`,
     });
     appendCanvasChatRequestStep(requestId, {
       kind: 'provider_ready',
       status: 'success',
       label: 'Provider and model ready',
       detail: `${provider.name || provider.id} · ${parsed.modelName}`,
+    });
+    updateCanvasChatRequestDetail(requestId, {
+      metadata: {
+        providerId: provider.id,
+        providerName: provider.name || provider.id,
+        modelName: parsed.modelName,
+        responseLang: chatResponseLang,
+        streamEnabled: chatStreamEnabled,
+        thinkingLevel: chatThinkingLevel,
+        targetSize: canvasChatTargetSize,
+        canvasSize: { width: canvasW, height: canvasH },
+        boxCount: snapshot.boxes.length,
+      },
     });
 
     // 语言偏好 append 到 system prompt
@@ -263,13 +283,23 @@ export function useCanvasChat() {
 
     const contextJson = buildCanvasChatContext(snapshot);
     const allMessages = [...canvasChatMessages, userMessage];
-    const apiMessages = allMessages.map(m => ({ role: m.role, content: m.content }));
+    const apiMessages: ChatMessageForApi[] = allMessages.map(m => ({ role: m.role, content: m.content }));
     const lastUserIdx = apiMessages.map((m, i) => (m.role === 'user' ? i : -1)).reduce((a, b) => Math.max(a, b), -1);
     if (lastUserIdx >= 0) {
-      let enriched = `Current canvas state (JSON prompt):\n\`\`\`json\n${contextJson}\n\`\`\`\n\nMy composition request: ${apiMessages[lastUserIdx].content}`;
+      const targetHint = [
+        `Target output canvas: ${canvasChatTargetSize} x ${canvasChatTargetSize}`,
+        `Return "canvasW": ${canvasChatTargetSize} and "canvasH": ${canvasChatTargetSize}.`,
+        'Keep bbox values in the 0-1000 normalized coordinate system; do not use 1024 as a default canvas size.',
+      ].join('\n');
+      let enriched = `${targetHint}\n\nCurrent canvas state (JSON prompt):\n\`\`\`json\n${contextJson}\n\`\`\`\n\nMy composition request: ${apiMessages[lastUserIdx].content}`;
       if (retryContext?.feedback) enriched += buildLayoutFeedbackPrompt(retryContext.feedback);
       apiMessages[lastUserIdx] = { role: 'user', content: enriched };
     }
+    const systemPrompt = CANVAS_CHAT_SYSTEM_PROMPT + langHint;
+    updateCanvasChatRequestDetail(requestId, {
+      systemPrompt,
+      messages: apiMessages,
+    });
 
     const accumulatedContent: string[] = [];
     const accumulatedThinking: string[] = [];
@@ -287,9 +317,14 @@ export function useCanvasChat() {
       const finishWithError = (err: string) => {
         if (settled) return;
         settled = true;
+        const partialResponse = accumulatedContent.join('');
         const store = useEditorStore.getState();
         store.updateCanvasChatMessage(placeholderId, {
-          content: (accumulatedContent.join('') || '') + `\n\n[Stream Error: ${err}]`,
+          content: (partialResponse || '') + `\n\n[Stream Error: ${err}]`,
+        });
+        updateCanvasChatRequestDetail(requestId, {
+          ...(partialResponse ? { responseText: partialResponse } : {}),
+          parseError: err,
         });
         appendCanvasChatRequestStep(requestId, {
           kind: 'error',
@@ -302,7 +337,7 @@ export function useCanvasChat() {
         resolve();
       };
 
-      const streamResult = sendChatMessageWithOptions(provider, parsed.modelName, apiMessages, CANVAS_CHAT_SYSTEM_PROMPT + langHint, {
+      const streamResult = sendChatMessageWithOptions(provider, parsed.modelName, apiMessages, systemPrompt, {
         onChunk: ({ type, text }) => {
           if (type === 'thinking') {
             accumulatedThinking.push(text);
@@ -338,6 +373,10 @@ export function useCanvasChat() {
             label: 'LLM stream completed',
             detail: `${finalContent.length} content chars`,
           });
+          updateCanvasChatRequestDetail(requestId, {
+            responseText: finalContent,
+            parsedJsonText: extractJsonCodeBlock(finalContent),
+          });
 
           const parsedJson = extractAndValidateIdeogramJSON(finalContent);
           if (parsedJson !== null) {
@@ -359,13 +398,18 @@ export function useCanvasChat() {
             finishCanvasChatRequest(requestId, 'success');
           } else {
             const errorText = buildParseErrorText(finalContent);
+            const parseError = errorText.replace(/\n\n\[Parse Error\]\n/, '');
+            updateCanvasChatRequestDetail(requestId, {
+              parsedJsonText: extractJsonCodeBlock(finalContent),
+              parseError,
+            });
             appendCanvasChatRequestStep(requestId, {
               kind: 'parse_failed',
               status: 'error',
               label: 'Parse Ideogram JSON failed',
-              detail: errorText.replace(/\n\n\[Parse Error\]\n/, ''),
+              detail: parseError,
             });
-            finishCanvasChatRequest(requestId, 'error', errorText.replace(/\n\n\[Parse Error\]\n/, ''));
+            finishCanvasChatRequest(requestId, 'error', parseError);
           }
           setIsLoading(false);
           resolve();
@@ -381,11 +425,11 @@ export function useCanvasChat() {
       });
     });
   }, [
-    startCanvasChatRequest, appendCanvasChatRequestStep, addCanvasChatMessage, getCurrentProvider,
+    startCanvasChatRequest, appendCanvasChatRequestStep, updateCanvasChatRequestDetail, addCanvasChatMessage, getCurrentProvider,
     parseModel, chatModel, finishCanvasChatRequest,
     boxes, canvasW, canvasH, globalPalette, highLevelDescription,
     aesthetics, lighting, medium, artStyle, background, photoArtStyleMode,
-    canvasChatMessages, chatResponseLang, chatStreamEnabled, chatThinkingLevel, setPendingIdeogramOutput, setPendingQualityReport,
+    canvasChatMessages, chatResponseLang, chatStreamEnabled, chatThinkingLevel, canvasChatTargetSize, setPendingIdeogramOutput, setPendingQualityReport,
   ]);
 
   /** Apply pendingIdeogramOutput 到画布，并基于已落地布局生成质量诊断 */
@@ -513,6 +557,8 @@ export function useCanvasChat() {
     handleClearHistory,
     handleSelectModel: setChatModel,
     setChatResponseLang,
+    canvasChatTargetSize,
+    setCanvasChatTargetSize,
     // 预设
     chatPresets,
     selectedPresetId,

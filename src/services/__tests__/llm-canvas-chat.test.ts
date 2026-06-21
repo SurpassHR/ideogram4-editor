@@ -668,6 +668,14 @@ describe('CANVAS_CHAT_SYSTEM_PROMPT', () => {
     expect(CANVAS_CHAT_SYSTEM_PROMPT).not.toContain('You may briefly explain');
   });
 
+  it('应明确区分目标输出尺寸和 0-1000 bbox 坐标系统', () => {
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('target output canvas');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('canvasW');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('canvasH');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('0-1000 normalized');
+    expect(CANVAS_CHAT_SYSTEM_PROMPT).toContain('Do not use 1024 as a default canvas size');
+  });
+
   it('应不包含旧的模糊约束文本', () => {
     expect(CANVAS_CHAT_SYSTEM_PROMPT).not.toContain('Elements: 1-8 boxes total');
     expect(CANVAS_CHAT_SYSTEM_PROMPT).not.toContain('Design a balanced composition');

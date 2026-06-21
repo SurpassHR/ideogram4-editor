@@ -1,11 +1,11 @@
 import { create } from 'zustand';
 import type { Box, IdeogramOutput, GenerationStatus, PhotoArtStyleMode } from '../types';
-import type { CanvasChatRequestLogStep, CanvasChatSession, ChatMessage, ChatThinkingLevel } from '../types/chat';
+import type { CanvasChatRequestLogDetail, CanvasChatRequestLogStep, CanvasChatSession, ChatMessage, ChatThinkingLevel } from '../types/chat';
 import type { PromptPreset } from '../types/presets';
 import type { CanvasFavorite, CanvasSnapshotLite, PersistedCanvasChatStateV1, WorkspaceBackupSettings } from '../types/workspace';
 import { PRESETS_STORAGE_KEY, createBuiltinPresets } from '../types/presets';
 import { MODE_ARTSTYLE, MODE_PHOTO } from '../types';
-import { computeCanvasDims, type RatioKey } from '../utils/canvas-dims';
+import { computeCanvasDims, inferCanvasControlsFromDimensions, type RatioKey } from '../utils/canvas-dims';
 import { detectBboxSystem, bboxToPixels } from '../utils/coordinates';
 import type { LayoutQualityReport } from '../services/layout-validator';
 import {
@@ -182,6 +182,9 @@ function canvasChatTitleFromMessage(message: ChatMessage): string {
 const CHAT_STREAM_ENABLED_STORAGE_KEY = 'ideogram4-chat-stream-enabled';
 const CHAT_THINKING_LEVEL_STORAGE_KEY = 'ideogram4-chat-thinking-level';
 const CHAT_THINKING_LEVELS: ChatThinkingLevel[] = ['off', 'low', 'medium', 'high'];
+const CANVAS_CHAT_TARGET_SIZE_STORAGE_KEY = 'ideogram4-canvas-chat-target-size';
+const CANVAS_CHAT_TARGET_SIZES = [1024, 2048, 4096] as const;
+type CanvasChatTargetSize = typeof CANVAS_CHAT_TARGET_SIZES[number];
 
 function loadChatStreamEnabled(): boolean {
   return localStorage.getItem(CHAT_STREAM_ENABLED_STORAGE_KEY) !== 'false';
@@ -192,6 +195,31 @@ function loadChatThinkingLevel(): ChatThinkingLevel {
   return CHAT_THINKING_LEVELS.includes(raw as ChatThinkingLevel)
     ? raw as ChatThinkingLevel
     : 'medium';
+}
+
+function normalizeCanvasChatTargetSize(size: number): CanvasChatTargetSize {
+  const numeric = Number.isFinite(size) ? size : 1024;
+  return CANVAS_CHAT_TARGET_SIZES.reduce<CanvasChatTargetSize>((nearest, candidate) => {
+    return Math.abs(candidate - numeric) < Math.abs(nearest - numeric) ? candidate : nearest;
+  }, 1024);
+}
+
+function loadCanvasChatTargetSize(): CanvasChatTargetSize {
+  const raw = Number(localStorage.getItem(CANVAS_CHAT_TARGET_SIZE_STORAGE_KEY));
+  return normalizeCanvasChatTargetSize(raw);
+}
+
+function scaleBoxesToCanvas(boxes: Box[], scaleX: number, scaleY: number): Box[] {
+  if (boxes.length === 0) return boxes;
+  if (!Number.isFinite(scaleX) || !Number.isFinite(scaleY)) return boxes;
+  if (scaleX === 1 && scaleY === 1) return boxes;
+  return boxes.map(box => ({
+    ...box,
+    x: box.x * scaleX,
+    y: box.y * scaleY,
+    w: box.w * scaleX,
+    h: box.h * scaleY,
+  }));
 }
 
 // ─── 预设持久化辅助 ────────────────────────────────────────────
@@ -317,6 +345,10 @@ interface EditorStore {
     requestId: string,
     step: Omit<CanvasChatRequestLogStep, 'id' | 'at'>,
   ) => void;
+  updateCanvasChatRequestDetail: (
+    requestId: string,
+    updates: Partial<CanvasChatRequestLogDetail>,
+  ) => void;
   finishCanvasChatRequest: (requestId: string, status: 'success' | 'error', detail?: string) => void;
   replaceCanvasChatState: (state: PersistedCanvasChatStateV1) => void;
 
@@ -329,8 +361,10 @@ interface EditorStore {
   setChatResponseLang: (lang: string) => void;
   chatStreamEnabled: boolean;
   chatThinkingLevel: ChatThinkingLevel;
+  canvasChatTargetSize: CanvasChatTargetSize;
   setChatStreamEnabled: (enabled: boolean) => void;
   setChatThinkingLevel: (level: ChatThinkingLevel) => void;
+  setCanvasChatTargetSize: (size: number) => void;
 
   // Image 操作
   importImageToBox: (boxId: string, dataUrl: string) => void;
@@ -381,6 +415,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   setCanvasDimensions: (w, h) => set({
     canvasW: w,
     canvasH: h,
+    ...inferCanvasControlsFromDimensions(w, h),
   }),
 
   setCanvasRatio: (ratio) => {
@@ -391,7 +426,14 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   setCanvasScale: (scale) => {
     const state = get();
     const { w, h } = computeCanvasDims(state.canvasRatio as RatioKey, scale, state.canvasCustomW, state.canvasCustomH);
-    set({ canvasScale: scale, canvasW: w, canvasH: h });
+    const scaleX = state.canvasW > 0 ? w / state.canvasW : 1;
+    const scaleY = state.canvasH > 0 ? h / state.canvasH : 1;
+    set({
+      canvasScale: scale,
+      canvasW: w,
+      canvasH: h,
+      boxes: scaleBoxesToCanvas(state.boxes, scaleX, scaleY),
+    });
   },
 
   setCanvasCustom: (w, h) => {
@@ -851,6 +893,29 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     persistCanvasChatRuntime(get());
   },
 
+  updateCanvasChatRequestDetail: (requestId, updates) => {
+    set(state => ({
+      canvasChatSessions: state.canvasChatSessions.map(session => ({
+        ...session,
+        requestLogs: session.requestLogs.map(log => {
+          if (log.id !== requestId) return log;
+          const previousDetail = log.detail ?? {};
+          return {
+            ...log,
+            detail: {
+              ...previousDetail,
+              ...updates,
+              ...(updates.metadata
+                ? { metadata: { ...(previousDetail.metadata ?? {}), ...updates.metadata } }
+                : {}),
+            },
+          };
+        }),
+      })),
+    }));
+    persistCanvasChatRuntime(get());
+  },
+
   finishCanvasChatRequest: (requestId, status, detail) => {
     set(state => ({
       canvasChatSessions: state.canvasChatSessions.map(session => ({
@@ -919,6 +984,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   },
   chatStreamEnabled: loadChatStreamEnabled(),
   chatThinkingLevel: loadChatThinkingLevel(),
+  canvasChatTargetSize: loadCanvasChatTargetSize(),
   setChatStreamEnabled: (enabled) => {
     localStorage.setItem(CHAT_STREAM_ENABLED_STORAGE_KEY, String(enabled));
     set({ chatStreamEnabled: enabled });
@@ -926,6 +992,11 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   setChatThinkingLevel: (level) => {
     localStorage.setItem(CHAT_THINKING_LEVEL_STORAGE_KEY, level);
     set({ chatThinkingLevel: level });
+  },
+  setCanvasChatTargetSize: (size) => {
+    const nextSize = normalizeCanvasChatTargetSize(size);
+    localStorage.setItem(CANVAS_CHAT_TARGET_SIZE_STORAGE_KEY, String(nextSize));
+    set({ canvasChatTargetSize: nextSize });
   },
 
   // Image 操作

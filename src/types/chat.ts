@@ -40,6 +40,27 @@ export interface CanvasChatRequestLog {
   startedAt: number;
   endedAt?: number;
   steps: CanvasChatRequestLogStep[];
+  detail?: CanvasChatRequestLogDetail;
+}
+
+/** Canvas Chat 单次请求的完整调试详情 */
+export interface CanvasChatRequestLogDetail {
+  metadata?: {
+    providerId: string;
+    providerName: string;
+    modelName: string;
+    responseLang: string;
+    streamEnabled: boolean;
+    thinkingLevel: ChatThinkingLevel;
+    targetSize: number;
+    canvasSize: { width: number; height: number };
+    boxCount: number;
+  };
+  systemPrompt?: string;
+  messages?: ChatMessageForApi[];
+  responseText?: string;
+  parsedJsonText?: string;
+  parseError?: string;
 }
 
 /** Canvas Chat 请求日志中的单个步骤 */

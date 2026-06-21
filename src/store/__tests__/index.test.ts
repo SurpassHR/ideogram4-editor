@@ -765,6 +765,51 @@ describe('EditorStore', () => {
         });
       });
 
+      it('updateCanvasChatRequestDetail 应按请求合并写入完整调试详情', () => {
+        const store = useEditorStore.getState() as unknown as {
+          startCanvasChatRequest?: (promptPreview: string) => string;
+          updateCanvasChatRequestDetail?: (requestId: string, updates: Record<string, unknown>) => void;
+        };
+
+        expect(typeof store.updateCanvasChatRequestDetail).toBe('function');
+
+        const requestId = store.startCanvasChatRequest?.('生成海报') ?? '';
+        store.updateCanvasChatRequestDetail?.(requestId, {
+          metadata: {
+            providerId: 'mock',
+            providerName: 'Mock',
+            modelName: 'gpt-4',
+            responseLang: 'auto',
+            streamEnabled: true,
+            thinkingLevel: 'medium',
+            targetSize: 2048,
+            canvasSize: { width: 1024, height: 1024 },
+            boxCount: 1,
+          },
+          systemPrompt: 'SYSTEM',
+          messages: [{ role: 'user', content: '完整请求' }],
+        });
+        store.updateCanvasChatRequestDetail?.(requestId, {
+          responseText: '```json\n{"ok":true}\n```',
+          parsedJsonText: '{"ok":true}',
+          parseError: 'elements[0].bbox must be an array of 4 numbers.',
+        });
+
+        const log = useEditorStore.getState().canvasChatSessions[0].requestLogs[0] as any;
+        expect(log.detail).toMatchObject({
+          metadata: {
+            providerId: 'mock',
+            targetSize: 2048,
+            thinkingLevel: 'medium',
+          },
+          systemPrompt: 'SYSTEM',
+          messages: [{ role: 'user', content: '完整请求' }],
+          responseText: '```json\n{"ok":true}\n```',
+          parsedJsonText: '{"ok":true}',
+          parseError: 'elements[0].bbox must be an array of 4 numbers.',
+        });
+      });
+
       it('setCanvasChatMaximized 应切换最大化状态', () => {
         const store = useEditorStore.getState() as unknown as {
           setCanvasChatMaximized?: (maximized: boolean) => void;
@@ -1061,6 +1106,48 @@ describe('EditorStore', () => {
       // 1:1 ratio + scale 2 → 512×512
       expect(state.canvasW).toBe(512);
       expect(state.canvasH).toBe(512);
+    });
+
+    it('setCanvasScale 应等比例缩放已有 boxes 布局', () => {
+      useEditorStore.setState({
+        canvasW: 1024,
+        canvasH: 1024,
+        canvasRatio: '1:1',
+        canvasScale: 4,
+        boxes: [
+          { ...makeBox('box_0', 100, 150), w: 120, h: 80 },
+          { ...makeBox('box_1', 400, 500), w: 200, h: 100 },
+        ],
+        selectedBoxId: 'box_0',
+        selectedBoxIds: ['box_0'],
+      });
+
+      useEditorStore.getState().setCanvasScale(8);
+
+      const state = useEditorStore.getState();
+      expect(state.canvasW).toBe(2048);
+      expect(state.canvasH).toBe(2048);
+      expect(state.boxes[0]).toMatchObject({ x: 200, y: 300, w: 240, h: 160 });
+      expect(state.boxes[1]).toMatchObject({ x: 800, y: 1000, w: 400, h: 200 });
+      expect(state.selectedBoxIds).toEqual(['box_0']);
+    });
+
+    it('setCanvasDimensions 应根据尺寸同步标准比例和倍数', () => {
+      useEditorStore.getState().setCanvasDimensions(1024, 768);
+      const state = useEditorStore.getState();
+      expect(state.canvasW).toBe(1024);
+      expect(state.canvasH).toBe(768);
+      expect(state.canvasRatio).toBe('4:3');
+      expect(state.canvasScale).toBe(4);
+    });
+
+    it('setCanvasDimensions 应将非内置比例同步为 custom', () => {
+      useEditorStore.getState().setCanvasDimensions(768, 1024);
+      const state = useEditorStore.getState();
+      expect(state.canvasRatio).toBe('custom');
+      expect(state.canvasCustomW).toBe(3);
+      expect(state.canvasCustomH).toBe(4);
+      expect(state.canvasScale).toBe(4);
     });
 
     it('setCanvasCustom 应更新 custom 值和 canvasW/canvasH', () => {

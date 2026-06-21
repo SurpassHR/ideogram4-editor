@@ -11,6 +11,24 @@ interface UsePointerInteractionOptions {
   screenToCanvas: (sx: number, sy: number) => { x: number; y: number };
 }
 
+function isTextEntryElement(el: HTMLElement | null): boolean {
+  if (!el) return false;
+  return (
+    el.tagName === 'INPUT' ||
+    el.tagName === 'TEXTAREA' ||
+    el.tagName === 'SELECT' ||
+    el.isContentEditable
+  );
+}
+
+function blurStaleTextEntryFocus(target: HTMLElement) {
+  if (isTextEntryElement(target)) return;
+  const active = document.activeElement as HTMLElement | null;
+  if (active && active !== document.body && isTextEntryElement(active)) {
+    active.blur();
+  }
+}
+
 export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerInteractionOptions) {
   const interactionRef = useRef<InteractionState>({
     mode: 'idle',
@@ -131,6 +149,7 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
   const handleCanvasPointerDown = useCallback((e: React.PointerEvent) => {
     if (e.button !== 0) return;
     const target = e.target as HTMLElement;
+    blurStaleTextEntryFocus(target);
     const boxEl = target.closest('.bounding-box') as HTMLDivElement | null;
     const isSelectionModifier = e.ctrlKey || e.metaKey || e.shiftKey;
 
@@ -384,12 +403,7 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
     const handleKeyDown = (e: KeyboardEvent) => {
       // 不拦截输入框中的按键
       const target = e.target as HTMLElement;
-      if (
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.tagName === 'SELECT' ||
-        target.isContentEditable
-      ) return;
+      if (isTextEntryElement(target)) return;
 
       const store = useEditorStore.getState();
       const activeSelection = store.selectedBoxIds.length > 0

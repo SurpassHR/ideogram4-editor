@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { render, fireEvent, screen } from '@testing-library/react';
+import { render, fireEvent, screen, act } from '@testing-library/react';
 import { useRef } from 'react';
 import { useEditorStore } from '../../store';
 import { usePointerInteraction } from '../usePointerInteraction';
@@ -305,6 +305,46 @@ describe('usePointerInteraction - click vs drag', () => {
 
     fireEvent.keyDown(window, { key: 'Delete' });
     expect(useEditorStore.getState().boxes.map(b => b.id)).toEqual(['box_a', 'box_b', 'box_c']);
+    expect(useEditorStore.getState().selectedBoxIds).toEqual([]);
+  });
+
+  it('从缩放输入控件重新选中 box 后，Delete 应删除选中的 box', () => {
+    useEditorStore.setState({
+      boxes: [
+        { id: 'box_a', x: 20, y: 20, w: 80, h: 80, mode: 'obj', text: '', desc: '', colors: [], imageDataUrl: null, imageRole: 'both' },
+      ],
+      selectedBoxIds: [],
+      selectedBoxId: null,
+      boxCounter: 1,
+      canvasW: 1024,
+      canvasH: 1024,
+      canvasRatio: '1:1',
+      canvasScale: 4,
+      canvasCustomW: 16,
+      canvasCustomH: 9,
+    });
+    render(
+      <>
+        <input aria-label="scale input" />
+        <TestCanvasWithStoreBoxes />
+      </>,
+    );
+
+    const scaleInput = screen.getByLabelText('scale input');
+    scaleInput.focus();
+    expect(document.activeElement).toBe(scaleInput);
+
+    act(() => {
+      useEditorStore.getState().setCanvasScale(8);
+    });
+    const box = document.getElementById('box_a')!;
+    fireEvent.pointerDown(box, { clientX: 40, clientY: 40, button: 0 });
+    fireEvent.pointerUp(window, { clientX: 40, clientY: 40 });
+    expect(useEditorStore.getState().selectedBoxIds).toEqual(['box_a']);
+
+    fireEvent.keyDown(document.activeElement ?? window, { key: 'Delete' });
+
+    expect(useEditorStore.getState().boxes).toEqual([]);
     expect(useEditorStore.getState().selectedBoxIds).toEqual([]);
   });
 

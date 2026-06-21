@@ -22,8 +22,30 @@ export interface Translations {
     settings: string;
   };
   settings: {
+    pageTitle: string;
+    pageSubtitle: string;
+    moduleNavLabel: string;
+    activeModuleLabel: string;
     llmProviders: string;
     promptPresets: string;
+    modules: {
+      llm: {
+        title: string;
+        description: string;
+        status: string;
+      };
+      presets: {
+        title: string;
+        description: string;
+        status: string;
+      };
+      workspace: {
+        title: string;
+        description: string;
+        status: string;
+        statusWithGist: string;
+      };
+    };
     workspace: {
       heading: string;
       favorites: string;
@@ -231,6 +253,9 @@ export interface Translations {
     thinkingStrength: string;
     thinkingShort: string;
     thinkingHint: string;
+    targetImageSize: string;
+    targetSizeShort: string;
+    targetSizeHint: string;
     thinkingLevels: {
       off: string;
       low: string;
@@ -254,6 +279,10 @@ export interface Translations {
       messageCount: string;
       terminal: string;
       noRequestLogs: string;
+      requestDetails: string;
+      closeDetails: string;
+      copy: string;
+      copied: string;
     };
     presets: {
       title: string;
@@ -358,8 +387,30 @@ const en: Translations = {
     settings: '⚙ Settings',
   },
   settings: {
+    pageTitle: 'Configuration Center',
+    pageSubtitle: 'Manage model providers, reusable prompt templates, and workspace backups from one focused console.',
+    moduleNavLabel: 'Settings modules',
+    activeModuleLabel: 'Active module',
     llmProviders: '🤖 LLM Providers',
     promptPresets: '📋 Prompt Presets',
+    modules: {
+      llm: {
+        title: 'LLM Providers',
+        description: 'Configure the models used by box chat and canvas composition.',
+        status: 'Provider list opens here',
+      },
+      presets: {
+        title: 'Prompt Presets',
+        description: 'Manage reusable templates for per-box chat and canvas chat.',
+        status: '{count} presets',
+      },
+      workspace: {
+        title: 'Workspace',
+        description: 'Save favorite canvases and back up local workspace data to a private Gist.',
+        status: '{count} favorites',
+        statusWithGist: '{count} favorites · Gist backup configured',
+      },
+    },
     workspace: {
       heading: 'Workspace',
       favorites: 'Canvas Favorites',
@@ -567,6 +618,9 @@ const en: Translations = {
     thinkingStrength: 'Thinking strength',
     thinkingShort: 'Think',
     thinkingHint: 'Reasoning effort depends on the selected model.',
+    targetImageSize: 'Canvas Chat target image size',
+    targetSizeShort: 'Size',
+    targetSizeHint: 'Target canvasW/canvasH for the next Canvas Chat composition.',
     thinkingLevels: {
       off: 'Off',
       low: 'Low',
@@ -590,6 +644,10 @@ const en: Translations = {
       messageCount: '{count} messages',
       terminal: 'Terminal',
       noRequestLogs: 'No request logs yet',
+      requestDetails: 'Request details',
+      closeDetails: 'Close request details',
+      copy: 'Copy',
+      copied: 'Copied',
     },
     presets: {
       title: 'Preset Manager',
@@ -694,8 +752,30 @@ const zh: Translations = {
     settings: '⚙ 设置',
   },
   settings: {
+    pageTitle: '配置中心',
+    pageSubtitle: '集中管理模型提供商、可复用提示词模板和工作区备份。',
+    moduleNavLabel: '设置模块',
+    activeModuleLabel: '当前模块',
     llmProviders: '🤖 LLM 提供商',
     promptPresets: '📋 提示词预设',
+    modules: {
+      llm: {
+        title: 'LLM 提供商',
+        description: '配置边界框对话和画布构图使用的模型。',
+        status: '提供商列表在此管理',
+      },
+      presets: {
+        title: '提示词预设',
+        description: '管理 per-box chat 和 canvas chat 的可复用模板。',
+        status: '{count} 个预设',
+      },
+      workspace: {
+        title: 'Workspace',
+        description: '管理画布收藏，并将本地工作区数据备份到 private Gist。',
+        status: '{count} 个收藏',
+        statusWithGist: '{count} 个收藏 · 已配置 Gist 备份',
+      },
+    },
     workspace: {
       heading: 'Workspace',
       favorites: '画布收藏',
@@ -903,6 +983,9 @@ const zh: Translations = {
     thinkingStrength: '思考强度',
     thinkingShort: '思考',
     thinkingHint: '实际 reasoning 效果取决于当前模型能力。',
+    targetImageSize: 'Canvas Chat 目标图像尺寸',
+    targetSizeShort: '尺寸',
+    targetSizeHint: '下一次 Canvas Chat 构图返回的 canvasW/canvasH 目标尺寸。',
     thinkingLevels: {
       off: '关',
       low: '低',
@@ -926,6 +1009,10 @@ const zh: Translations = {
       messageCount: '{count} 条消息',
       terminal: '终端',
       noRequestLogs: '暂无请求日志',
+      requestDetails: '请求详情',
+      closeDetails: '关闭请求详情',
+      copy: '复制',
+      copied: '已复制',
     },
     presets: {
       title: '预设管理',
