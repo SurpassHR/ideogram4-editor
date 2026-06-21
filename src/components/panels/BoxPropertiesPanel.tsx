@@ -18,7 +18,6 @@ export default function BoxPropertiesPanel() {
   if (selectedBoxIds.length > 1) {
     return (
       <GlowGrid id="box-panel">
-        <h3>{t('panels.boxProperties.title')}</h3>
         <div className="multi-select-summary">
           {t('panels.boxProperties.multiSelected', { count: selectedBoxIds.length })}
         </div>
@@ -36,15 +35,13 @@ export default function BoxPropertiesPanel() {
   if (!selectedBoxId || !box) {
     return (
       <GlowGrid id="box-panel" style={{ display: 'none' }}>
-        <h3>{t('panels.boxProperties.title')}</h3>
+        {null}
       </GlowGrid>
     );
   }
 
   return (
     <GlowGrid id="box-panel">
-      <h3>{t('panels.boxProperties.title')}</h3>
-
       <div className="input-group">
         <label>{t('panels.boxProperties.mode')}</label>
         <select

@@ -13,7 +13,7 @@ export default function CanvasPage() {
           <Artboard />
         </div>
 
-        <div style={{ width: '320px', flexShrink: 0 }}>
+        <div style={{ width: '360px', flexShrink: 0 }}>
           <RightPanelContainer />
         </div>
       </div>

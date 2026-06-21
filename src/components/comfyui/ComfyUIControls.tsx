@@ -1,7 +1,6 @@
 import { useEditorStore } from '../../store';
 import { useComfyUIGeneration } from '../../hooks/useComfyUIGeneration';
 import { useI18n } from '../../i18n/context';
-import GlowGrid from '../panels/GlowGrid';
 
 export default function ComfyUIControls() {
   const apiUrl = useEditorStore(s => s.apiUrl);
@@ -17,9 +16,7 @@ export default function ComfyUIControls() {
   const seedDisplay = String(seed).padStart(5, '0');
 
   return (
-    <GlowGrid>
-      <h3>{t('comfyui.generation')}</h3>
-
+    <div className="comfyui-controls">
       <div className="input-group">
         <label>
           {t('comfyui.seed')}
@@ -68,6 +65,6 @@ export default function ComfyUIControls() {
       >
         {isLoading ? t('comfyui.generating') : t('comfyui.generateImage')}
       </button>
-    </GlowGrid>
+    </div>
   );
 }

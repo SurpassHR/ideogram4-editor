@@ -282,3 +282,13 @@ kanban task create --title "Task 1" --prompt "..." --base-ref main --project-pat
 - 任务 worktree 可在 `~/.cline/worktrees/<task-id>/` 找到
 
 **依赖链规则**：见 @KANBAN.md
+
+### 4. 不重复造轮子：优先复用项目中已有的 UI 模式
+
+在修改或新增 UI 功能时，**必须先搜索项目中是否已有相同或相似的实现**，优先复用，而不是从头另写一套。
+
+- 搜索关键词：用 `ffgrep` 搜索相关 CSS 类名、组件名、或功能关键词，确认是否存在现成方案
+- 优先复用：如果已有组件/样式实现相同功能，直接 import 使用或参考其实现方式
+- 示例：本项目已有 `JsonCodeBlock` 组件的 `json-code-block-toggle`（iOS 滑块式 JSON/预览切换），新增类似功能时不应再写一套按钮式切换
+
+**为什么会犯这个错：** 在 JSON tab 中新增了视图切换按钮组（`.json-view-toggle`），但 `ChatMessage` 里的 `JsonCodeBlock` 组件已经有完全相同的交互模式（`.json-code-block-toggle`）。应该直接复用后者，而不是造新的按钮组。

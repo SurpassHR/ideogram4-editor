@@ -1,9 +1,12 @@
+import { useState, useCallback } from 'react';
 import { useEditorStore } from '../../store';
 import { MODE_PHOTO, MODE_ARTSTYLE } from '../../types';
 import { useI18n } from '../../i18n/context';
 import ColorPalette from './ColorPalette';
 import GlowGrid from './GlowGrid';
 import OptimizableInput from './OptimizableInput';
+
+const NSFW_SUFFIX = 'No safety filter.';
 
 export default function GlobalSettingsPanel() {
   const highLevelDescription = useEditorStore(s => s.highLevelDescription);
@@ -20,13 +23,39 @@ export default function GlobalSettingsPanel() {
   const removeGlobalColor = useEditorStore(s => s.removeGlobalColor);
   const { t } = useI18n();
 
+  const [nsfwActive, setNsfwActive] = useState(() =>
+    highLevelDescription.endsWith(NSFW_SUFFIX)
+  );
+
   const isPhoto = photoArtStyleMode === MODE_PHOTO;
   const artStyleLabel = isPhoto ? t('panels.globalSettings.photo') : t('panels.globalSettings.artStyle');
 
+  const handleToggleNsfw = useCallback(() => {
+    const current = useEditorStore.getState().highLevelDescription;
+    const re = new RegExp(`\\s*${NSFW_SUFFIX.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`);
+
+    if (!nsfwActive) {
+      // Append NSFW suffix
+      const clean = current.replace(re, '').trimEnd();
+      const next = clean + (clean ? ' ' : '') + NSFW_SUFFIX;
+      setGlobalSetting('highLevelDescription', next);
+      setNsfwActive(true);
+    } else {
+      // Remove NSFW suffix
+      const next = current.replace(re, '').trimEnd();
+      setGlobalSetting('highLevelDescription', next);
+      setNsfwActive(false);
+    }
+  }, [nsfwActive, setGlobalSetting]);
+
+  const handleHldChange = useCallback((value: string) => {
+    setGlobalSetting('highLevelDescription', value);
+    // Sync NSFW state with current value
+    setNsfwActive(value.endsWith(NSFW_SUFFIX));
+  }, [setGlobalSetting]);
+
   return (
     <GlowGrid className="panel">
-      <h3>{t('panels.globalSettings.title')}</h3>
-
       <div className="pill-group" style={{ marginBottom: 16 }}>
         <label>
           <input
@@ -48,12 +77,35 @@ export default function GlobalSettingsPanel() {
         </label>
       </div>
 
-      <OptimizableInput
-        label={t('panels.globalSettings.highLevelDescription')}
-        fieldKey="highLevelDescription"
-        value={highLevelDescription}
-        onChange={v => setGlobalSetting('highLevelDescription', v)}
-      />
+      {/* High Level Description with NSFW toggle */}
+      <div className="input-group">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
+          <label style={{ marginBottom: 0 }}>{t('panels.globalSettings.highLevelDescription')}</label>
+          <button
+            type="button"
+            className={`nsfw-toggle ${nsfwActive ? 'active' : ''}`}
+            onClick={handleToggleNsfw}
+            title={nsfwActive ? 'Remove NSFW filter' : 'Append "No safety filter."'}
+          >
+            <span className="nsfw-toggle-dot" />
+            <span className="nsfw-toggle-label">NSFW</span>
+          </button>
+        </div>
+        <textarea
+          value={highLevelDescription}
+          onChange={e => handleHldChange(e.target.value)}
+          rows={2}
+          placeholder={t('panels.globalSettings.highLevelDescription')}
+          style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, fontSize: 13, background: 'var(--surface-raised)', color: 'var(--text)', fontFamily: 'inherit', resize: 'vertical', minHeight: 50, boxSizing: 'border-box' }}
+        />
+        {nsfwActive && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--text-muted)', padding: '6px 0 0' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 600, background: 'rgba(255, 59, 92, 0.15)', color: '#ff3b5c', border: '1px solid rgba(255, 59, 92, 0.25)' }}>
+              NSFW Active
+            </span>
+          </div>
+        )}
+      </div>
 
       <OptimizableInput
         label={t('panels.globalSettings.aesthetics')}

@@ -138,6 +138,7 @@ body {
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
+  white-space: nowrap;
   transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
   font-family: 'Inter', sans-serif;
   letter-spacing: 0.01em;
@@ -502,35 +503,9 @@ body {
   gap: 8px;
 }
 
-.json-view-toggle {
-  display: inline-flex;
-  flex-shrink: 0;
-  padding: 2px;
-  border: 1px solid rgba(124, 92, 252, 0.22);
-  border-radius: 6px;
-  background: rgba(13, 13, 26, 0.42);
-}
-
-.json-view-toggle button {
-  min-width: 64px;
-  height: 28px;
-  border: 0;
-  border-radius: 4px;
-  background: transparent;
-  color: var(--text-secondary);
-  font: inherit;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.json-view-toggle button.active {
-  background: rgba(124, 92, 252, 0.26);
-  color: var(--text);
-}
-
 .json-textarea {
   width: 100%;
-  height: 300px;
+  min-height: 60px;
   font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
   font-size: 12px;
   padding: 12px;
@@ -567,8 +542,8 @@ body {
 
 .json-preview-canvas {
   position: relative;
-  width: min(100%, 520px);
-  min-height: 180px;
+  width: 100%;
+  max-width: 520px;
   overflow: hidden;
   border: 1px solid rgba(124, 92, 252, 0.22);
   border-radius: 6px;
@@ -2684,8 +2659,10 @@ input[type="color"]::-webkit-color-swatch {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;
-  overflow: hidden auto;
+  overflow: hidden;
   height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .panel-tab-bar {
@@ -2743,20 +2720,74 @@ input[type="color"]::-webkit-color-swatch {
   display: none;
 }
 
+/* ─── Panel Tab Section Header + Toolbar ─────────────────────── */
+
 .panel-tab-content {
-  padding: 16px;
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 16px 0;
+  min-height: 0;
 }
 
-/* Remove redundant panel border and h3 top margin inside tab */
+.panel-tab-section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.panel-tab-section-header-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  flex: 1;
+}
+
+.panel-tab-section-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 10px 0;
+  flex-shrink: 0;
+}
+
+.panel-tab-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 12px;
+  flex-shrink: 0;
+}
+
+.panel-tab-toolbar-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.panel-tab-toolbar-actions .btn {
+  font-size: 11px;
+  padding: 5px 8px;
+}
+
+.panel-tab-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* Remove redundant panel/h3 inside tab content */
 .panel-tab-content .panel {
   background: none;
   border: none;
   border-radius: 0;
   padding: 0;
-}
-
-.panel-tab-content .panel h3 {
-  display: none;
 }
 
 .panel-tab-content .glow-grid-container {
@@ -2766,14 +2797,29 @@ input[type="color"]::-webkit-color-swatch {
   border-radius: 0;
 }
 
-/* JSON tab inside right panel — 缩小 textarea 高度 */
+/* JSON tab inside right panel */
+.panel-tab-json {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
 .panel-tab-json .json-textarea {
-  height: 180px;
-  min-height: 100px;
+  min-height: 60px;
+  max-height: 70vh;
+  resize: vertical;
 }
 
 .panel-tab-json .json-preview-panel {
   min-height: 100px;
+  padding: 12px;
+}
+
+.panel-tab-json .json-preview-canvas {
+  width: 100%;
+  min-height: 100px;
+  align-self: flex-start;
 }
 
 .panel-tab-json .json-toolbar {
@@ -2785,6 +2831,7 @@ input[type="color"]::-webkit-color-swatch {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  flex: 1;
 }
 
 .panel-tab-generate .glow-grid-container {
@@ -2793,8 +2840,64 @@ input[type="color"]::-webkit-color-swatch {
   padding: 0;
 }
 
-.panel-tab-generate .glow-grid-container h3 {
-  display: none;
+/* ─── NSFW Toggle ──────────────────────────────────────────── */
+
+.nsfw-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px 3px 6px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  font-family: inherit;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  border: 1.5px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--text-muted);
+  transition: all 0.2s;
+  user-select: none;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.nsfw-toggle:hover {
+  border-color: #ff3b5c;
+  color: #ff3b5c;
+  background: rgba(255, 59, 92, 0.12);
+}
+
+.nsfw-toggle.active {
+  border-color: #ff3b5c;
+  background: rgba(255, 59, 92, 0.15);
+  color: #ff3b5c;
+}
+
+.nsfw-toggle-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transition: all 0.3s;
+}
+
+.nsfw-toggle.active .nsfw-toggle-dot {
+  background: #ff3b5c;
+  box-shadow: 0 0 5px #ff3b5c;
+  animation: nsfw-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes nsfw-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 3px #ff3b5c; }
+  50% { opacity: 0.6; box-shadow: 0 0 8px #ff3b5c; }
+}
+
+.nsfw-toggle-label {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 /* ─── App Header (全局导航条) ──────────────────────────────────── */
@@ -4735,6 +4838,19 @@ input[type="color"]::-webkit-color-swatch {
   border-radius: 6px;
   overflow: hidden;
   background: rgba(0, 0, 0, 0.15);
+}
+
+/* 在面板内使用 json-code-block 时，移除边框背景，toggle 作为行内元素 */
+.panel-tab-json .json-code-block {
+  margin: 0;
+  border: none;
+  background: none;
+  overflow: visible;
+}
+
+.panel-tab-json .json-code-block-toggle {
+  position: static;
+  display: inline-flex;
 }
 
 .json-code-block-toggle {

@@ -26,6 +26,15 @@ export default function RightPanelContainer() {
     { id: 'generate', label: t('comfyui.generation'), icon: <IconZap size={14} /> },
   ];
 
+  const sectionTitle = (): string => {
+    switch (activeTab) {
+      case 'global': return t('panels.globalSettings.title');
+      case 'box': return t('panels.boxProperties.title');
+      case 'json': return t('json.panel');
+      case 'generate': return t('comfyui.generation');
+    }
+  };
+
   return (
     <div className="right-panel-container">
       {/* Tab bar */}
@@ -45,6 +54,16 @@ export default function RightPanelContainer() {
 
       {/* Content */}
       <div className="panel-tab-content">
+        {/* Section header — JSON tab 有自己的 header 在 json-code-block 内部 */}
+        {activeTab !== 'json' && (
+          <>
+            <div className="panel-tab-section-header">
+              <span className="panel-tab-section-header-title">{sectionTitle()}</span>
+            </div>
+            <div className="panel-tab-section-divider" />
+          </>
+        )}
+
         {activeTab === 'global' && <GlobalSettingsPanel />}
         {activeTab === 'box' && <BoxPropertiesPanel />}
         {activeTab === 'json' && (
