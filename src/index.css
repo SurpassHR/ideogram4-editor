@@ -323,6 +323,9 @@ body {
   .marquee-ants-path {
     animation: none;
   }
+  .json-code-block-toggle-track::after {
+    transition: none;
+  }
 }
 
 .bounding-box-bg-img {
@@ -4541,18 +4544,126 @@ input[type="color"]::-webkit-color-swatch {
   line-height: 1.6;
 }
 
-/* ─── 画布缩略图 ────────────────────────────────────── */
-.chat-msg-thumb-container {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 8px;
+/* ─── JsonCodeBlock：json/预览切换 ─────────────────── */
+.json-code-block {
+  position: relative;
+  margin: 8px 0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.15);
 }
-.chat-msg-canvas-thumb {
-  max-width: 120px;
+
+.json-code-block-toggle {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(13, 13, 26, 0.7);
+  backdrop-filter: blur(4px);
+  cursor: pointer;
+  font-size: 10px;
+  font-family: 'Inter', sans-serif;
+  line-height: 1;
+  z-index: 2;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.json-code-block-toggle span[data-active="true"] {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.json-code-block-toggle span[data-active="false"] {
+  color: rgba(255, 255, 255, 0.35);
+  font-weight: 400;
+}
+
+.json-code-block-toggle-track {
+  position: relative;
+  width: 28px;
+  height: 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+
+.json-code-block-toggle-track::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s;
+}
+
+.json-code-block-toggle input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.json-code-block-toggle-track:has(input:checked) {
+  background: var(--primary);
+}
+
+.json-code-block-toggle-track:has(input:checked)::after {
+  transform: translateX(14px);
+}
+
+.json-code-block-toggle:focus-within {
+  outline: 2px solid var(--border-focus, #7c5cfc);
+  outline-offset: 2px;
+}
+
+.json-code-block-code {
+  margin: 0;
+  padding: 32px 16px 12px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.json-code-block-code code {
+  background: none;
+  padding: 0;
+  font-size: inherit;
+  color: inherit;
+}
+
+.json-code-block-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100px;
+  padding: 8px;
+}
+
+.json-code-block-preview img {
+  width: 100%;
   height: auto;
+  max-height: 360px;
+  object-fit: contain;
   border-radius: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  background: rgba(0, 0, 0, 0.3);
+}
+
+.json-code-block-preview-fallback {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-style: italic;
 }
 
 /* ─── 快捷键速查弹窗 ────────────────────────────────────── */

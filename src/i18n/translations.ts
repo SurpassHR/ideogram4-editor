@@ -256,6 +256,10 @@ export interface Translations {
     targetImageSize: string;
     targetSizeShort: string;
     targetSizeHint: string;
+    jsonView: string;
+    previewView: string;
+    previewAlt: string;
+    previewUnavailable: string;
     thinkingLevels: {
       off: string;
       low: string;
@@ -621,6 +625,10 @@ const en: Translations = {
     targetImageSize: 'Canvas Chat target image size',
     targetSizeShort: 'Size',
     targetSizeHint: 'Target canvasW/canvasH for the next Canvas Chat composition.',
+    jsonView: 'json',
+    previewView: 'Preview',
+    previewAlt: 'Canvas preview',
+    previewUnavailable: 'Preview unavailable',
     thinkingLevels: {
       off: 'Off',
       low: 'Low',
@@ -986,6 +994,10 @@ const zh: Translations = {
     targetImageSize: 'Canvas Chat 目标图像尺寸',
     targetSizeShort: '尺寸',
     targetSizeHint: '下一次 Canvas Chat 构图返回的 canvasW/canvasH 目标尺寸。',
+    jsonView: 'json',
+    previewView: '预览',
+    previewAlt: '画布预览',
+    previewUnavailable: '预览不可用',
     thinkingLevels: {
       off: '关',
       low: '低',

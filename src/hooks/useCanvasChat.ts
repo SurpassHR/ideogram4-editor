@@ -27,7 +27,7 @@ async function takeCanvasSnapshot(): Promise<string | undefined> {
   const rect = wrapper.getBoundingClientRect();
   if (rect.width === 0 || rect.height === 0) return undefined;
 
-  const TARGET_W = 120;
+  const TARGET_W = 360;
   const scale = TARGET_W / rect.width;
 
   // 使用 foreignObject 将 DOM 序列化到 SVG 再绘制到 canvas

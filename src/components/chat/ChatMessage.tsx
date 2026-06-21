@@ -5,6 +5,8 @@ import type { ChatMessage as ChatMessageType } from '../../types/chat';
 import { useI18n } from '../../i18n/context';
 import { useEditorStore } from '../../store';
 import { extractAndValidateIdeogramJSON } from '../../services/llm-canvas-chat';
+import { parseContentSegments } from '../../utils/code-block-parser';
+import JsonCodeBlock from './JsonCodeBlock';
 
 interface ChatMessageProps {
   message: ChatMessageType;
@@ -64,16 +66,7 @@ export default function ChatMessage({ message, onAdopt, onDismiss, onApply, dism
         <span className="chat-msg-card-spacer" />
         <span className="chat-msg-card-time">{timeLabel}</span>
       </div>
-      {/* 画布缩略图（仅 assistant 消息） */}
-      {!isUser && message.canvasSnapshotUrl && (
-        <div className="chat-msg-thumb-container">
-          <img
-            src={message.canvasSnapshotUrl}
-            className="chat-msg-canvas-thumb"
-            alt="Canvas preview"
-          />
-        </div>
-      )}
+
 
       {/* 思维链折叠块（仅 assistant 消息有 thinking） */}
       {!isUser && message.thinking && (
@@ -89,15 +82,32 @@ export default function ChatMessage({ message, onAdopt, onDismiss, onApply, dism
       )}
 
       {/* 消息正文 */}
-      <div
-        className="chat-msg-card-body"
-        dangerouslySetInnerHTML={
-          isUser
-            ? undefined
-            : { __html: renderMarkdown(message.content) }
-        }
-      >
-        {isUser ? message.content : null}
+      <div className="chat-msg-card-body">
+        {isUser ? (
+          message.content
+        ) : (
+          parseContentSegments(message.content).map((seg, i) => {
+            if (seg.type === 'code' && seg.lang === 'json' && message.canvasSnapshotUrl) {
+              if (!seg.code.trim()) {
+                return <pre key={i}><code>{seg.code}</code></pre>;
+              }
+              return <JsonCodeBlock key={i} json={seg.code} snapshotUrl={message.canvasSnapshotUrl} />;
+            }
+            if (seg.type === 'code') {
+              return (
+                <pre key={i}>
+                  <code className={seg.lang ? `language-${seg.lang}` : ''}>{seg.code}</code>
+                </pre>
+              );
+            }
+            return (
+              <div
+                key={i}
+                dangerouslySetInnerHTML={{ __html: renderMarkdown(seg.text) }}
+              />
+            );
+          })
+        )}
       </div>
 
       {/* 操作栏：已采纳 / 采纳+忽略+复制 / 仅复制（用户消息） */}
