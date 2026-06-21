@@ -18,13 +18,15 @@ vi.mock('../../../i18n/context', () => ({
   }),
 }));
 
-const sampleJson = '{"key": "value"}';
+const sampleJson = '{"key": "value"}';   // JSON now rendered via highlightJson → broken across <span> elements
 const snapshotUrl = 'data:image/jpeg;base64,/9j/4AAQSkZJRg==';
 
 describe('JsonCodeBlock', () => {
-  it('默认渲染 json 视图', () => {
+  it('默认渲染 json 视图（高亮后的 span 中应包含 key 和 value）', () => {
     render(<JsonCodeBlock json={sampleJson} snapshotUrl={snapshotUrl} />);
-    expect(screen.getByText(sampleJson)).toBeTruthy();
+    // JSON 文本被 highlightJson 分解到多个 <span> 中，不能直接用 getByText 精确匹配
+    expect(document.querySelector('.hl-json-key')).toBeTruthy();
+    expect(document.querySelector('.hl-json-str')).toBeTruthy();
     expect(screen.getByRole('switch')).toBeTruthy();
     expect(screen.getByRole('switch').getAttribute('aria-checked')).toBe('false');
   });
@@ -37,13 +39,14 @@ describe('JsonCodeBlock', () => {
     expect(screen.getByAltText('Canvas preview')).toBeTruthy();
   });
 
-  it('再点击切换回 json 视图', () => {
+  it('再点击切换回 json 视图（应重新显示高亮 JSON）', () => {
     render(<JsonCodeBlock json={sampleJson} snapshotUrl={snapshotUrl} />);
     const switchEl = screen.getByRole('switch');
     fireEvent.click(switchEl);
     fireEvent.click(switchEl);
     expect(switchEl.getAttribute('aria-checked')).toBe('false');
-    expect(screen.getByText(sampleJson)).toBeTruthy();
+    // 切换回 json 视图后，高亮 span 应重新出现
+    expect(document.querySelector('.hl-json-key')).toBeTruthy();
   });
 
   it('键盘 Enter 切换', () => {

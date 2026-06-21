@@ -7,6 +7,7 @@ import { useEditorStore } from '../../store';
 import { IconCopy, IconRefresh } from '../ui/icons';
 import { extractAndValidateIdeogramJSON } from '../../services/llm-canvas-chat';
 import { parseContentSegments } from '../../utils/code-block-parser';
+import { highlightJson } from '../../utils/json-highlight';
 import JsonCodeBlock from './JsonCodeBlock';
 import { IconBrain, IconPencil } from '../ui/icons';
 
@@ -99,6 +100,17 @@ export default function ChatMessage({ message, onAdopt, onDismiss, onApply, onRe
               return <JsonCodeBlock key={i} json={seg.code} snapshotUrl={message.canvasSnapshotUrl} />;
             }
             if (seg.type === 'code') {
+              // JSON 代码块使用语法高亮渲染
+              if (seg.lang === 'json') {
+                return (
+                  <pre key={i}>
+                    <code
+                      className="language-json"
+                      dangerouslySetInnerHTML={{ __html: highlightJson(seg.code) }}
+                    />
+                  </pre>
+                );
+              }
               return (
                 <pre key={i}>
                   <code className={seg.lang ? `language-${seg.lang}` : ''}>{seg.code}</code>

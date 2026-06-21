@@ -48,12 +48,12 @@ src/
 ├── components/
 │   ├── layout/
 │   │   ├── App.tsx                   # 根组件：Hash 路由（#/ → CanvasPage, #/settings → SettingsPage）+ Header
-│   │   ├── HeaderControls.tsx        # 全局 Header：Logo 左侧 + 居中 Canvas/Settings 导航 + 右侧语言切换
-│   │   ├── MainContent.tsx           # CanvasPage：比例+倍数画布控件（SelectMenu 比例下拉 + 倍数滑块 + 实时尺寸） + 左列（Artboard+JSON+生成）右列（面板）
+│   │   ├── HeaderControls.tsx        # 全局 Header：Logo + 居中 Canvas/Settings 导航 + 右侧快捷键+语言切换
+│   │   ├── MainContent.tsx           # CanvasPage：左列（Artboard） + 右列（面板）
 │   │   └── SettingsPage.tsx          # 设置页：左右两栏（LLM 提供商管理 + 提示词预设管理）
 │   ├── canvas/
-│   │   ├── Artboard.tsx              # 画板容器：固定视口、滚轮缩放+中键平移、缩放控件
-│   │   ├── ArtboardToolbar.tsx       # 画板工具栏：比例下拉 + 倍数滑块 + 自定义尺寸 + 实时画布尺寸
+│   │   ├── Artboard.tsx              # 画板容器：固定视口、滚轮缩放+中键平移、缩放控件 + 组合 ArtboardToolbar
+│   │   ├── ArtboardToolbar.tsx       # 画布上边缘悬浮工具栏：比例下拉 + 缩放滑块 + 自定义尺寸 + 实时尺寸 + 收藏
 │   │   ├── CanvasArea.tsx            # 交互式画布（Pointer Events）+ 右键上下文菜单 + ChatPanel 渲染
 │   │   ├── BoundingBox.tsx           # 边界框：文字标签 + inline 编辑 input + 背景图像 + 悬浮删除按钮 + resize + 右键菜单
 │   │   ├── ContextMenu.tsx           # 通用右键上下文菜单（createPortal→body），支持分隔线/危险项/边界检测/Escape 关闭
@@ -80,7 +80,8 @@ src/
 │       └── api.ts                    # LLM 提供商 CRUD（localStorage）+ 模型 API 调用
 │   └── chat/
 │       ├── ChatPanel.tsx             # AI 对话浮动面板（createPortal→body），预设/模型/语言三个 SelectMenu
-│       ├── ChatMessage.tsx           # 用户/AI 消息气泡 + 采纳/忽略按钮
+│       ├── ChatMessage.tsx           # 用户/AI 消息气泡 + 采纳/忽略 + JSON 语法高亮
+│       ├── JsonCodeBlock.tsx         # JSON 代码块组件：json/预览 iOS 滑块切换，支持语法高亮
 │       ├── PresetManagerPanel.tsx    # 预设管理面板（模态框 + 内嵌模式）：搜索/标签筛选/CRUD/变量参考
 │       └── SelectMenu.tsx            # 可复用 Portal 下拉选择菜单组件
 │   └── shortcuts/
@@ -89,6 +90,8 @@ src/
 ├── utils/
 │   ├── coordinates.ts               # 坐标归一化/反归一化（0-1000 ↔ 像素）
 │   ├── json-serializer.ts           # generateJSON() + parseBoxesFromJSON()，可选 image_data 导出
+│   ├── json-highlight.ts            # 轻量 JSON 语法高亮（单遍正则 token 匹配，零依赖）
+│   ├── code-block-parser.ts         # Markdown fenced code block 切分（text/code 段）
 │   ├── resolveTemplate.ts           # 模板变量替换：{box_text}/{box_desc}/{box_colors}/{box_mode}
 │   ├── png-metadata.ts              # 从 PNG tEXt chunk 提取 prompt/workflow 元数据
 │   └── comfyui-api.ts               # 轮询 ComfyUI /history 端点
@@ -113,8 +116,9 @@ src/
 3. 单击 box 选中，双击 box 进入文字内联编辑模式（Enter 保存 / Escape 取消）
 4. 点击 ✨ 按钮（选中 box 右上角，或编辑时在 input 内部右侧）打开 AI 对话面板
 5. 画布置于 `Artboard` 画板容器中，支持滚轮缩放（以鼠标位置为中心）和中键拖拽平移
-6. 每个 box 存储为对象：`{ id, x, y, w, h, mode, text, desc, colors, imageDataUrl, imageRole }`
-7. 全局状态存储在 Zustand store（`useEditorStore`）中
+6. 画布上边缘悬浮工具栏（`ArtboardToolbar`）提供比例选择、缩放滑块、自定义尺寸、实时尺寸显示和收藏功能
+7. 每个 box 存储为对象：`{ id, x, y, w, h, mode, text, desc, colors, imageDataUrl, imageRole }`
+8. 全局状态存储在 Zustand store（`useEditorStore`）中
 8. 右键 box 弹出框上下文菜单（Duplicate/Cut/Copy/Delete/层级/图像/AI Chat），右键画布空白弹出画布菜单（Paste/背景图/清除/Fit）；键盘快捷键 Ctrl+D/Ctrl+X/Ctrl+C/Ctrl+V/Delete 全局生效
 9. `generateJSON()` 将 boxes 坐标归一化到 0-1000 范围，合并全局设置，输出 JSON（可选导出图像 Data URL）
 10. `generateImage()` 将 JSON 注入 ComfyUI workflow 模板，调用 ComfyUI API 生成图片

@@ -1,5 +1,6 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useI18n } from '../../i18n/context';
+import { highlightJson } from '../../utils/json-highlight';
 
 interface JsonCodeBlockProps {
   /** 原始 JSON 文本，直接展示在 <pre> 中 */
@@ -41,6 +42,8 @@ export default function JsonCodeBlock({ json, snapshotUrl }: JsonCodeBlockProps)
 
   const isPreview = view === 'preview';
 
+  const highlightedHtml = useMemo(() => highlightJson(json), [json]);
+
   return (
     <div className="json-code-block" onWheelCapture={handleWheelCapture}>
       <label
@@ -78,7 +81,7 @@ export default function JsonCodeBlock({ json, snapshotUrl }: JsonCodeBlockProps)
         </div>
       ) : (
         <pre className="json-code-block-code">
-          <code>{json}</code>
+          <code dangerouslySetInnerHTML={{ __html: highlightedHtml }} />
         </pre>
       )}
     </div>

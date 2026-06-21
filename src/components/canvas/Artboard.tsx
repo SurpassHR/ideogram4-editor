@@ -6,6 +6,7 @@ import { useCanvasChat } from '../../hooks/useCanvasChat';
 import CanvasArea from './CanvasArea';
 import CanvasChatPanel from './CanvasChatPanel';
 import LayoutQualityDialog from './LayoutQualityDialog';
+import ArtboardToolbar from './ArtboardToolbar';
 import { IconRefresh, IconTrash } from '../ui/icons';
 
 export default function Artboard() {
@@ -49,6 +50,8 @@ export default function Artboard() {
       className={`artboard${isPanning ? ' is-panning' : ''}`}
       onMouseDown={handleMouseDown}
     >
+      <ArtboardToolbar />
+
       <div className="artboard-controls">
         <span className="artboard-zoom-label">{Math.round(zoom * 100)}%</span>
         <button className="artboard-reset-btn" onClick={fitToArtboard} title={t('artboard.resetPosition')}>

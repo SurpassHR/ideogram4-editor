@@ -50,7 +50,7 @@ Ideogram4 Editor 是一个基于 Web 的可视化编辑器，专为 [Ideogram 4]
 
 ### 基本工作流程
 
-1. **设置画布尺寸** — 顶部比例下拉框（1:1、3:2、4:3、16:9 等）+ 倍数滑块（1×–16×），基数 256px，范围 256–4096px
+1. **设置画布尺寸** — 画布上方悬浮工具栏中的比例下拉框（1:1、3:2、4:3、16:9 等）+ 缩放滑块（1×–16×），基数 256px，范围 256–4096px
 2. **创建边界框** — 在画布上拖拽鼠标创建矩形框，每个框代表画面中一个区域
 3. **配置框属性** — 单击选中框，右侧面板（边界框 Tab）设置：
    - **模式**：`obj`（对象模式 / 照片）或 `text`（文本模式 / 艺术风格）
@@ -122,11 +122,12 @@ src/
 ├── components/
 │   ├── layout/
 │   │   ├── App.tsx                       # 根组件：Hash 路由（#/ → CanvasPage, #/settings → SettingsPage）
-│   │   ├── HeaderControls.tsx            # 全局 Header：Logo + Canvas/Settings 导航 + 语言切换
-│   │   ├── MainContent.tsx               # CanvasPage：比例+倍数画布控件 + 主布局
+│   │   ├── HeaderControls.tsx            # 全局 Header：Logo + 居中 Canvas/Settings 导航 + 右侧快捷键+语言切换
+│   │   ├── MainContent.tsx               # CanvasPage：左列（Artboard） + 右列（面板）
 │   │   └── SettingsPage.tsx              # 设置页：左右两栏（LLM 提供商 + 提示词预设）
 │   ├── canvas/
-│   │   ├── Artboard.tsx                  # 画板容器：固定视口、滚轮缩放+中键平移、缩放控件
+│   │   ├── Artboard.tsx                  # 画板容器：固定视口、滚轮缩放+中键平移 + 组合 ArtboardToolbar
+│   │   ├── ArtboardToolbar.tsx           # 画布上边缘悬浮工具栏：比例/缩放/尺寸/收藏
 │   │   ├── CanvasArea.tsx                # 交互式画布（Pointer Events）+ ChatPanel 渲染
 │   │   ├── BoundingBox.tsx               # 单个边界框覆盖层 + resize handle + ChatBubbleButton
 │   │   └── ChatBubbleButton.tsx          # ✨ 按钮：选中 box 右上角，点击打开 AI 对话面板
@@ -154,6 +155,8 @@ src/
 ├── utils/
 │   ├── coordinates.ts                    # 坐标归一化/反归一化（0-1000 ↔ 像素）
 │   ├── json-serializer.ts               # generateJSON() + parseBoxesFromJSON()
+│   ├── json-highlight.ts                 # 轻量 JSON 语法高亮（单遍正则 token 匹配，零依赖）
+│   ├── code-block-parser.ts              # Markdown fenced code block 切分
 │   ├── png-metadata.ts                   # 从 PNG tEXt chunk 提取 prompt/workflow 元数据
 │   └── comfyui-api.ts                    # 轮询 ComfyUI /history 端点
 ├── services/
