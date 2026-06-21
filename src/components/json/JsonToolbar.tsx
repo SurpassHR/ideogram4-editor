@@ -30,7 +30,7 @@ export default function JsonToolbar() {
 
   // ── 标志位：用户正在手动编辑 textarea 时暂停自动同步 ─
   const isUserEditingRef = useRef(false);
-  const debounceTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // ── 防抖自动同步 ─────────────────────────────────────
   useEffect(() => {

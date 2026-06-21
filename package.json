@@ -2,6 +2,7 @@
   "name": "ideogram4-editor",
   "private": true,
   "version": "0.1.0",
+  "homepage": "https://gp.hrfuqiang.top/ideogram4-editor/",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -20,6 +21,7 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
+    "@types/node": "^26.0.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^5.1.0",
