@@ -5,6 +5,8 @@ import type { PromptPreset } from '../types/presets';
 import type { CanvasFavorite, CanvasSnapshotLite, PersistedCanvasChatStateV1, WorkspaceBackupSettings } from '../types/workspace';
 import { PRESETS_STORAGE_KEY, createBuiltinPresets } from '../types/presets';
 import { MODE_ARTSTYLE, MODE_PHOTO } from '../types';
+import { CANVAS_CHAT_SYSTEM_PROMPT } from '../services/llm-canvas-chat';
+import { BOX_CHAT_SYSTEM_PROMPT } from '../services/llm-chat';
 import { computeCanvasDims, inferCanvasControlsFromDimensions, type RatioKey } from '../utils/canvas-dims';
 import { detectBboxSystem, bboxToPixels } from '../utils/coordinates';
 import type { LayoutQualityReport } from '../services/layout-validator';
@@ -224,7 +226,7 @@ function scaleBoxesToCanvas(boxes: Box[], scaleX: number, scaleY: number): Box[]
 
 // ─── 预设持久化辅助 ────────────────────────────────────────────
 
-/** 从 localStorage 加载系统提示词列表 */
+/** 从 localStorage 加载系统提示词列表，首次使用自动初始化内置默认 */
 function loadSystemPromptsFromStorage(): SystemPromptEntry[] {
   try {
     const raw = localStorage.getItem('ideogram4-system-prompts');
@@ -235,7 +237,28 @@ function loadSystemPromptsFromStorage(): SystemPromptEntry[] {
   } catch {
     // ignore corrupt data
   }
-  return [];
+  // 首次使用：初始化内置默认提示词
+  const now = Date.now();
+  const defaults: SystemPromptEntry[] = [
+    {
+      id: 'sp_default_canvas',
+      name: 'Default Canvas Prompt',
+      content: CANVAS_CHAT_SYSTEM_PROMPT,
+      scope: 'canvas',
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: 'sp_default_box',
+      name: 'Default Box Prompt',
+      content: BOX_CHAT_SYSTEM_PROMPT,
+      scope: 'box',
+      createdAt: now,
+      updatedAt: now,
+    },
+  ];
+  localStorage.setItem('ideogram4-system-prompts', JSON.stringify(defaults));
+  return defaults;
 }
 
 /** 从 localStorage 加载预设，首次使用自动初始化内置预设 */

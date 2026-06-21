@@ -3714,7 +3714,7 @@ input[type="color"]::-webkit-color-swatch {
   display: flex;
   gap: 8px;
   flex-shrink: 0;
-  padding-left: 2px;
+  padding: 0 14px;
 }
 
 .sysprompt-list {
