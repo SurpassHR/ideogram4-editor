@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import type { PromptPreset } from '../../types/presets';
 import { useEditorStore } from '../../store';
 import { useI18n } from '../../i18n/context';
+import { IconClose } from '../ui/icons';
 
 interface Props {
   onClose?: () => void;
@@ -154,7 +155,7 @@ export default function PresetManagerPanel({ onClose, embedded }: Props) {
       <div className="modal-header">
         <h3>{t('chat.presets.title')}</h3>
         {!embedded && (
-          <button className="modal-close-btn" onClick={onClose}>✕</button>
+          <button className="modal-close-btn" onClick={onClose}><IconClose size={14} /></button>
         )}
       </div>
 
@@ -271,7 +272,7 @@ export default function PresetManagerPanel({ onClose, embedded }: Props) {
                       {form.tags.map(tag => (
                         <span key={tag} className="preset-tag removable">
                           {tag}
-                          <button onClick={() => removeTag(tag)} className="preset-tag-remove">✕</button>
+                          <button onClick={() => removeTag(tag)} className="preset-tag-remove"><IconClose size={14} /></button>
                         </span>
                       ))}
                     </div>

@@ -8,6 +8,7 @@ import ChatRunControls from './ChatRunControls';
 import LlmConfigPanel from '../llm/LlmConfigPanel';
 import { computeChatPanelPosition } from '../../utils/panelPosition';
 import { resolveTemplate } from '../../utils/resolveTemplate';
+import { IconClose, IconGlobe, IconTrash, IconArrowRight } from '../ui/icons';
 
 export default function ChatPanel() {
   const {
@@ -259,7 +260,7 @@ export default function ChatPanel() {
         )}
         <span className="chat-header-spacer" />
         <button className="chat-close-btn" onClick={handleClose} title="Close">
-          ✕
+          <IconClose size={14} />
         </button>
       </div>
 
@@ -320,7 +321,7 @@ export default function ChatPanel() {
           <SelectMenu
             className="chat-lang-select"
             options={[
-              { value: 'auto', label: '🌐 Auto' },
+              { value: 'auto', label: 'Auto' },
               { value: 'en', label: 'EN' },
               { value: 'zh', label: '中文' },
             ]}
@@ -333,7 +334,7 @@ export default function ChatPanel() {
           <span className="chat-header-spacer" />
 
           <button className="chat-clear-btn" onClick={handleClearHistory} title={t('chat.clearHistory')}>
-            🗑
+            <IconTrash size={14} />
           </button>
 
           <button
@@ -353,7 +354,7 @@ export default function ChatPanel() {
             <div className="chat-editing-indicator">
               {t('chat.editingMessage')}
               <button className="chat-editing-cancel" onClick={() => { setEditingMessageId(null); setInputText(''); }}>
-                ✕
+                <IconClose size={14} />
               </button>
             </div>
           )}
@@ -373,7 +374,7 @@ export default function ChatPanel() {
             disabled={isLoading || !inputText.trim()}
             title={t('chat.send')}
           >
-            ➤
+            <IconArrowRight size={14} />
           </button>
         </div>
       )}

@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useEditorStore } from '../../store';
 import { useI18n } from '../../i18n/context';
 import SelectMenu from '../chat/SelectMenu';
+import { IconStar } from '../ui/icons';
 import { RATIO_KEYS, type RatioKey } from '../../utils/canvas-dims';
 
 export default function ArtboardToolbar() {
@@ -128,7 +129,7 @@ export default function ArtboardToolbar() {
           aria-label={t('header.favoriteCanvas')}
           title={t('header.favoriteCanvas')}
         >
-          ☆
+          <IconStar size={14} />
         </button>
 
         {toast && <span className="artboard-toolbar-toast" role="status">{toast}</span>}

@@ -1,3 +1,4 @@
+import { IconSparkle } from '../ui/icons';
 import { useI18n } from '../../i18n/context';
 
 interface SuggestionBarProps {
@@ -33,7 +34,7 @@ export default function SuggestionBar({
   return (
     <div className="suggestion-bar">
       <div className="suggestion-header">
-        <span className="suggestion-icon">✨</span>
+        <span className="suggestion-icon"><IconSparkle size={14} /></span>
         <span className="suggestion-label">{t('optimize.aiSuggestion')}</span>
       </div>
       <div className="suggestion-content">{suggested}</div>

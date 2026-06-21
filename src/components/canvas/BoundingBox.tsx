@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { IconClose } from '../ui/icons';
 import type { Box } from '../../types';
 import type { InteractionMode } from '../../types';
 import { useEditorStore } from '../../store';
@@ -95,7 +96,7 @@ export default function BoundingBox({ box, isSelected, boxRef, interactionMode, 
           onClick={handleDismissImage}
           title="Remove image"
         >
-          ✕
+          <IconClose size={10} />
         </button>
       )}
       <div className="bounding-box-content">

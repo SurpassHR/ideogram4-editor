@@ -1,3 +1,4 @@
+import { IconSparkle } from '../ui/icons';
 import { useEditorStore } from '../../store';
 import type { InteractionMode } from '../../types';
 
@@ -26,9 +27,9 @@ export default function ChatBubbleButton({ boxId, interactionMode }: ChatBubbleB
       className="chat-bubble-btn"
       onPointerDown={handlePointerDown}
       onClick={handleClick}
-      title="✨ AI Chat"
+      title="AI Chat"
     >
-      ✨
+      <IconSparkle size={12} />
     </button>
   );
 }

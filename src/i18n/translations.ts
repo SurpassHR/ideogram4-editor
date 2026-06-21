@@ -126,6 +126,7 @@ export interface Translations {
     maxColors: string;
   };
   json: {
+    panel: string;
     generatePrompt: string;
     loadFromPasted: string;
     jsonMode: string;
@@ -390,16 +391,16 @@ const en: Translations = {
     },
   },
   nav: {
-    canvas: '🎨 Canvas',
-    settings: '⚙ Settings',
+    canvas: 'Canvas',
+    settings: 'Settings',
   },
   settings: {
     pageTitle: 'Configuration Center',
     pageSubtitle: 'Manage model providers, reusable prompt templates, and workspace backups from one focused console.',
     moduleNavLabel: 'Settings modules',
     activeModuleLabel: 'Active module',
-    llmProviders: '🤖 LLM Providers',
-    promptPresets: '📋 Prompt Presets',
+    llmProviders: 'LLM Providers',
+    promptPresets: 'Prompt Presets',
     modules: {
       llm: {
         title: 'LLM Providers',
@@ -498,6 +499,7 @@ const en: Translations = {
     maxColors: 'Max {max} colors allowed.',
   },
   json: {
+    panel: 'JSON',
     generatePrompt: 'Generate JSON Prompt',
     loadFromPasted: 'Load From Pasted JSON',
     jsonMode: 'JSON',
@@ -585,23 +587,23 @@ const en: Translations = {
     resetPosition: 'Reset artboard position',
   },
   contextMenu: {
-    duplicate: '📋 Duplicate',
-    cut: '✂️ Cut',
-    copy: '📄 Copy',
-    delete: '🗑️ Delete',
-    bringToFront: '⬆ Bring to Front',
-    sendToBack: '⬇ Send to Back',
-    importReferenceImage: '🖼 Import Reference Image',
-    clearReferenceImage: '🧹 Clear Reference Image',
-    openAiChat: '✨ Open AI Chat',
-    paste: '📋 Paste',
-    importBackgroundImage: '🖼 Import Background Image',
-    clearBackgroundImage: '🧹 Clear Background Image',
-    clearAllBoxes: '🧹 Clear All Boxes',
-    fitToArtboard: '📐 Fit to Artboard',
+    duplicate: 'Duplicate',
+    cut: 'Cut',
+    copy: 'Copy',
+    delete: 'Delete',
+    bringToFront: 'Bring to Front',
+    sendToBack: 'Send to Back',
+    importReferenceImage: 'Import Reference Image',
+    clearReferenceImage: 'Clear Reference Image',
+    openAiChat: 'Open AI Chat',
+    paste: 'Paste',
+    importBackgroundImage: 'Import Background Image',
+    clearBackgroundImage: 'Clear Background Image',
+    clearAllBoxes: 'Clear All Boxes',
+    fitToArtboard: 'Fit to Artboard',
   },
   chat: {
-    title: '✨ AI Chat',
+    title: 'AI Chat',
     boxBadge: 'box: {name}',
     modelSelect: 'Select model',
     noProvider: 'No LLM provider configured yet',
@@ -762,16 +764,16 @@ const zh: Translations = {
     },
   },
   nav: {
-    canvas: '🎨 画布',
-    settings: '⚙ 设置',
+    canvas: '画布',
+    settings: '设置',
   },
   settings: {
     pageTitle: '配置中心',
     pageSubtitle: '集中管理模型提供商、可复用提示词模板和工作区备份。',
     moduleNavLabel: '设置模块',
     activeModuleLabel: '当前模块',
-    llmProviders: '🤖 LLM 提供商',
-    promptPresets: '📋 提示词预设',
+    llmProviders: 'LLM 提供商',
+    promptPresets: '提示词预设',
     modules: {
       llm: {
         title: 'LLM 提供商',
@@ -870,6 +872,7 @@ const zh: Translations = {
     maxColors: '最多允许 {max} 种颜色。',
   },
   json: {
+    panel: 'JSON',
     generatePrompt: '生成 JSON Prompt',
     loadFromPasted: '从粘贴的 JSON 加载',
     jsonMode: 'JSON',
@@ -957,23 +960,23 @@ const zh: Translations = {
     resetPosition: '重置画板位置',
   },
   contextMenu: {
-    duplicate: '📋 复制框',
-    cut: '✂️ 剪切',
-    copy: '📄 复制',
-    delete: '🗑️ 删除',
-    bringToFront: '⬆ 置于顶层',
-    sendToBack: '⬇ 置于底层',
-    importReferenceImage: '🖼 导入参考图像',
-    clearReferenceImage: '🧹 清除参考图像',
-    openAiChat: '✨ 打开 AI 对话',
-    paste: '📋 粘贴',
-    importBackgroundImage: '🖼 导入背景图像',
-    clearBackgroundImage: '🧹 清除背景图像',
-    clearAllBoxes: '🧹 清除所有框',
-    fitToArtboard: '📐 适应画板',
+    duplicate: '复制框',
+    cut: '剪切',
+    copy: '复制',
+    delete: '删除',
+    bringToFront: '置于顶层',
+    sendToBack: '置于底层',
+    importReferenceImage: '导入参考图像',
+    clearReferenceImage: '清除参考图像',
+    openAiChat: '打开 AI 对话',
+    paste: '粘贴',
+    importBackgroundImage: '导入背景图像',
+    clearBackgroundImage: '清除背景图像',
+    clearAllBoxes: '清除所有框',
+    fitToArtboard: '适应画板',
   },
   chat: {
-    title: '✨ AI 对话',
+    title: 'AI 对话',
     boxBadge: '框: {name}',
     modelSelect: '选择模型',
     noProvider: '尚未配置 LLM 提供商',

@@ -4,9 +4,11 @@ import DOMPurify from 'dompurify';
 import type { ChatMessage as ChatMessageType } from '../../types/chat';
 import { useI18n } from '../../i18n/context';
 import { useEditorStore } from '../../store';
+import { IconCopy, IconRefresh } from '../ui/icons';
 import { extractAndValidateIdeogramJSON } from '../../services/llm-canvas-chat';
 import { parseContentSegments } from '../../utils/code-block-parser';
 import JsonCodeBlock from './JsonCodeBlock';
+import { IconBrain, IconPencil } from '../ui/icons';
 
 interface ChatMessageProps {
   message: ChatMessageType;
@@ -75,7 +77,7 @@ export default function ChatMessage({ message, onAdopt, onDismiss, onApply, onRe
       {!isUser && message.thinking && (
         <details className="chat-thinking-block">
           <summary>
-            {isChinese ? '🧠 思考过程' : '🧠 Reasoning'}
+            <IconBrain size={12} /> {isChinese ? '思考过程' : 'Reasoning'}
           </summary>
           <div
             className="chat-thinking-content"
@@ -118,11 +120,11 @@ export default function ChatMessage({ message, onAdopt, onDismiss, onApply, onRe
         <div className="chat-msg-card-actions">
           {onEdit && !isLoading && (
             <button className="chat-edit-btn" onClick={() => onEdit(message.id)} title={t('chat.edit')}>
-              ✏️
+              <IconPencil size={12} />
             </button>
           )}
           <span className="chat-msg-card-actions-spacer" />
-          <button className="chat-copy-btn" onClick={handleCopy} title={t('chat.copy')}>📋</button>
+          <button className="chat-copy-btn" onClick={handleCopy} title={t('chat.copy')}><IconCopy size={12} /></button>
         </div>
       ) : message.adopted ? (
         <div className="chat-msg-card-actions">
@@ -130,16 +132,16 @@ export default function ChatMessage({ message, onAdopt, onDismiss, onApply, onRe
           <span className="chat-msg-card-actions-spacer" />
           {onRetry && !isLoading && (
             <button className="chat-retry-btn" onClick={() => onRetry(message.id)} title={t('chat.retry')}>
-              🔄
+              <IconRefresh size={12} />
             </button>
           )}
-          <button className="chat-copy-btn" onClick={handleCopy} title={t('chat.copy')}>📋</button>
+          <button className="chat-copy-btn" onClick={handleCopy} title={t('chat.copy')}><IconCopy size={12} /></button>
         </div>
       ) : dismissed ? (
         <div className="chat-msg-card-actions">
           {onRetry && !isLoading && (
             <button className="chat-retry-btn" onClick={() => onRetry(message.id)} title={t('chat.retry')}>
-              🔄
+              <IconRefresh size={12} />
             </button>
           )}
           <span className="chat-msg-card-actions-spacer" />
@@ -159,10 +161,10 @@ export default function ChatMessage({ message, onAdopt, onDismiss, onApply, onRe
           <span className="chat-msg-card-actions-spacer" />
           {onRetry && !isLoading && (
             <button className="chat-retry-btn" onClick={() => onRetry(message.id)} title={t('chat.retry')}>
-              🔄
+              <IconRefresh size={12} />
             </button>
           )}
-          <button className="chat-copy-btn" onClick={handleCopy} title={t('chat.copy')}>📋</button>
+          <button className="chat-copy-btn" onClick={handleCopy} title={t('chat.copy')}><IconCopy size={12} /></button>
           {showApply && (
             <button
               type="button"

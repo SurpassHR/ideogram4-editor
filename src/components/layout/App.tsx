@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
 import { useHashRoute } from '../../hooks/useHashRoute';
 import Header from './HeaderControls';
-import CanvasPage, { CanvasBottom } from './MainContent';
+import CanvasPage from './MainContent';
 import SettingsPage from './SettingsPage';
+import BottomBar from './BottomBar';
 import ShortcutsModal from '../shortcuts/ShortcutsModal';
 import { useEditorStore } from '../../store';
 
@@ -23,11 +24,11 @@ export default function App() {
 
   return (
     <>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', height: 'calc(100vh - 40px)', overflow: 'hidden' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', height: 'calc(100vh - 40px)', overflow: 'hidden' }}>
         <Header currentHash={hash} onNavigate={navigate} />
         {isCanvas ? <CanvasPage /> : <SettingsPage />}
+        {isCanvas && <BottomBar />}
       </div>
-      {isCanvas && <CanvasBottom />}
       <ShortcutsModal />
     </>
   );

@@ -1,14 +1,18 @@
 import { useState } from 'react';
 import GlobalSettingsPanel from './GlobalSettingsPanel';
 import BoxPropertiesPanel from './BoxPropertiesPanel';
+import JsonToolbar from '../json/JsonToolbar';
+import ComfyUIControls from '../comfyui/ComfyUIControls';
+import ImagePreview from '../comfyui/ImagePreview';
 import { useI18n } from '../../i18n/context';
+import { IconGear, IconBox, IconFile, IconZap } from '../ui/icons';
 
-type TabId = 'global' | 'box';
+type TabId = 'global' | 'box' | 'json' | 'generate';
 
 interface Tab {
   id: TabId;
   label: string;
-  icon: string;
+  icon: React.ReactNode;
 }
 
 export default function RightPanelContainer() {
@@ -16,8 +20,10 @@ export default function RightPanelContainer() {
   const { t } = useI18n();
 
   const tabs: Tab[] = [
-    { id: 'global', label: t('panels.globalSettings.title'), icon: '⚙' },
-    { id: 'box', label: t('panels.boxProperties.title'), icon: '⊞' },
+    { id: 'global', label: t('panels.globalSettings.title'), icon: <IconGear size={14} /> },
+    { id: 'box', label: t('panels.boxProperties.title'), icon: <IconBox size={14} /> },
+    { id: 'json', label: t('json.panel'), icon: <IconFile size={14} /> },
+    { id: 'generate', label: t('comfyui.generation'), icon: <IconZap size={14} /> },
   ];
 
   return (
@@ -41,6 +47,17 @@ export default function RightPanelContainer() {
       <div className="panel-tab-content">
         {activeTab === 'global' && <GlobalSettingsPanel />}
         {activeTab === 'box' && <BoxPropertiesPanel />}
+        {activeTab === 'json' && (
+          <div className="panel-tab-json">
+            <JsonToolbar />
+          </div>
+        )}
+        {activeTab === 'generate' && (
+          <div className="panel-tab-generate">
+            <ComfyUIControls />
+            <ImagePreview />
+          </div>
+        )}
       </div>
     </div>
   );

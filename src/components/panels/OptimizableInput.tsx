@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { IconSparkle } from '../ui/icons';
 import SuggestionBar from './SuggestionBar';
 import { useI18n } from '../../i18n/context';
 import { getLlmProviders } from '../llm/api';
@@ -123,7 +124,7 @@ export default function OptimizableInput({
           onClick={handleOptimize}
           title={t('optimize.sparkleTooltip')}
         >
-          ✨
+          <IconSparkle size={12} />
         </button>
       </div>
       <SuggestionBar

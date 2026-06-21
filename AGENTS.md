@@ -180,6 +180,22 @@ CSS 自定义属性定义在 `:root`（`src/index.css`），黑暗主题：
 - 危险色：`--danger: #ff5252`
 - 文字：`--text: #e8e8f0`、`--text-secondary: #8888aa`、`--text-muted: #5a5a7a`
 
+## 图标使用规范
+
+所有图标使用 `src/components/ui/icons.tsx` 中的 SVG 组件，**禁止以下做法**：
+- ❌ 内联 emoji 字符（`✨`、`🧠`、`⚙` 等）
+- ❌ Unicode 符号（`☆`、`✕`、`→` 等）
+- ❌ 图标链接/字体图标
+- ❌ 在翻译字符串中嵌入 emoji
+
+**规范**：
+- 所有图标导出自 `src/components/ui/icons.tsx`，是纯 SVG React 组件
+- 约定命名：`IconXxx`（PascalCase，如 `IconGear`、`IconSparkle`）
+- 尺寸通过 `size` prop 控制（默认 16px），颜色继承 `currentColor`
+- 在 JSX 中直接使用：`<IconClose size={14} />`
+- 如果缺少需要的图标，在 `icons.tsx` 中添加 SVG 组件，遵循现有风格
+- 添加图标后运行 `tsc --noEmit` 和 `npm run test` 验证
+
 ## 运行方式
 
 ```bash

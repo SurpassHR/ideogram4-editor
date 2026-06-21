@@ -3,6 +3,7 @@ import type { LlmProvider, ProviderKind } from './types';
 import { KIND_LABELS, DEFAULT_BASE_URLS, createEmptyProvider } from './types';
 import { getLlmProviders, saveLlmProvider, deleteLlmProvider, fetchModels } from './api';
 import { useI18n } from '../../i18n/context';
+import { IconClose, IconGear } from '../ui/icons';
 
 interface Props {
   onClose?: () => void;
@@ -201,7 +202,7 @@ export default function LlmConfigPanel({ onClose, embedded }: Props) {
                         className="btn btn-danger llm-provider-delete-btn"
                         onClick={e => { e.stopPropagation(); handleDelete(p.id); }}
                       >
-                        ✕
+                        <IconClose size={14} />
                       </button>
                     )}
                   </div>
@@ -214,7 +215,7 @@ export default function LlmConfigPanel({ onClose, embedded }: Props) {
           <div className="llm-detail">
             {!selectedId && !isNew ? (
               <div className="llm-detail-empty">
-                <div className="llm-detail-empty-icon">⚙️</div>
+                <div className="llm-detail-empty-icon"><IconGear size={24} /></div>
                 <p className="llm-detail-empty-text">{t('llmConfig.selectOrCreate')}</p>
                 <button className="btn" onClick={startNew} style={{ padding: '6px 16px' }}>{t('llmConfig.newProviderButton')}</button>
               </div>

@@ -64,15 +64,9 @@ describe('CanvasChatPanel', () => {
     window.location.hash = '#/';
   });
 
-  // ─── 底部横杠 ────────────────────────────────────────────────────
+  // ─── 面板容器 ────────────────────────────────────────────────────
 
-  it('应渲染底部横杠 handle', () => {
-    renderPanel();
-    const handle = document.querySelector('.canvas-chat-handle');
-    expect(handle).not.toBeNull();
-  });
-
-  it('应渲染面板容器（始终渲染，hover 控制显示）', () => {
+  it('应渲染面板容器（由 BottomBar 控制开关）', () => {
     renderPanel();
     const wrapper = document.querySelector('.canvas-chat-handle-wrapper');
     expect(wrapper).not.toBeNull();
@@ -472,9 +466,9 @@ describe('CanvasChatPanel', () => {
       const menu = document.querySelector('.context-menu');
       expect(menu).not.toBeNull();
       expect(document.querySelector('.canvas-chat-session-menu')).toBeNull();
-      const renameButton = getByRole('button', { name: '✏ Rename' });
-      const clearButton = getByRole('button', { name: '🧹 Clear' });
-      const deleteButton = getByRole('button', { name: '🗑 Delete' });
+      const renameButton = getByRole('button', { name: 'Rename' });
+      const clearButton = getByRole('button', { name: 'Clear' });
+      const deleteButton = getByRole('button', { name: 'Delete' });
       expect(renameButton).toHaveClass('context-menu-item');
       expect(clearButton).toHaveClass('context-menu-item');
       expect(deleteButton).toHaveClass('context-menu-item', 'danger');
@@ -491,11 +485,11 @@ describe('CanvasChatPanel', () => {
 
       const renamedItem = getByText('新版构图').closest('.canvas-chat-session-item') as HTMLElement;
       fireEvent.contextMenu(renamedItem, { clientX: 120, clientY: 160 });
-      fireEvent.click(getByRole('button', { name: '🧹 Clear' }));
+      fireEvent.click(getByRole('button', { name: 'Clear' }));
       expect(useEditorStore.getState().canvasChatMessages).toEqual([]);
 
       fireEvent.contextMenu(renamedItem, { clientX: 120, clientY: 160 });
-      fireEvent.click(getByRole('button', { name: '🗑 Delete' }));
+      fireEvent.click(getByRole('button', { name: 'Delete' }));
       const state = useEditorStore.getState();
       expect(state.canvasChatSessions.map(session => session.id)).toEqual(['session_2']);
       expect(state.activeCanvasChatSessionId).toBe('session_2');
@@ -513,11 +507,11 @@ describe('CanvasChatPanel', () => {
       const activeItem = getByText('新会话').closest('.canvas-chat-session-item') as HTMLElement;
       fireEvent.contextMenu(activeItem, { clientX: 120, clientY: 160 });
       expect(document.querySelector('.context-menu')).not.toBeNull();
-      expect(getByRole('button', { name: '✏ 重命名' })).toBeInTheDocument();
-      expect(getByRole('button', { name: '🧹 清空' })).toBeInTheDocument();
-      expect(getByRole('button', { name: '🗑 删除' })).toBeInTheDocument();
+      expect(getByRole('button', { name: '重命名' })).toBeInTheDocument();
+      expect(getByRole('button', { name: '清空' })).toBeInTheDocument();
+      expect(getByRole('button', { name: '删除' })).toBeInTheDocument();
 
-      fireEvent.click(getByRole('button', { name: '✏ 重命名' }));
+      fireEvent.click(getByRole('button', { name: '重命名' }));
       expect(getByRole('dialog', { name: '重命名会话' })).toBeInTheDocument();
     });
 

@@ -1,9 +1,11 @@
 import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 
+import type { ReactNode } from 'react';
+
 export interface ContextMenuItem {
   label: string;
-  icon?: string;
+  icon?: ReactNode;
   shortcut?: string;
   danger?: boolean;
   onClick: () => void;
@@ -71,7 +73,7 @@ export default function ContextMenu({ x, y, items, onClose }: ContextMenuProps) 
           <button
             key={i}
             className={`context-menu-item${item.danger ? ' danger' : ''}`}
-            aria-label={item.icon ? `${item.icon} ${item.label}` : item.label}
+            aria-label={item.label}
             onClick={() => {
               item.onClick();
               onClose();

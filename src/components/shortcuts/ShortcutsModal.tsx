@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useEditorStore } from '../../store';
 import { useI18n } from '../../i18n/context';
+import { IconClose } from '../ui/icons';
 import { SHORTCUT_GROUPS } from './shortcuts-data';
 
 export default function ShortcutsModal() {
@@ -34,7 +35,7 @@ export default function ShortcutsModal() {
             onClick={() => setShortcutsModalOpen(false)}
             aria-label={t('shortcuts.close')}
           >
-            ✕
+            <IconClose size={14} />
           </button>
         </div>
         <div className="shortcuts-body">

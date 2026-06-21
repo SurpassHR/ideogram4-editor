@@ -5,6 +5,7 @@ import ChatMessage from '../chat/ChatMessage';
 import SelectMenu from '../chat/SelectMenu';
 import ChatRunControls from '../chat/ChatRunControls';
 import ContextMenu from './ContextMenu';
+import { IconClose, IconMaximize, IconArrowRight, IconMoreHorizontal, IconPencil, IconBroom, IconTrash } from '../ui/icons';
 import { useI18n } from '../../i18n/context';
 import { useEditorStore } from '../../store';
 import { resolveTemplate } from '../../utils/resolveTemplate';
@@ -104,10 +105,6 @@ export default function CanvasChatPanel() {
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [detailLogId, isCanvasChatMaximized, isCanvasChatOpen, setCanvasChatMaximized, setCanvasChatOpen]);
-
-  const handleToggle = useCallback(() => {
-    setCanvasChatOpen(!isCanvasChatOpen);
-  }, [isCanvasChatOpen, setCanvasChatOpen]);
 
   const handleAddProvider = useCallback(() => {
     window.location.hash = '#/settings';
@@ -372,7 +369,7 @@ export default function CanvasChatPanel() {
               title={t('chat.canvasSessions.closeDetails')}
               onClick={() => setDetailLogId(null)}
             >
-              ×
+              <IconClose size={14} />
             </button>
           </div>
           <div className="canvas-chat-request-detail-body">
@@ -417,7 +414,7 @@ export default function CanvasChatPanel() {
               title="Maximize Canvas Chat"
               onClick={handleMaximize}
             >
-              ⛶
+              <IconMaximize size={14} />
             </button>
           </div>
 
@@ -484,7 +481,7 @@ export default function CanvasChatPanel() {
                 <SelectMenu
                   className="chat-lang-select"
                   options={[
-                    { value: 'auto', label: '🌐 Auto' },
+                    { value: 'auto', label: 'Auto' },
                     { value: 'en', label: 'EN' },
                     { value: 'zh', label: '中文' },
                   ]}
@@ -516,7 +513,7 @@ export default function CanvasChatPanel() {
                   >
                     {isLoading ? (
                       <span className="canvas-chat-spinner" />
-                    ) : '➤'}
+                    ) : <IconArrowRight size={14} />}
                   </button>
                 </div>
               </div>
@@ -570,7 +567,7 @@ export default function CanvasChatPanel() {
                       title={t('chat.canvasSessions.menuAria', { title: session.title })}
                       onClick={e => handleSessionMenuClick(e, session.id)}
                     >
-                      ⋯
+                      <IconMoreHorizontal size={14} />
                     </button>
                   </div>
                 ))}
@@ -587,7 +584,7 @@ export default function CanvasChatPanel() {
                   title="Restore Canvas Chat"
                   onClick={handleRestore}
                 >
-                  ×
+                  <IconClose size={14} />
                 </button>
               </div>
               <div className="canvas-chat-workbench-messages">
@@ -624,7 +621,7 @@ export default function CanvasChatPanel() {
                     <div className="chat-editing-indicator">
                       {t('chat.editingMessage')}
                       <button className="chat-editing-cancel" onClick={() => { setEditingMessageId(null); setInputText(''); }}>
-                        ✕
+                        <IconClose size={14} />
                       </button>
                     </div>
                   )}
@@ -648,7 +645,7 @@ export default function CanvasChatPanel() {
                     <SelectMenu
                       className="chat-lang-select"
                       options={[
-                        { value: 'auto', label: '🌐 Auto' },
+                        { value: 'auto', label: 'Auto' },
                         { value: 'en', label: 'EN' },
                         { value: 'zh', label: '中文' },
                       ]}
@@ -679,7 +676,7 @@ export default function CanvasChatPanel() {
                       >
                         {isLoading ? (
                           <span className="canvas-chat-spinner" />
-                        ) : '➤'}
+                        ) : <IconArrowRight size={14} />}
                       </button>
                     </div>
                   </div>
@@ -725,7 +722,6 @@ export default function CanvasChatPanel() {
             </div>
           </>
         )}
-        <div className="canvas-chat-handle" onClick={handleToggle} title="Toggle Canvas AI Compose" />
       </div>
 
       {sessionMenu && (
@@ -735,18 +731,18 @@ export default function CanvasChatPanel() {
           onClose={() => setSessionMenu(null)}
           items={[
             {
-              icon: '✏',
+              icon: <IconPencil size={12} />,
               label: t('chat.canvasSessions.rename'),
               onClick: () => handleOpenRenameSession(sessionMenu.sessionId),
             },
             {
-              icon: '🧹',
+              icon: <IconBroom size={12} />,
               label: t('chat.canvasSessions.clear'),
               onClick: () => handleClearSession(sessionMenu.sessionId),
             },
             'divider',
             {
-              icon: '🗑',
+              icon: <IconTrash size={12} />,
               label: t('chat.canvasSessions.delete'),
               danger: true,
               onClick: () => handleDeleteSession(sessionMenu.sessionId),
