@@ -220,7 +220,8 @@ export default function CanvasArea({ zoom, panX, panY, screenToCanvas, onFitToAr
         userSelect: 'none',
         touchAction: 'none',
         backgroundSize: `${Math.round(20 / zoom)}px ${Math.round(20 / zoom)}px`,
-      }}
+        '--box-zoom': zoom,
+      } as React.CSSProperties}
       onPointerDown={handleCanvasPointerDown}
       onPointerMove={handleCanvasPointerMove}
       onContextMenu={handleCanvasContextMenu}
