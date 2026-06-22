@@ -64,6 +64,9 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
   const clearSelection = useEditorStore(s => s.clearSelection);
   const updateBox = useEditorStore(s => s.updateBox);
   const setEditingBoxId = useEditorStore(s => s.setEditingBoxId);
+  const snapshot = useEditorStore(s => s.snapshot);
+  const undo = useEditorStore(s => s.undo);
+  const redo = useEditorStore(s => s.redo);
 
   const getPointerPos = useCallback((e: PointerEvent | React.PointerEvent): { x: number; y: number } => {
     return screenToCanvas(e.clientX, e.clientY);
@@ -288,6 +291,10 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
         const dx = x - ir.dragStartX;
         const dy = y - ir.dragStartY;
         if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+          if (!ir.pointerMoved) {
+            // 首次实际拖拽移动：快照当前状态（before），用于撤销
+            snapshot();
+          }
           ir.pointerMoved = true;
         }
         if (ir.dragBoxIds.length > 1) {
@@ -303,8 +310,8 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
           const newY = ir.initialBoxY + dy;
           ir.currentBoxElement.style.left = `${newX}px`;
           ir.currentBoxElement.style.top = `${newY}px`;
-          // 实时更新 store，使 BoundingBox 的 clip-path 和虚线样式即时响应
-          updateBox(ir.currentBoxElement.id, { x: newX, y: newY });
+          // 实时更新 store（不记录历史），使 BoundingBox 的 clip-path 和虚线样式即时响应
+          updateBox(ir.currentBoxElement.id, { x: newX, y: newY }, false);
           setDragPreviewOffset(null);
         }
       } else if (ir.mode === 'resizing') {
@@ -312,8 +319,8 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
         const newH = Math.max(10, ir.initialBoxH + (y - ir.dragStartY));
         ir.currentBoxElement.style.width = `${newW}px`;
         ir.currentBoxElement.style.height = `${newH}px`;
-        // 实时更新 store，使 BoundingBox 的 clip-path 和虚线样式即时响应
-        updateBox(ir.currentBoxElement.id, { w: newW, h: newH });
+        // 实时更新 store（不记录历史），使 BoundingBox 的 clip-path 和虚线样式即时响应
+        updateBox(ir.currentBoxElement.id, { w: newW, h: newH }, false);
       }
     };
 
@@ -372,20 +379,20 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
           const state = useEditorStore.getState();
           state.boxes.forEach(box => {
             const pos = positions.get(box.id);
-            if (pos) updateBox(box.id, pos);
+            if (pos) updateBox(box.id, pos, false);
           });
         } else {
           updateBox(el.id, {
             x: parseFloat(el.style.left) || 0,
             y: parseFloat(el.style.top) || 0,
-          });
+          }, false);
         }
       } else if (ir.mode === 'resizing' && ir.currentBoxElement) {
         const el = ir.currentBoxElement;
         updateBox(el.id, {
           w: parseFloat(el.style.width) || 0,
           h: parseFloat(el.style.height) || 0,
-        });
+        }, false);
       }
 
       ir.mode = 'idle';
@@ -404,7 +411,7 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
     };
-  }, [screenToCanvas, addBox, updateBox, setEditingBoxId, selectBox, selectBoxes, toggleBoxSelection, clearSelection, getRectFromPoints, boxesOverlap, marqueeGhost, updateMarquee]);
+  }, [screenToCanvas, addBox, updateBox, setEditingBoxId, selectBox, selectBoxes, toggleBoxSelection, clearSelection, getRectFromPoints, boxesOverlap, marqueeGhost, updateMarquee, snapshot]);
 
   // ─── 全局键盘快捷键 ──────────────────────────────────────────
   useEffect(() => {
@@ -421,6 +428,18 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
 
       if (e.ctrlKey || e.metaKey) {
         switch (e.key.toLowerCase()) {
+          case 'z':
+            e.preventDefault();
+            if (e.shiftKey) {
+              store.redo();
+            } else {
+              store.undo();
+            }
+            break;
+          case 'y':
+            e.preventDefault();
+            store.redo();
+            break;
           case 'd':
             if (activeSelection.length > 0) {
               e.preventDefault();
@@ -457,7 +476,7 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [undo, redo, snapshot]);
 
   // ─── Alt 修饰键状态跟踪（用于画布光标提示） ──────────────────
   useEffect(() => {

@@ -20,6 +20,8 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keyLabel: 'shortcuts.keys.ctrlC', descKey: 'shortcuts.items.copy' },
       { keyLabel: 'shortcuts.keys.ctrlV', descKey: 'shortcuts.items.paste' },
       { keyLabel: 'shortcuts.keys.delete', descKey: 'shortcuts.items.delete' },
+      { keyLabel: 'shortcuts.keys.ctrlZ', descKey: 'shortcuts.items.undo' },
+      { keyLabel: 'shortcuts.keys.ctrlY', descKey: 'shortcuts.items.redo' },
     ],
   },
   {

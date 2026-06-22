@@ -265,6 +265,20 @@ function savePresetsToStorage(presets: PromptPreset[]): void {
   localStorage.setItem(PRESETS_STORAGE_KEY, JSON.stringify(presets));
 }
 
+// ─── Undo/Redo 快照 ────────────────────────────────────────────
+const MAX_UNDO_DEPTH = 50;
+
+interface EditorSnapshot {
+  boxes: Box[];
+  boxCounter: number;
+  selectedBoxId: string | null;
+  selectedBoxIds: string[];
+  editingBoxId: string | null;
+  activeChatBoxId: string | null;
+  isChatOpen: boolean;
+  chatHistories: Record<string, ChatMessage[]>;
+}
+
 interface EditorStore {
   canvasW: number;
   canvasH: number;
@@ -435,6 +449,27 @@ interface EditorStore {
   pasteBox: (x?: number, y?: number) => void;
   bringToFront: (boxId: string | string[]) => void;
   sendToBack: (boxId: string | string[]) => void;
+
+  // Undo/Redo
+  undoStack: EditorSnapshot[];
+  redoStack: EditorSnapshot[];
+  undo: () => void;
+  redo: () => void;
+  snapshot: () => void;
+}
+
+// ─── Undo/Redo 快照工具函数 ───────────────────────────────────
+function takeSnapshot(state: EditorStore): EditorSnapshot {
+  return {
+    boxes: JSON.parse(JSON.stringify(state.boxes)),
+    boxCounter: state.boxCounter,
+    selectedBoxId: state.selectedBoxId,
+    selectedBoxIds: [...state.selectedBoxIds],
+    editingBoxId: state.editingBoxId,
+    activeChatBoxId: state.activeChatBoxId,
+    isChatOpen: state.isChatOpen,
+    chatHistories: JSON.parse(JSON.stringify(state.chatHistories)),
+  };
 }
 
 export const useEditorStore = create<EditorStore>((set, get) => ({
@@ -475,13 +510,19 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     set({ canvasCustomW: w, canvasCustomH: h, canvasW: newW, canvasH: newH });
   },
 
-  resetCanvas: () => set({
-    boxes: [],
-    selectedBoxId: null,
-    selectedBoxIds: [],
-    generatedImageUrl: null,
-    generationStatus: 'idle',
-  }),
+  resetCanvas: () => {
+    const state = get();
+    const snap = takeSnapshot(state);
+    set({
+      boxes: [],
+      selectedBoxId: null,
+      selectedBoxIds: [],
+      generatedImageUrl: null,
+      generationStatus: 'idle',
+      undoStack: [...state.undoStack, snap].slice(-MAX_UNDO_DEPTH),
+      redoStack: [],
+    });
+  },
 
   applyCanvasSnapshot: (snapshot) => set({
     ...canvasStateFromSnapshot(snapshot),
@@ -495,22 +536,31 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
   addBox: (box) => {
     const state = get();
+    const snap = takeSnapshot(state);
     const id = `box_${state.boxCounter}`;
     set({
       boxes: [...state.boxes, { ...box, id }],
       selectedBoxId: id,
       selectedBoxIds: [id],
       boxCounter: state.boxCounter + 1,
+      undoStack: [...state.undoStack, snap].slice(-MAX_UNDO_DEPTH),
+      redoStack: [],
     });
     return id;
   },
 
-  updateBox: (id, updates) => set(state => ({
-    boxes: state.boxes.map(b => b.id === id ? { ...b, ...updates } : b),
-  })),
+  updateBox: (id, updates, recordHistory = true) => {
+    const state = get();
+    const snap = recordHistory ? takeSnapshot(state) : null;
+    set(state => ({
+      boxes: state.boxes.map(b => b.id === id ? { ...b, ...updates } : b),
+      ...(snap ? { undoStack: [...state.undoStack, snap].slice(-MAX_UNDO_DEPTH), redoStack: [] } : {}),
+    }));
+  },
 
   removeBox: (id) => {
     const state = get();
+    const snap = takeSnapshot(state);
     const ids = idsFromInput(id);
     const idSet = new Set(ids);
     const newHistories = { ...state.chatHistories };
@@ -528,6 +578,8 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       isChatOpen: activeChatDeleted ? false : state.isChatOpen,
       editingBoxId: state.editingBoxId && idSet.has(state.editingBoxId) ? null : state.editingBoxId,
       chatHistories: newHistories,
+      undoStack: [...state.undoStack, snap].slice(-MAX_UNDO_DEPTH),
+      redoStack: [],
     });
   },
 
@@ -568,20 +620,26 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     ...(state.activeChatBoxId ? { isChatOpen: false, activeChatBoxId: null } : {}),
   })),
 
-  clearBoxes: () => set({
-    boxes: [],
-    selectedBoxId: null,
-    selectedBoxIds: [],
-    // 同时清除全局设置，避免构建 LLM 上下文时仍携带旧值
-    globalPalette: [],
-    highLevelDescription: '',
+  clearBoxes: () => {
+    const state = get();
+    const snap = takeSnapshot(state);
+    set({
+      boxes: [],
+      selectedBoxId: null,
+      selectedBoxIds: [],
+      // 同时清除全局设置，避免构建 LLM 上下文时仍携带旧值
+      globalPalette: [],
+      highLevelDescription: '',
     aesthetics: '',
     lighting: '',
     medium: '',
     artStyle: '',
     background: '',
     photoArtStyleMode: MODE_ARTSTYLE,
-  }),
+      undoStack: [...state.undoStack, snap].slice(-MAX_UNDO_DEPTH),
+      redoStack: [],
+    });
+  },
 
   globalPalette: [],
   highLevelDescription: '',
@@ -613,28 +671,37 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   })),
 
   addBoxColor: (hex) => {
-    const upper = hex.toUpperCase();
     const state = get();
+    const snap = takeSnapshot(state);
+    const upper = hex.toUpperCase();
     if (!state.selectedBoxId) return false;
     const box = state.boxes.find(b => b.id === state.selectedBoxId);
     if (!box) return false;
     if (box.colors.length >= 5) return false;
     if (box.colors.includes(upper)) return false;
-    set({
+    set(state => ({
       boxes: state.boxes.map(b =>
         b.id === state.selectedBoxId ? { ...b, colors: [...b.colors, upper] } : b
       ),
-    });
+      undoStack: [...state.undoStack, snap].slice(-MAX_UNDO_DEPTH),
+      redoStack: [],
+    }));
     return true;
   },
 
-  removeBoxColor: (hex) => set(state => ({
-    boxes: state.boxes.map(b =>
-      b.id === state.selectedBoxId
-        ? { ...b, colors: b.colors.filter(c => c !== hex) }
-        : b
-    ),
-  })),
+  removeBoxColor: (hex) => {
+    const state = get();
+    const snap = takeSnapshot(state);
+    set(state => ({
+      boxes: state.boxes.map(b =>
+        b.id === state.selectedBoxId
+          ? { ...b, colors: b.colors.filter(c => c !== hex) }
+          : b
+      ),
+      undoStack: [...state.undoStack, snap].slice(-MAX_UNDO_DEPTH),
+      redoStack: [],
+    }));
+  },
 
   apiUrl: 'http://localhost:8188',
   seed: 42,
@@ -1117,13 +1184,25 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   },
 
   // Image 操作
-  importImageToBox: (boxId, dataUrl) => set(state => ({
-    boxes: state.boxes.map(b => b.id === boxId ? { ...b, imageDataUrl: dataUrl } : b),
-  })),
+  importImageToBox: (boxId, dataUrl) => {
+    const state = get();
+    const snap = takeSnapshot(state);
+    set(state => ({
+      boxes: state.boxes.map(b => b.id === boxId ? { ...b, imageDataUrl: dataUrl } : b),
+      undoStack: [...state.undoStack, snap].slice(-MAX_UNDO_DEPTH),
+      redoStack: [],
+    }));
+  },
 
-  clearBoxImage: (boxId) => set(state => ({
-    boxes: state.boxes.map(b => b.id === boxId ? { ...b, imageDataUrl: null } : b),
-  })),
+  clearBoxImage: (boxId) => {
+    const state = get();
+    const snap = takeSnapshot(state);
+    set(state => ({
+      boxes: state.boxes.map(b => b.id === boxId ? { ...b, imageDataUrl: null } : b),
+      undoStack: [...state.undoStack, snap].slice(-MAX_UNDO_DEPTH),
+      redoStack: [],
+    }));
+  },
 
   // 预设
   chatPresets: loadPresetsFromStorage(),
@@ -1233,10 +1312,51 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   isShortcutsModalOpen: false,
   setShortcutsModalOpen: (open) => set({ isShortcutsModalOpen: open }),
 
+  // ─── Undo/Redo ──────────────────────────────────────────────
+  undoStack: [],
+  redoStack: [],
+
+  snapshot: () => {
+    set(state => {
+      const snap = takeSnapshot(state);
+      return {
+        undoStack: [...state.undoStack, snap].slice(-MAX_UNDO_DEPTH),
+        redoStack: [],
+      };
+    });
+  },
+
+  undo: () => {
+    set(state => {
+      if (state.undoStack.length === 0) return {};
+      const snap = state.undoStack[state.undoStack.length - 1];
+      const current: EditorSnapshot = takeSnapshot(state);
+      return {
+        ...snap,
+        undoStack: state.undoStack.slice(0, -1),
+        redoStack: [...state.redoStack, current],
+      };
+    });
+  },
+
+  redo: () => {
+    set(state => {
+      if (state.redoStack.length === 0) return {};
+      const snap = state.redoStack[state.redoStack.length - 1];
+      const current: EditorSnapshot = takeSnapshot(state);
+      return {
+        ...snap,
+        undoStack: [...state.undoStack, current],
+        redoStack: state.redoStack.slice(0, -1),
+      };
+    });
+  },
+
   // ─── 框操作（右键菜单 + 键盘快捷键）────────────────────────
 
   duplicateBox: (boxId) => {
     const state = get();
+    const snap = takeSnapshot(state);
     const idSet = new Set(idsFromInput(boxId));
     const sourceBoxes = state.boxes.filter(b => idSet.has(b.id));
     if (sourceBoxes.length === 0) return;
@@ -1250,11 +1370,14 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       boxes: [...state.boxes, ...newBoxes],
       ...selectionState(newBoxes.map(box => box.id), [...state.boxes, ...newBoxes]),
       boxCounter: state.boxCounter + newBoxes.length,
+      undoStack: [...state.undoStack, snap].slice(-MAX_UNDO_DEPTH),
+      redoStack: [],
     });
   },
 
   cutBox: (boxId) => {
     const state = get();
+    const snap = takeSnapshot(state);
     const idSet = new Set(idsFromInput(boxId));
     const sourceBoxes = state.boxes.filter(b => idSet.has(b.id));
     if (sourceBoxes.length === 0) return;
@@ -1273,6 +1396,8 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       isChatOpen: activeChatDeleted ? false : state.isChatOpen,
       editingBoxId: state.editingBoxId && idSet.has(state.editingBoxId) ? null : state.editingBoxId,
       chatHistories: newHistories,
+      undoStack: [...state.undoStack, snap].slice(-MAX_UNDO_DEPTH),
+      redoStack: [],
     });
   },
 
@@ -1287,6 +1412,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   pasteBox: (x, y) => {
     if (internalClipboard.length === 0) return;
     const state = get();
+    const snap = takeSnapshot(state);
     const first = internalClipboard[0];
     const baseX = x ?? first.x + 20;
     const baseY = y ?? first.y + 20;
@@ -1300,28 +1426,42 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       boxes: [...state.boxes, ...newBoxes],
       ...selectionState(newBoxes.map(box => box.id), [...state.boxes, ...newBoxes]),
       boxCounter: state.boxCounter + newBoxes.length,
+      undoStack: [...state.undoStack, snap].slice(-MAX_UNDO_DEPTH),
+      redoStack: [],
     });
   },
 
   bringToFront: (boxId) => {
+    const state = get();
+    const snap = takeSnapshot(state);
     set(state => {
       const idSet = new Set(idsFromInput(boxId));
       const selected = state.boxes.filter(b => idSet.has(b.id));
-      if (selected.length === 0) return state;
+      if (selected.length === 0) return { undoStack: state.undoStack, redoStack: state.redoStack };
       const rest = state.boxes.filter(b => !idSet.has(b.id));
       const newBoxes = [...rest, ...selected];
-      return { boxes: newBoxes };
+      return {
+        boxes: newBoxes,
+        undoStack: [...state.undoStack, snap].slice(-MAX_UNDO_DEPTH),
+        redoStack: [],
+      };
     });
   },
 
   sendToBack: (boxId) => {
+    const state = get();
+    const snap = takeSnapshot(state);
     set(state => {
       const idSet = new Set(idsFromInput(boxId));
       const selected = state.boxes.filter(b => idSet.has(b.id));
-      if (selected.length === 0) return state;
+      if (selected.length === 0) return { undoStack: state.undoStack, redoStack: state.redoStack };
       const rest = state.boxes.filter(b => !idSet.has(b.id));
       const newBoxes = [...selected, ...rest];
-      return { boxes: newBoxes };
+      return {
+        boxes: newBoxes,
+        undoStack: [...state.undoStack, snap].slice(-MAX_UNDO_DEPTH),
+        redoStack: [],
+      };
     });
   },
 
@@ -1375,6 +1515,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
   loadFromJSON: (json) => {
     const state = get();
+    const snap = takeSnapshot(state);
     // 优先使用 JSON 内嵌的画布尺寸，fallback 到 store 当前值
     const cw = json.canvasW ?? state.canvasW;
     const ch = json.canvasH ?? state.canvasH;
@@ -1413,6 +1554,8 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       background: json.compositional_deconstruction.background || '',
       globalPalette: sd.color_palette || [],
       photoArtStyleMode: mode,
+      undoStack: [...state.undoStack, snap].slice(-MAX_UNDO_DEPTH),
+      redoStack: [],
     });
   },
 }));

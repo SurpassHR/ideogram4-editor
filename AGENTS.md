@@ -35,7 +35,7 @@ src/
 │   ├── presets.ts                    # PromptPreset 接口 + 4 个内置预设模板
 │   └── workspace.ts                  # WorkspaceBackupSettings, WorkspaceBackupPackageV1, 恢复模块类型
 ├── hooks/
-│   ├── usePointerInteraction.ts      # 画布 Pointer Events：绘制/拖拽/缩放 boxes + 单击/双击检测 + 全局键盘快捷键（Ctrl+D/C/X/V, Delete）
+│   ├── usePointerInteraction.ts      # 画布 Pointer Events：绘制/拖拽/缩放 boxes + 单击/双击检测 + 全局键盘快捷键（Ctrl+Z/Y/D/C/X/V, Delete）
 │   ├── useImageDrop.ts               # 图片拖放导入，PNG 元数据提取
 │   ├── useBoxImageImport.ts          # Box 图像导入：拖放/上传/粘贴 → FileReader → Data URL
 │   ├── useComfyUIGeneration.ts       # ComfyUI 生成流程编排
@@ -88,7 +88,7 @@ src/
 │       └── SelectMenu.tsx            # 可复用 Portal 下拉选择菜单组件
 │   └── shortcuts/
 │       ├── ShortcutsModal.tsx        # 快捷键速查模态（createPortal→body，✕/Escape/遮罩关闭，store isShortcutsModalOpen 驱动）
-│       └── shortcuts-data.ts         # 静态分组数据（3 组 9 条，keyLabel/descKey 均走 i18n）
+│       └── shortcuts-data.ts         # 静态分组数据（3 组 11 条，keyLabel/descKey 均走 i18n）
 ├── utils/
 │   ├── coordinates.ts               # 坐标归一化/反归一化（0-1000 ↔ 像素）
 │   ├── json-serializer.ts           # generateJSON() + parseBoxesFromJSON()，可选 image_data 导出
@@ -124,7 +124,7 @@ src/
 6. 画布上边缘悬浮工具栏（`ArtboardToolbar`）提供比例选择、缩放滑块、自定义尺寸、实时尺寸显示和收藏功能
 7. 每个 box 存储为对象：`{ id, x, y, w, h, mode, text, desc, colors, imageDataUrl, imageRole }`
 8. 全局状态存储在 Zustand store（`useEditorStore`）中
-8. 右键 box 弹出框上下文菜单（Duplicate/Cut/Copy/Delete/层级/图像/AI Chat），右键画布空白弹出画布菜单（Paste/背景图/清除/Fit）；键盘快捷键 Ctrl+D/Ctrl+X/Ctrl+C/Ctrl+V/Delete 全局生效
+8. 右键 box 弹出框上下文菜单（Duplicate/Cut/Copy/Delete/层级/图像/AI Chat），右键画布空白弹出画布菜单（Paste/背景图/清除/Fit）；键盘快捷键 Ctrl+Z/Y/D/Ctrl+X/Ctrl+C/Ctrl+V/Delete 全局生效
 9. `generateJSON()` 将 boxes 坐标归一化到 0-1000 范围，合并全局设置，输出 JSON（可选导出图像 Data URL）
 10. `generateImage()` 将 JSON 注入 ComfyUI workflow 模板，调用 ComfyUI API 生成图片
 11. LLM 对话支持 SSE 流式输出：`sendChatMessageStream()` 逐 token 渲染，模型思维链（CoT）以可折叠块显示，Canvas Chat 每条消息附带画布缩略图
@@ -155,6 +155,8 @@ src/
 - `pendingIdeogramOutput` — 最新 AI 回复中提取的待 Apply 的 `IdeogramOutput`，null 表示无有效 JSON
 - `duplicateBox / cutBox / copyBox / pasteBox / bringToFront / sendToBack` — 框操作（右键菜单 + 键盘快捷键），内部剪贴板（模块级变量，非 OS 剪贴板）
 - `setCanvasBackgroundUrl(url)` — 设置/清除画布背景图
+- `undoStack / redoStack` — 撤销/重做历史栈（快照式，最多 50 步），`snapshot()` 手动创建快照，`undo()` / `redo()` 切换状态
+- `updateBox(id, updates, recordHistory?)` — 第三个参数控制是否记录历史，拖拽实时更新传 `false`，其他操作默认 `true`
 
 ### 坐标系统
 

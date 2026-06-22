@@ -384,6 +384,8 @@ export interface Translations {
       ctrlX: string;
       ctrlC: string;
       ctrlV: string;
+      ctrlZ: string;
+      ctrlY: string;
       delete: string;
       doubleClick: string;
       altDrag: string;
@@ -396,6 +398,8 @@ export interface Translations {
       copy: string;
       paste: string;
       delete: string;
+      undo: string;
+      redo: string;
       inlineEdit: string;
       altDrag: string;
       wheelZoom: string;
@@ -788,6 +792,8 @@ const en: Translations = {
       ctrlX: 'Ctrl+X',
       ctrlC: 'Ctrl+C',
       ctrlV: 'Ctrl+V',
+      ctrlZ: 'Ctrl+Z',
+      ctrlY: 'Ctrl+Y',
       delete: 'Delete',
       doubleClick: 'Double-click',
       altDrag: 'Alt+Drag',
@@ -800,6 +806,8 @@ const en: Translations = {
       copy: 'Copy selected box',
       paste: 'Paste',
       delete: 'Delete selected box',
+      undo: 'Undo last action',
+      redo: 'Redo undone action',
       inlineEdit: 'Inline edit box text',
       altDrag: 'Draw a new box over existing ones',
       wheelZoom: 'Zoom the artboard',
@@ -1192,6 +1200,8 @@ const zh: Translations = {
       ctrlX: 'Ctrl+X',
       ctrlC: 'Ctrl+C',
       ctrlV: 'Ctrl+V',
+      ctrlZ: 'Ctrl+Z',
+      ctrlY: 'Ctrl+Y',
       delete: 'Delete',
       doubleClick: '双击',
       altDrag: 'Alt+拖拽',
@@ -1204,6 +1214,8 @@ const zh: Translations = {
       copy: '复制选中框',
       paste: '粘贴',
       delete: '删除选中框',
+      undo: '撤销上一步操作',
+      redo: '恢复已撤销的操作',
       inlineEdit: '内联编辑框内文字',
       altDrag: '在已有框上绘制新框',
       wheelZoom: '缩放画板',
