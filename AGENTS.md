@@ -328,3 +328,45 @@ kanban task create --title "Task 1" --prompt "..." --base-ref main --project-pat
 - 示例：本项目已有 `JsonCodeBlock` 组件的 `json-code-block-toggle`（iOS 滑块式 JSON/预览切换），新增类似功能时不应再写一套按钮式切换
 
 **为什么会犯这个错：** 在 JSON tab 中新增了视图切换按钮组（`.json-view-toggle`），但 `ChatMessage` 里的 `JsonCodeBlock` 组件已经有完全相同的交互模式（`.json-code-block-toggle`）。应该直接复用后者，而不是造新的按钮组。
+
+### 6. 前端修改后必须用 Playwright 验证无白屏/样式丢失
+
+每次修改前端代码后（包括但不限于：新增组件、修改 CSS 变量/类名、编辑 i18n 翻译、修改 store 初始化逻辑），**必须使用 Playwright 验证页面是否能正常渲染**，防止出现白屏或样式丢失。
+
+#### 验证命令
+
+```bash
+# 1. 启动开发服务器（如果未运行）
+npx vite --host 0.0.0.0 &
+sleep 3
+
+# 2. 用 Playwright 打开页面并检查控制台错误
+export CODEX_HOME="${CODEX_HOME:-$HOME/.codex}" && \
+export PWCLI="$CODEX_HOME/skills/playwright/scripts/playwright_cli.sh" && \
+xvfb-run --server-args="-screen 0 1280x1024x24" sh <<'SCRIPT'
+cd /media/hr/Data/Codes/ideogram4-editor
+"$PWCLI" open http://localhost:5173 --headed
+sleep 6
+"$PWCLI" console
+"$PWCLI" screenshot /tmp/verify-frontend.png
+"$PWCLI" close
+SCRIPT
+```
+
+#### 验证标准
+
+- ❌ **白屏判定**：控制台出现以下任一错误应立即修复
+  - `Failed to load module` / `does not provide an export named`
+  - `Uncaught TypeError` / `Cannot read properties of undefined`
+  - `MIME type mismatch` / `SyntaxError` (非 favicon 404)
+- ❌ **样式丢失判定**：页面整体布局异常（按钮/面板/图标缺失或错位）
+- ✅ **通过标准**：控制台无致命错误（favicon 404 忽略），页面正常渲染
+
+#### 常见白屏原因排查清单
+
+| 原因 | 现象 | 解决 |
+|------|------|------|
+| **Vite 模块缓存** | 修改 i18n/类型后报 "does not provide an export named" | `pkill -f vite` 重启 dev server |
+| **TypeScript 编译错误** | `tsc -b` 失败后 Vite 仍会尝试热更新 | 先 `npx tsc --noEmit` 确认无类型错误 |
+| **CSS class 名拼写错误** | 组件渲染但无样式/布局错乱 | 检查 className 与 CSS 选择器是否匹配 |
+| **Store 初始化 undefined** | `useEditorStore(s => s.xxx)` 报 undefined | 检查 store 接口中新字段是否有初始值 |
