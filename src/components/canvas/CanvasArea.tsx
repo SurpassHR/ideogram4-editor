@@ -219,6 +219,7 @@ export default function CanvasArea({ zoom, panX, panY, screenToCanvas, onFitToAr
         position: 'relative',
         userSelect: 'none',
         touchAction: 'none',
+        backgroundSize: `${Math.round(20 / zoom)}px ${Math.round(20 / zoom)}px`,
       }}
       onPointerDown={handleCanvasPointerDown}
       onPointerMove={handleCanvasPointerMove}
