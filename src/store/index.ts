@@ -298,7 +298,7 @@ interface EditorStore {
   selectedBoxIds: string[];
   boxCounter: number;
   addBox: (box: Omit<Box, 'id'>) => string;
-  updateBox: (id: string, updates: Partial<Omit<Box, 'id'>>) => void;
+  updateBox: (id: string, updates: Partial<Omit<Box, 'id'>>, recordHistory?: boolean) => void;
   removeBox: (id: string | string[]) => void;
   selectBox: (id: string | null) => void;
   selectBoxes: (ids: string[]) => void;

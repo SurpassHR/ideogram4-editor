@@ -408,3 +408,18 @@ SCRIPT
 | **TypeScript 编译错误** | `tsc -b` 失败后 Vite 仍会尝试热更新 | 先 `npx tsc --noEmit` 确认无类型错误 |
 | **CSS class 名拼写错误** | 组件渲染但无样式/布局错乱 | 检查 className 与 CSS 选择器是否匹配 |
 | **Store 初始化 undefined** | `useEditorStore(s => s.xxx)` 报 undefined | 检查 store 接口中新字段是否有初始值 |
+
+### 8. Commit 前必须通过 test 和 build
+
+每次 commit 前，**必须先确保 `npm run test` 和 `npm run build` 都通过**：
+
+```bash
+npm run test    # Vitest 测试套件全部通过
+npm run build   # tsc -b && vite build 编译+打包无错误
+```
+
+**红线**：
+- ❌ 不允许在 test 或 build 失败时提交
+- ❌ 不允许只 `tsc --noEmit` 代替 `tsc -b`——两者行为不一致，
+  `tsc -b` 使用项目引用（project references/bulb mode），检查更严格
+- ✅ 如果 build 失败而 test 通过，必须先修好 build 再提交
