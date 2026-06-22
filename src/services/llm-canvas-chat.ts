@@ -226,7 +226,7 @@ export function buildCanvasChatContext(snapshot: CanvasChatStoreSnapshot): strin
     snapshot.photoArtStyleMode,
   );
 
-  const output = json as Record<string, unknown>;
+  const output = json as unknown as Record<string, unknown>;
   // 告知 LLM 画布上是否有参考背景图，帮助模型理解视觉上下文
   output._canvas_background_reference = snapshot.canvasBackgroundUrl
     ? 'present (attached as image in the same message)'

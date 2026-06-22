@@ -88,15 +88,16 @@ function buildTerminalSections(log: CanvasChatRequestLog): TerminalSection[] {
     const headers = detail.responseHeaders ?? {};
     const headerLines = Object.entries(headers)
       .filter(([k]) => !['transfer-encoding', 'accept-ranges', 'vary', 'cache-control'].includes(k.toLowerCase()))
-      .map(([k, v]) => `${k}: ${v}`)
-      .join('\n');
+      .map(([k, v]) => `${k}: ${v}`);
+    const allHeaders = headerLines.length > 0
+      ? [...headerLines, `Content-Length: ${new TextEncoder().encode(bodyContent).length}`]
+      : [];
     const content = [
       `HTTP/1.1 ${statusCode} ${statusText}`,
-      headerLines,
-      headerLines ? `Content-Length: ${new TextEncoder().encode(bodyContent).length}` : '',
+      ...allHeaders,
       '',
       bodyContent,
-    ].filter(Boolean).join('\n');
+    ].join('\n');
     sections.push({
       kind: 'response_body',
       label: `Response Body (${(bodyContent.length / 1024).toFixed(1)}KB)`,
@@ -176,7 +177,7 @@ function renderTerminalSections(
   log: CanvasChatRequestLog | null,
   expandedStepId: string | null,
   setExpandedStepId: (id: string | null) => void,
-  t: (key: string, vars?: Record<string, unknown>) => string,
+  t: (path: string, vars?: Record<string, string | number>) => string,
   _highlightJson: (json: string) => string,
   onCopy: (section: string, text: string) => void,
   copiedSection: string | null,
