@@ -264,7 +264,7 @@ export default function CanvasArea({ zoom, panX, panY, screenToCanvas, onFitToAr
         <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
           {drawingGhost && (
             <div
-              className="bounding-box"
+              className="bounding-box drawing-ghost"
               style={{
                 left: drawingGhost.x,
                 top: drawingGhost.y,

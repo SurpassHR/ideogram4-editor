@@ -330,6 +330,13 @@ body {
   z-index: 10;
 }
 
+/* 拖拽创建新 box 时的幽灵框 */
+.bounding-box.drawing-ghost {
+  border: 3px solid var(--primary);
+  background: rgba(124, 92, 252, 0.08);
+  border-radius: 3px;
+}
+
 .marquee-selection {
   position: absolute;
   background: rgba(124, 92, 252, 0.08);
