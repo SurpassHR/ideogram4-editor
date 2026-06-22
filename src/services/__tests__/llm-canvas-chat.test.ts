@@ -390,27 +390,37 @@ Let me know if you'd like any adjustments!`;
   });
   // ─── 颜色数量上限 + CJK 文本拒绝 ──────────────────────────
 
-  it('global color_palette > 5 should return null', () => {
+  it('global color_palette > 16 should return null', () => {
     const tooManyColors = {
       ...validOutput,
       style_description: {
         ...validOutput.style_description,
-        color_palette: ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF'],
+        color_palette: [
+          '#C62828', '#AD1457', '#6A1B9A', '#4527A0', '#283593',
+          '#1565C0', '#00838F', '#00695C', '#2E7D32', '#558B2F',
+          '#9E9D24', '#F9A825', '#FF8F00', '#E65100', '#D84315',
+          '#4E342E', '#37474F',
+        ],
       },
     };
     const result = extractAndValidateIdeogramJSON(wrap(tooManyColors));
     expect(result).toBeNull();
   });
 
-  it('global color_palette <= 5 should pass', () => {
-    const fineColors = {
+  it('global color_palette <= 16 should pass', () => {
+    const sixteenColors = {
       ...validOutput,
       style_description: {
         ...validOutput.style_description,
-        color_palette: ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF'],
+        color_palette: [
+          '#C62828', '#AD1457', '#6A1B9A', '#4527A0', '#283593',
+          '#1565C0', '#00838F', '#00695C', '#2E7D32', '#558B2F',
+          '#9E9D24', '#F9A825', '#FF8F00', '#E65100', '#D84315',
+          '#4E342E',
+        ],
       },
     };
-    const result = extractAndValidateIdeogramJSON(wrap(fineColors));
+    const result = extractAndValidateIdeogramJSON(wrap(sixteenColors));
     expect(result).not.toBeNull();
   });
 

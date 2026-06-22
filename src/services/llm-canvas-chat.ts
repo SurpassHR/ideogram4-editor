@@ -321,12 +321,12 @@ export function extractAndValidateIdeogramJSON(text: string): IdeogramOutput | n
   if (typeof cd !== 'object' || cd === null) return null;
 
   const cdObj = cd as Record<string, unknown>;
-  // ✅ 新增: global color_palette ≤ 5
+  // 规范：style_description.color_palette max 16，element.color_palette max 5
   const sd = obj.style_description;
   if (typeof sd === 'object' && sd !== null) {
     const sdObj = sd as Record<string, unknown>;
     const globalPalette = sdObj.color_palette;
-    if (Array.isArray(globalPalette) && globalPalette.length > 5) return null;
+    if (Array.isArray(globalPalette) && globalPalette.length > 16) return null;
   }
   const elements = cdObj.elements;
   if (!Array.isArray(elements) || elements.length === 0) return null;
