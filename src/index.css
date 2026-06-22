@@ -299,7 +299,7 @@ body {
 .bounding-box-dashed {
   position: absolute;
   inset: 0;
-  border-width: clamp(1px, calc(3px / var(--box-zoom, 1)), 12px);
+  border-width: calc(3px / var(--box-zoom, 1));
   border-style: dashed;
   border-color: var(--text-muted);
   border-radius: 3px;
@@ -312,7 +312,7 @@ body {
 .bounding-box-solid {
   position: absolute;
   inset: 0;
-  border-width: clamp(1px, calc(3px / var(--box-zoom, 1)), 12px);
+  border-width: calc(3px / var(--box-zoom, 1));
   border-style: solid;
   border-color: var(--box-border);
   background: var(--box-fill);
@@ -336,7 +336,7 @@ body {
 
 /* 拖拽创建新 box 时的幽灵框 */
 .bounding-box.drawing-ghost {
-  border-width: clamp(1px, calc(3px / var(--box-zoom, 1)), 12px);
+  border-width: calc(3px / var(--box-zoom, 1));
   border-style: solid;
   border-color: var(--primary);
   background: rgba(124, 92, 252, 0.08);
@@ -403,16 +403,16 @@ body {
   top: calc(2px / var(--box-zoom, 1));
   right: calc(2px / var(--box-zoom, 1));
   z-index: 2;
-  width: clamp(12px, calc(18px / var(--box-zoom, 1)), 36px);
-  height: clamp(12px, calc(18px / var(--box-zoom, 1)), 36px);
+  width: calc(18px / var(--box-zoom, 1));
+  height: calc(18px / var(--box-zoom, 1));
   padding: 0;
-  border-width: clamp(0.5px, calc(1px / var(--box-zoom, 1)), 4px);
+  border-width: calc(1px / var(--box-zoom, 1));
   border-style: solid;
   border-color: var(--border);
   border-radius: 3px;
   background: rgba(22, 22, 48, 0.85);
   color: var(--text);
-  font-size: clamp(8px, calc(11px / var(--box-zoom, 1)), 20px);
+  font-size: calc(11px / var(--box-zoom, 1));
   line-height: 1;
   cursor: pointer;
   display: flex;
@@ -426,6 +426,11 @@ body {
   opacity: 1;
 }
 
+.bounding-box-img-dismiss svg {
+  width: calc(10px / var(--box-zoom, 1));
+  height: calc(10px / var(--box-zoom, 1));
+}
+
 .bounding-box-img-dismiss:hover {
   background: var(--danger);
   color: #fff;
@@ -436,12 +441,12 @@ body {
   align-items: center;
   width: 100%;
   height: 100%;
-  padding: clamp(1px, calc(2px / var(--box-zoom, 1)), 6px) clamp(2px, calc(4px / var(--box-zoom, 1)), 10px);
+  padding: calc(2px / var(--box-zoom, 1)) calc(4px / var(--box-zoom, 1));
   overflow: hidden;
 }
 
 .bounding-box-label {
-  font-size: clamp(10px, calc(13px / var(--box-zoom, 1)), 24px);
+  font-size: calc(13px / var(--box-zoom, 1));
   color: var(--text);
   white-space: pre-wrap;
   word-break: break-word;
@@ -454,14 +459,14 @@ body {
 }
 
 .bounding-box-input {
-  font-size: clamp(10px, calc(14px / var(--box-zoom, 1)), 24px);
+  font-size: calc(14px / var(--box-zoom, 1));
   color: var(--text);
   background: var(--bg);
-  border-width: clamp(0.5px, calc(1px / var(--box-zoom, 1)), 4px);
+  border-width: calc(1px / var(--box-zoom, 1));
   border-style: solid;
   border-color: var(--primary);
   border-radius: 2px;
-  padding: clamp(1px, calc(2px / var(--box-zoom, 1)), 6px) clamp(2px, calc(6px / var(--box-zoom, 1)), 12px);
+  padding: calc(2px / var(--box-zoom, 1)) calc(6px / var(--box-zoom, 1));
   outline: none;
   width: 100%;
   box-sizing: border-box;
@@ -481,16 +486,16 @@ body {
 }
 
 .bounding-box-input-wrapper .bounding-box-input {
-  padding-right: clamp(12px, calc(24px / var(--box-zoom, 1)), 48px);
+  padding-right: calc(24px / var(--box-zoom, 1));
 }
 
 .bounding-box-input-wrapper .chat-bubble-btn {
   position: absolute;
   top: calc(2px / var(--box-zoom, 1));
   right: calc(2px / var(--box-zoom, 1));
-  width: clamp(14px, calc(18px / var(--box-zoom, 1)), 32px);
-  height: clamp(14px, calc(18px / var(--box-zoom, 1)), 32px);
-  font-size: clamp(8px, calc(10px / var(--box-zoom, 1)), 18px);
+  width: calc(18px / var(--box-zoom, 1));
+  height: calc(18px / var(--box-zoom, 1));
+  font-size: calc(10px / var(--box-zoom, 1));
   border: none;
   box-shadow: none;
 }
@@ -500,23 +505,28 @@ body {
   position: absolute;
   top: calc(-10px / var(--box-zoom, 1));
   right: calc(-10px / var(--box-zoom, 1));
-  width: clamp(16px, calc(24px / var(--box-zoom, 1)), 40px);
-  height: clamp(16px, calc(24px / var(--box-zoom, 1)), 40px);
+  width: calc(24px / var(--box-zoom, 1));
+  height: calc(24px / var(--box-zoom, 1));
   border-radius: 50%;
   background: var(--primary);
   color: white;
-  border-width: clamp(1px, calc(2px / var(--box-zoom, 1)), 6px);
+  border-width: calc(2px / var(--box-zoom, 1));
   border-style: solid;
   border-color: var(--bg);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: clamp(8px, calc(12px / var(--box-zoom, 1)), 20px);
+  font-size: calc(12px / var(--box-zoom, 1));
   z-index: 20;
   transition: all 0.15s;
   box-shadow: 0 2px 8px rgba(124, 92, 252, 0.3);
   line-height: 1;
+}
+
+.chat-bubble-btn svg {
+  width: calc(12px / var(--box-zoom, 1));
+  height: calc(12px / var(--box-zoom, 1));
 }
 
 .chat-bubble-btn:hover {
@@ -534,10 +544,10 @@ body {
   position: absolute;
   bottom: calc(-5px / var(--box-zoom, 1));
   right: calc(-5px / var(--box-zoom, 1));
-  width: clamp(6px, calc(11px / var(--box-zoom, 1)), 24px);
-  height: clamp(6px, calc(11px / var(--box-zoom, 1)), 24px);
+  width: calc(11px / var(--box-zoom, 1));
+  height: calc(11px / var(--box-zoom, 1));
   background: var(--surface);
-  border-width: clamp(1px, calc(2px / var(--box-zoom, 1)), 6px);
+  border-width: calc(2px / var(--box-zoom, 1));
   border-style: solid;
   border-color: var(--text);
   cursor: nwse-resize;
