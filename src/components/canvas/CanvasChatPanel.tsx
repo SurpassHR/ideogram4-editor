@@ -84,7 +84,16 @@ function buildTerminalSections(log: CanvasChatRequestLog): TerminalSection[] {
       ? detail.responseText
       : (detail.parseError || '');
     const statusCode = detail.responseStatus ?? (overallOk ? 200 : 500);
-    const statusText = overallOk ? 'OK' : 'Error';
+    // 用 HTTP 状态码对应的标准原因短语，不因后续解析失败而改写
+    const statusText = {
+      200: 'OK', 201: 'Created', 204: 'No Content',
+      301: 'Moved', 302: 'Found', 304: 'Not Modified',
+      400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden',
+      404: 'Not Found', 405: 'Method Not Allowed', 408: 'Timeout',
+      409: 'Conflict', 422: 'Unprocessable', 429: 'Too Many Requests',
+      500: 'Internal Server Error', 502: 'Bad Gateway',
+      503: 'Service Unavailable', 504: 'Gateway Timeout',
+    }[statusCode] ?? 'Unknown';
     const headers = detail.responseHeaders ?? {};
     const headerLines = Object.entries(headers)
       .filter(([k]) => !['transfer-encoding', 'accept-ranges', 'vary', 'cache-control'].includes(k.toLowerCase()))

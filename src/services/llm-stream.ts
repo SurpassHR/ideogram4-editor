@@ -214,6 +214,10 @@ async function callOpenAIStream(
     } catch { /* skip unparseable lines */ }
   });
 
+  if (!accumulated) {
+    callbacks.onError('The API returned an empty response. Check that the model supports streaming and the request parameters are correct.');
+    return;
+  }
   callbacks.onDone(accumulated);
 }
 
@@ -280,6 +284,10 @@ async function callAnthropicStream(
     } catch { /* skip */ }
   });
 
+  if (!accumulated) {
+    callbacks.onError('The API returned an empty response. Check that the model supports streaming with thinking enabled.');
+    return;
+  }
   callbacks.onDone(accumulated);
 }
 
@@ -342,6 +350,10 @@ async function callGeminiStream(
     } catch { /* skip */ }
   });
 
+  if (!accumulated) {
+    callbacks.onError('The API returned an empty response. Check that the model supports streaming and the API key is valid.');
+    return;
+  }
   callbacks.onDone(accumulated);
 }
 
