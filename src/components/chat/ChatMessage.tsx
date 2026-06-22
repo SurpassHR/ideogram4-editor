@@ -64,8 +64,9 @@ export default function ChatMessage({ message, onAdopt, onDismiss, onApply, onRe
     () => (isUser ? null : extractAndValidateIdeogramJSON(message.content)),
     [isUser, message.content],
   );
-  const showApply = parsedOutput !== null && !!onApply && !message.applied;
-  const showAppliedBadge = parsedOutput !== null && !!onApply && !!message.applied;
+  const hasOutput = parsedOutput !== null && !!onApply;
+  const showApply = hasOutput;
+  const applyLabel = message.applied ? 'Re-Apply' : 'Apply';
 
   const handleCopy = async () => {
     try {
@@ -206,18 +207,13 @@ export default function ChatMessage({ message, onAdopt, onDismiss, onApply, onRe
           {showApply && (
             <button
               type="button"
-              className="chat-msg-card-apply-ghost"
+              className={`chat-msg-card-apply-ghost${message.applied ? ' reapplied' : ''}`}
               onClick={() => onApply!(message.id)}
-              aria-label="Apply this composition to canvas"
-              title="Apply this composition to canvas"
+              aria-label={`${applyLabel} this composition to canvas`}
+              title={`${applyLabel} this composition to canvas`}
             >
-              Apply
+              {applyLabel}
             </button>
-          )}
-          {showAppliedBadge && (
-            <span className="chat-msg-card-applied-badge" aria-label="Composition applied to canvas">
-              ✓ Applied
-            </span>
           )}
         </div>
       )}

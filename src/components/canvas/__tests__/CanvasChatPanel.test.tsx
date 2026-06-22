@@ -197,12 +197,10 @@ describe('CanvasChatPanel', () => {
       expect(state.globalPalette).toEqual(['#FF0000']);
       expect(state.pendingQualityReport).not.toBeNull();
 
-      // 应用后应变为 static Applied 徽章
-      const appliedBadge = document.querySelector('.chat-msg-card-applied-badge');
-      expect(appliedBadge).not.toBeNull();
-      expect(appliedBadge!.textContent).toContain('Applied');
-      // ghost pill 应消失
-      expect(document.querySelector('.chat-msg-card-apply-ghost')).toBeNull();
+      // 应用后按钮文字变为 Re-Apply
+      const reapplyBtn = document.querySelector('.chat-msg-card-apply-ghost.reapplied');
+      expect(reapplyBtn).not.toBeNull();
+      expect(reapplyBtn!.textContent).toContain('Re-Apply');
 
       const toast = document.querySelector('.canvas-chat-toast');
       expect(toast).not.toBeNull();
@@ -290,8 +288,8 @@ describe('CanvasChatPanel', () => {
       expect(dialog).toBeNull();
       expect(useEditorStore.getState().boxes).toHaveLength(1);
       expect(useEditorStore.getState().pendingQualityReport).not.toBeNull();
-      // 应用后应显示 Applied 徽章
-      expect(document.querySelector('.chat-msg-card-applied-badge')).not.toBeNull();
+      // 应用后按钮应带 reapplied 类
+      expect(document.querySelector('.chat-msg-card-apply-ghost.reapplied')).not.toBeNull();
     });
 
     it('无 LLM provider 时应显示添加提供商按钮并跳转到设置页', async () => {
@@ -682,9 +680,10 @@ describe('CanvasChatPanel', () => {
       expect(state.aesthetics).toBe('Minimal');
       expect(state.pendingQualityReport).not.toBeNull();
 
-      // 应用后应显示 Applied 徽章，ghost pill 应消失
-      expect(document.querySelector('.chat-msg-card-applied-badge')).not.toBeNull();
-      expect(document.querySelector('.chat-msg-card-apply-ghost')).toBeNull();
+      // 应用后按钮文字变为 Re-Apply，带 reapplied 类
+      const reapplyBtn = document.querySelector('.chat-msg-card-apply-ghost.reapplied');
+      expect(reapplyBtn).not.toBeNull();
+      expect(reapplyBtn!.textContent).toContain('Re-Apply');
 
       const toast = document.querySelector('.canvas-chat-toast');
       expect(toast).not.toBeNull();

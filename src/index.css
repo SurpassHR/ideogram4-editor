@@ -1851,16 +1851,15 @@ input[type="color"]::-webkit-color-swatch {
 }
 
 /* Actions 行内嵌 Applied 静态徽章 */
-.chat-msg-card-applied-badge {
-  padding: 4px 10px;
-  font-size: 10px;
-  font-weight: 600;
-  font-family: 'Inter', sans-serif;
-  border-radius: 999px;
-  background: rgba(0, 212, 170, 0.08);
-  color: rgba(0, 212, 170, 0.5);
-  white-space: nowrap;
-  flex-shrink: 0;
+.chat-msg-card-apply-ghost.reapplied {
+  background: rgba(0, 212, 170, 0.1);
+  color: var(--accent);
+  border-color: rgba(0, 212, 170, 0.3);
+}
+
+.chat-msg-card-apply-ghost.reapplied:hover {
+  background: rgba(0, 212, 170, 0.18);
+  border-color: rgba(0, 212, 170, 0.5);
 }
 
 /* Card body */
