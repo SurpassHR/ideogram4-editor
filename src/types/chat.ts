@@ -61,6 +61,10 @@ export interface CanvasChatRequestLogDetail {
   };
   systemPrompt?: string;
   messages?: ChatMessageForApi[];
+  /** 完整的 HTTP 请求表示（method/URL/headers/body），用于调试复制 */
+  requestBody?: string;
+  /** 画布上下文 JSON（buildCanvasChatContext 的输出） */
+  contextJson?: string;
   responseText?: string;
   parsedJsonText?: string;
   parseError?: string;

@@ -322,7 +322,7 @@ describe('CanvasChatPanel', () => {
       expect(getByText('Terminal')).toBeInTheDocument();
     });
 
-    it('点击 Terminal 步骤应打开请求详情弹窗并展示完整调试分区', async () => {
+    it('点击请求头部应打开详情弹窗并展示完整调试分区', async () => {
       useEditorStore.setState({
         isCanvasChatOpen: true,
         isCanvasChatMaximized: true,
@@ -367,6 +367,7 @@ describe('CanvasChatPanel', () => {
               responseText: 'RAW RESPONSE',
               parsedJsonText: '{"bbox":[100,100]}',
               parseError: 'elements[0].bbox must be an array of 4 numbers.',
+              requestBody: 'POST /chat/completions HTTP/1.1\nHost: api.openai.com\nContent-Type: application/json\nAuthorization: Bearer sk-••••••••\nContent-Length: 123\n\n{\n  "model": "gpt-4",\n  "messages": [...]\n}',
             },
           }],
         } as any],
@@ -374,7 +375,7 @@ describe('CanvasChatPanel', () => {
 
       const { getByRole, getByText } = await renderWithPending();
 
-      fireEvent.click(getByText('Parse Ideogram JSON failed'));
+      fireEvent.click(getByText('生成海报'));
 
       const dialog = getByRole('dialog', { name: 'Request details' });
       expect(within(dialog).getByText('Metadata')).toBeInTheDocument();
@@ -383,12 +384,54 @@ describe('CanvasChatPanel', () => {
       expect(within(dialog).getByText('Parsed JSON')).toBeInTheDocument();
       expect(within(dialog).getByText('Error')).toBeInTheDocument();
       expect(within(dialog).getByText(/Mock · gpt-4/)).toBeInTheDocument();
-      expect(within(dialog).getByText(/SYSTEM PROMPT/)).toBeInTheDocument();
+      expect(within(dialog).getByText(/POST \/chat\/completions/)).toBeInTheDocument();
       expect(within(dialog).getByText('RAW RESPONSE')).toBeInTheDocument();
       expect(within(dialog).getByText('elements[0].bbox must be an array of 4 numbers.')).toBeInTheDocument();
 
       fireEvent.keyDown(document, { key: 'Escape' });
       expect(document.querySelector('.canvas-chat-request-detail-modal')).toBeNull();
+    });
+
+    it('点击 Terminal 段可展开/折叠该段的 inline 内容', async () => {
+      useEditorStore.setState({
+        isCanvasChatOpen: true,
+        isCanvasChatMaximized: true,
+        activeCanvasChatRequestId: 'request_1',
+        canvasChatSessions: [{
+          id: 'session_1',
+          title: '展开测试',
+          createdAt: 1000,
+          updatedAt: 1000,
+          messages: [],
+          pendingIdeogramOutput: null,
+          pendingQualityReport: null,
+          requestLogs: [{
+            id: 'request_1',
+            sessionId: 'session_1',
+            promptPreview: '测试请求',
+            status: 'error',
+            startedAt: 1000,
+            endedAt: 2000,
+            steps: [],
+            detail: {
+              responseText: 'No json code block',
+            },
+          }],
+        } as any],
+      });
+
+      const { getByText, queryByText } = await renderWithPending();
+
+      // 默认折叠，内容不可见
+      expect(queryByText('No json code block')).toBeNull();
+
+      // 点击展开 response_body 段
+      fireEvent.click(getByText('response_body'));
+      expect(getByText('No json code block')).toBeInTheDocument();
+
+      // 再次点击折叠
+      fireEvent.click(getByText('response_body'));
+      expect(queryByText('No json code block')).toBeNull();
     });
 
     it('最大化工作台滚轮事件不应冒泡到下层容器', async () => {
@@ -515,7 +558,7 @@ describe('CanvasChatPanel', () => {
       expect(getByRole('dialog', { name: '重命名会话' })).toBeInTheDocument();
     });
 
-    it('最大化终端应显示当前会话的请求日志步骤', async () => {
+    it('最大化终端应显示当前会话的请求日志段', async () => {
       useEditorStore.setState({
         isCanvasChatOpen: true,
         isCanvasChatMaximized: true,
@@ -534,24 +577,27 @@ describe('CanvasChatPanel', () => {
             status: 'error',
             startedAt: 1000,
             endedAt: 2000,
-            steps: [{
-              id: 'step_1',
-              at: 1500,
-              kind: 'parse_failed',
-              status: 'error',
-              label: 'Parse Ideogram JSON failed',
-              detail: 'No json code block',
-            }],
+            steps: [],
+            detail: {
+              responseText: 'No json code block',
+              parseError: 'Parse failed',
+            },
           }],
         }],
         activeCanvasChatSessionId: 'session_1',
         activeCanvasChatRequestId: 'request_1',
       });
 
-      const { getByText } = await renderWithPending();
+      const { getByText, queryByText } = await renderWithPending();
 
       expect(getByText('生成咖啡海报')).toBeInTheDocument();
-      expect(getByText('Parse Ideogram JSON failed')).toBeInTheDocument();
+      expect(getByText('response_body')).toBeInTheDocument();
+
+      // 段默认折叠，内容不可见
+      expect(queryByText('No json code block')).toBeNull();
+
+      // 点击展开
+      fireEvent.click(getByText('response_body'));
       expect(getByText('No json code block')).toBeInTheDocument();
     });
 

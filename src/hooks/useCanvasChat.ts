@@ -3,9 +3,11 @@ import { useEditorStore } from '../store';
 import { getLlmProviders } from '../components/llm/api';
 import { sendChatMessageWithOptions, abortActiveRequest } from '../services/llm-stream';
 import { CANVAS_CHAT_SYSTEM_PROMPT, buildCanvasChatContext, buildLayoutFeedbackPrompt, extractAndValidateIdeogramJSON } from '../services/llm-canvas-chat';
+import { buildMultimodalMessages } from '../services/llm-chat';
 import { validateLayout } from '../services/layout-validator';
 import { generateMessageId, createUserMessage, createAssistantMessage } from '../types/chat';
-import type { LlmProvider } from '../components/llm/types';
+import type { LlmProvider, ProviderKind } from '../components/llm/types';
+import { DEFAULT_BASE_URLS } from '../components/llm/types';
 import type { ChatMessage, ChatMessageForApi } from '../types/chat';
 import type { IdeogramOutput } from '../types';
 import { MODE_PHOTO, MODE_ARTSTYLE } from '../types';
@@ -60,6 +62,135 @@ async function takeCanvasSnapshot(): Promise<string | undefined> {
 
 function extractJsonCodeBlock(text: string): string | undefined {
   return text.match(/```json\s*([\s\S]*?)```/)?.[1]?.trim();
+}
+
+/** 构建原始 HTTP 请求格式的字符串，用于 Terminal 详情展示 */
+function buildHttpRequestString(
+  providerKind: ProviderKind,
+  baseUrl: string,
+  model: string,
+  systemPrompt: string,
+  apiMessages: ChatMessageForApi[],
+  streamEnabled: boolean,
+  thinkingLevel: string,
+  imageDataUrl?: string,
+): string {
+  let path: string;
+  let body: Record<string, unknown>;
+  let extraHeaders: Record<string, string> = {};
+
+  // 应用多模态转换（与实际发送逻辑一致）
+  const effectiveMessages = imageDataUrl
+    ? buildMultimodalMessages(apiMessages, imageDataUrl, providerKind)
+    : apiMessages;
+
+  switch (providerKind) {
+    case 'openai':
+    case 'openai_compat': {
+      path = '/chat/completions';
+      const msgs = [{ role: 'system', content: systemPrompt }, ...effectiveMessages];
+      body = {
+        model,
+        messages: msgs,
+        stream: streamEnabled,
+      };
+      if (thinkingLevel !== 'off' && providerKind === 'openai') {
+        (body as Record<string, unknown>).reasoning_effort = thinkingLevel;
+      }
+      extraHeaders = { Authorization: 'Bearer sk-••••••••' };
+      break;
+    }
+    case 'anthropic': {
+      path = '/messages';
+      body = {
+        model,
+        max_tokens: 4096,
+        stream: streamEnabled,
+        system: systemPrompt,
+        messages: effectiveMessages,
+      };
+      if (thinkingLevel !== 'off') {
+        (body as Record<string, unknown>).thinking = {
+          type: 'enabled',
+          budget_tokens: thinkingLevel === 'low' ? 1024 : thinkingLevel === 'medium' ? 2048 : 3072,
+        };
+      }
+      extraHeaders = {
+        'x-api-key': 'sk-ant-••••••••',
+        'anthropic-version': '2023-06-01',
+      };
+      break;
+    }
+    case 'gemini': {
+      const suffix = streamEnabled
+        ? `:streamGenerateContent?alt=sse&key=••••••••`
+        : `:generateContent?key=••••••••`;
+      path = `/models/${model}${suffix}`;
+      const contents = effectiveMessages.map(m => {
+        if (Array.isArray(m.content)) {
+          // 多模态：图片 + 文本
+          const parts = (m.content as Record<string, unknown>[]).map((part: Record<string, unknown>) => {
+            if (part.type === 'image_url') {
+              return {
+                inlineData: {
+                  mimeType: 'image/png',
+                  data: '[base64 image data]',
+                },
+              };
+            }
+            return { text: part.text as string };
+          });
+          return { role: m.role === 'assistant' ? 'model' : 'user', parts };
+        }
+        return {
+          role: m.role === 'assistant' ? 'model' : 'user',
+          parts: [{ text: m.content as string }],
+        };
+      });
+      body = {
+        systemInstruction: { parts: [{ text: systemPrompt }] },
+        contents,
+      };
+      break;
+    }
+    default: {
+      path = '/chat/completions';
+      const msgs = [{ role: 'system', content: systemPrompt }, ...effectiveMessages];
+      body = { model, messages: msgs };
+    }
+  }
+
+  // 从 baseUrl 中提取 host，构造路径
+  let host: string;
+  let urlPath: string;
+  try {
+    const u = new URL(baseUrl);
+    host = u.host;
+    urlPath = `${u.pathname.replace(/\/$/, '')}${path}`;
+  } catch {
+    host = baseUrl;
+    urlPath = path;
+  }
+
+  const bodyJson = JSON.stringify(body, (key, value) => {
+    // 截断过长的 base64 Data URL / 字符串
+    if (typeof value === 'string' && value.startsWith('data:image')) {
+      const commaIdx = value.indexOf(',');
+      const header = commaIdx > 0 ? value.slice(0, commaIdx) : value.slice(0, 40);
+      return `${header},[base64: ~${Math.round((value.length - (commaIdx > 0 ? commaIdx + 1 : 0)) * 0.75)} bytes]`;
+    }
+    return value;
+  }, 2);
+  const lines: string[] = [
+    `POST ${urlPath} HTTP/1.1`,
+    `Host: ${host}`,
+    'Content-Type: application/json',
+    ...Object.entries(extraHeaders).map(([k, v]) => `${k}: ${v}`),
+    `Content-Length: ${new TextEncoder().encode(bodyJson).length}`,
+    '',
+    bodyJson,
+  ];
+  return lines.join('\n');
 }
 
 export function useCanvasChat() {
@@ -312,9 +443,22 @@ export function useCanvasChat() {
       apiMessages[lastUserIdx] = { role: 'user', content: enriched };
     }
     const systemPrompt = (customCanvasSystemPrompt || CANVAS_CHAT_SYSTEM_PROMPT) + langHint;
+    const hostUrl = provider.base_url || DEFAULT_BASE_URLS[provider.kind];
+    const requestBody = buildHttpRequestString(
+      provider.kind,
+      hostUrl,
+      parsed.modelName,
+      systemPrompt,
+      apiMessages,
+      chatStreamEnabled,
+      chatThinkingLevel,
+      canvasBackgroundUrl || undefined,
+    );
     updateCanvasChatRequestDetail(requestId, {
       systemPrompt,
       messages: apiMessages,
+      requestBody,
+      contextJson,
     });
 
     const accumulatedContent: string[] = [];

@@ -9,17 +9,197 @@ import { IconClose, IconMaximize, IconArrowRight, IconStop, IconMoreHorizontal, 
 import { useI18n } from '../../i18n/context';
 import { useEditorStore } from '../../store';
 import { resolveTemplate } from '../../utils/resolveTemplate';
+import { highlightJson } from '../../utils/json-highlight';
 import type { CanvasChatRequestLog } from '../../types/chat';
 
-function formatDebugMessages(log: CanvasChatRequestLog): string {
-  const messages = log.detail?.messages ?? [];
-  if (messages.length === 0) return 'Request payload was not sent.';
-  return messages.map((message, index) => {
-    const content = typeof message.content === 'string'
-      ? message.content
-      : JSON.stringify(message.content, null, 2);
-    return `[${index + 1}] ${message.role}\n${content}`;
-  }).join('\n\n');
+// ─── Terminal 5 段折叠条目定义 ──────────────────────────────────────────
+
+interface TerminalSection {
+  kind: string;
+  label: string;
+  status: 'success' | 'error';
+  content: string;
+  /** 内容类型：'json' | 'text' | 'mixed'，决定是否应用 JSON 高亮 */
+  contentType: 'json' | 'text' | 'http' | 'mixed';
+}
+
+/** 从请求日志中提取 5 个展示段 */
+function buildTerminalSections(log: CanvasChatRequestLog): TerminalSection[] {
+  const detail = log.detail;
+  if (!detail) return [];
+
+  const overallOk = log.status === 'success';
+  const sections: TerminalSection[] = [];
+
+  // 1. System Prompt
+  if (detail.systemPrompt) {
+    sections.push({
+      kind: 'system_prompt',
+      label: `System Prompt (${(detail.systemPrompt.length / 1024).toFixed(1)}KB)`,
+      status: 'success',
+      content: detail.systemPrompt,
+      contentType: 'text',
+    });
+  }
+
+  // 2. User Prompt（最后一条 user 消息）
+  const userMsg = detail.messages?.filter(m => m.role === 'user').slice(-1)[0];
+  if (userMsg) {
+    const userContent = typeof userMsg.content === 'string' ? userMsg.content : JSON.stringify(userMsg.content, null, 2);
+    sections.push({
+      kind: 'user_prompt',
+      label: `User Prompt (${(userContent.length / 1024).toFixed(1)}KB)`,
+      status: 'success',
+      content: userContent,
+      contentType: 'mixed',
+    });
+  }
+
+  // 3. Context（画布上下文 JSON）
+  if (detail.contextJson) {
+    sections.push({
+      kind: 'context',
+      label: `Context (${(detail.contextJson.length / 1024).toFixed(1)}KB)`,
+      status: 'success',
+      content: detail.contextJson,
+      contentType: 'json',
+    });
+  }
+
+  // 4. Request Body（HTTP 请求）
+  if (detail.requestBody) {
+    sections.push({
+      kind: 'request_body',
+      label: `Request Body (${(detail.requestBody.length / 1024).toFixed(1)}KB)`,
+      status: 'success',
+      content: detail.requestBody,
+      contentType: 'http',
+    });
+  }
+
+  // 5. Response Body
+  const respText = detail.responseText || detail.parseError || '';
+  if (respText) {
+    sections.push({
+      kind: 'response_body',
+      label: `Response Body (${(respText.length / 1024).toFixed(1)}KB)`,
+      status: overallOk ? 'success' : 'error',
+      content: respText,
+      contentType: 'json',
+    });
+  }
+
+  return sections;
+}
+
+/** 对文本应用高亮 */
+function highlightContent(text: string, contentType: string): string {
+  if (contentType === 'json') {
+    // 尝试解析提取 JSON
+    const trimmed = text.trim();
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+      try {
+        return highlightJson(trimmed);
+      } catch {
+        // fallback
+      }
+    }
+  }
+  if (contentType === 'http') {
+    // HTTP 请求：高亮 method 和 header 行
+    return text.split('\n').map(line => {
+      if (/^(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)\s/.test(line)) {
+        return line.replace(
+          /^(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)(\s+\S+)(\s+HTTP\/[\d.]+)$/,
+          (_, method, path, httpVer) =>
+            `<span class="hl-method">${method}</span>${escapeHtml(path)}<span class="hl-punct">${escapeHtml(httpVer)}</span>`,
+        );
+      }
+      if (/^[A-Za-z][A-Za-z0-9-]*:/.test(line)) {
+        const idx = line.indexOf(':');
+        return `<span class="hl-header-key">${escapeHtml(line.slice(0, idx))}</span>:<span class="hl-header-val">${escapeHtml(line.slice(idx + 1))}</span>`;
+      }
+      if (/^\s*[{[\]]/.test(line)) {
+        try { return highlightJson(line); } catch { return escapeHtml(line); }
+      }
+      return escapeHtml(line);
+    }).join('\n');
+  }
+  if (contentType === 'mixed') {
+    // 混合内容：检测 ```json 代码块
+    return text.split(/(```json[\s\S]*?```)/).map(part => {
+      if (part.startsWith('```json')) {
+        const inner = part.replace(/```json\n?/, '').replace(/```\n?$/, '');
+        try {
+          return `<span class="hl-comment">// --- JSON ---</span>\n${highlightJson(inner)}`;
+        } catch {
+          return escapeHtml(part);
+        }
+      }
+      return escapeHtml(part);
+    }).join('');
+  }
+  return escapeHtml(text);
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/** 渲染 Terminal 的 5 个折叠区域 */
+function renderTerminalSections(
+  log: CanvasChatRequestLog | null,
+  expandedStepId: string | null,
+  setExpandedStepId: (id: string | null) => void,
+  t: (key: string, vars?: Record<string, unknown>) => string,
+  _highlightJson: (json: string) => string,
+  onCopy: (section: string, text: string) => void,
+  copiedSection: string | null,
+): React.ReactNode {
+  if (!log || !log.detail) return null;
+
+  const sections = buildTerminalSections(log);
+  if (sections.length === 0) return null;
+
+  return sections.map(section => {
+    const isExpanded = expandedStepId === section.kind;
+    return (
+      <button
+        key={section.kind}
+        type="button"
+        className={`canvas-chat-terminal-step ${section.status}${isExpanded ? ' expanded' : ''}`}
+        onClick={() => setExpandedStepId(isExpanded ? null : section.kind)}
+      >
+        <div className="canvas-chat-terminal-step-row">
+          <span className="canvas-chat-terminal-step-indicator">
+            {isExpanded ? '▾' : '▸'}
+          </span>
+          <span className="canvas-chat-terminal-step-kind">{section.kind}</span>
+          <span className="canvas-chat-terminal-step-label">{section.label}</span>
+        </div>
+        {isExpanded && (
+          <div className="canvas-chat-terminal-step-detail">
+            <pre
+              className="canvas-chat-terminal-pre-highlight"
+              dangerouslySetInnerHTML={{
+                __html: highlightContent(section.content, section.contentType),
+              }}
+            />
+            <button
+              type="button"
+              className="canvas-chat-terminal-copy-btn"
+              onClick={e => {
+                e.stopPropagation();
+                onCopy(section.kind, section.content);
+              }}
+            >
+              {copiedSection === section.kind ? t('chat.canvasSessions.copied') : t('chat.canvasSessions.copy')}
+            </button>
+          </div>
+        )}
+      </button>
+    );
+  });
 }
 
 export default function CanvasChatPanel() {
@@ -69,6 +249,7 @@ export default function CanvasChatPanel() {
   const [applyToast, setApplyToast] = useState<string | null>(null);
   const [detailLogId, setDetailLogId] = useState<string | null>(null);
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
+  const [expandedStepId, setExpandedStepId] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -400,7 +581,7 @@ export default function CanvasChatPanel() {
           </div>
           <div className="canvas-chat-request-detail-body">
             {renderDebugBlock('Metadata', metadataText, 'metadata')}
-            {renderDebugBlock('Request', `${detail?.systemPrompt ?? 'System prompt was not captured.'}\n\n${formatDebugMessages(detailLog)}`, 'request')}
+            {renderDebugBlock('Request', detail?.requestBody ?? 'Request payload was not captured.', 'request')}
             {renderDebugBlock('Response', detail?.responseText ?? 'Response was not captured.', 'response')}
             {renderDebugBlock('Parsed JSON', detail?.parsedJsonText ?? 'No JSON code block was extracted.', 'parsed-json')}
             {renderDebugBlock('Error', detail?.parseError ?? 'Request completed without a parse error.', 'error')}
@@ -747,31 +928,21 @@ export default function CanvasChatPanel() {
               <div className="canvas-chat-workbench-section-title">{t('chat.canvasSessions.terminal')}</div>
               {activeTerminalLog ? (
                 <div className="canvas-chat-terminal-log">
-                  <div className={`canvas-chat-terminal-request ${activeTerminalLog.status}`}>
+                  <button
+                    type="button"
+                    className={`canvas-chat-terminal-request ${activeTerminalLog.status}`}
+                    onClick={() => setDetailLogId(activeTerminalLog.id)}
+                    title="查看请求完整详情"
+                  >
                     <span className="canvas-chat-terminal-request-title">
                       {activeTerminalLog.promptPreview}
                     </span>
                     <span className="canvas-chat-terminal-request-status">
                       {activeTerminalLog.status}
                     </span>
-                  </div>
-                  <div className="canvas-chat-terminal-steps">
-                    {activeTerminalLog.steps.map(step => (
-                      <button
-                        key={step.id}
-                        type="button"
-                        className={`canvas-chat-terminal-step ${step.status}`}
-                        onClick={() => setDetailLogId(activeTerminalLog.id)}
-                      >
-                        <div className="canvas-chat-terminal-step-row">
-                          <span className="canvas-chat-terminal-step-kind">{step.kind}</span>
-                          <span className="canvas-chat-terminal-step-label">{step.label}</span>
-                        </div>
-                        {step.detail && (
-                          <div className="canvas-chat-terminal-step-detail">{step.detail}</div>
-                        )}
-                      </button>
-                    ))}
+                  </button>
+                  <div className="canvas-chat-terminal-sections">
+                    {renderTerminalSections(activeTerminalLog, expandedStepId, setExpandedStepId, t, highlightJson, handleCopyDebugText, copiedSection)}
                   </div>
                 </div>
               ) : (

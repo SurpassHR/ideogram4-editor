@@ -818,9 +818,17 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
   setCanvasChatOpen: (open) => set({ isCanvasChatOpen: open }),
 
-  setCanvasChatMessages: (messages) => set(state => ({
-    canvasChatMessages: messages,
-  })),
+  setCanvasChatMessages: (messages) => {
+    set(state => ({
+      canvasChatMessages: messages,
+      canvasChatSessions: state.canvasChatSessions.map(session =>
+        session.id === state.activeCanvasChatSessionId
+          ? { ...session, messages, updatedAt: Date.now() }
+          : session
+      ),
+    }));
+    persistCanvasChatRuntime(get());
+  },
 
   addCanvasChatMessage: (message) => {
     set(state => {
