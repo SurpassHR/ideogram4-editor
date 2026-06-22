@@ -243,6 +243,7 @@ body {
   background-color: var(--canvas-bg);
   border: 2px dashed var(--border);
   border-radius: 4px;
+  /* 棋盘格由 20px 固定值控制，canvas 尺寸变化时 tile 大小保持不变 */
 }
 
 /* Alt 创建模式：画布及 box/resize-handle 光标统一为 crosshair，提示可在重叠区域绘制新 box */
@@ -298,8 +299,8 @@ body {
 .bounding-box-dashed {
   position: absolute;
   inset: 0;
-  border: 2px dashed var(--text-muted);
-  border-radius: 2px;
+  border: 3px dashed var(--text-muted);
+  border-radius: 3px;
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.15s, border-color 0.15s;
@@ -309,9 +310,9 @@ body {
 .bounding-box-solid {
   position: absolute;
   inset: 0;
-  border: 2px solid var(--box-border);
+  border: 3px solid var(--box-border);
   background: var(--box-fill);
-  border-radius: 2px;
+  border-radius: 3px;
   pointer-events: none;
   transition: border-color 0.15s, background 0.15s;
 }
@@ -423,20 +424,20 @@ body {
 }
 
 .bounding-box-label {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text);
   white-space: pre-wrap;
   word-break: break-word;
   overflow-y: auto;
   flex: 1;
   min-width: 0;
-  line-height: 1.35;
+  line-height: 1.4;
   pointer-events: none;
   max-height: 100%;
 }
 
 .bounding-box-input {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text);
   background: var(--bg);
   border: 1px solid var(--primary);
