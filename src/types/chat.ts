@@ -65,6 +65,10 @@ export interface CanvasChatRequestLogDetail {
   requestBody?: string;
   /** 画布上下文 JSON（buildCanvasChatContext 的输出） */
   contextJson?: string;
+  /** HTTP 响应状态码 */
+  responseStatus?: number;
+  /** HTTP 响应头 */
+  responseHeaders?: Record<string, string>;
   responseText?: string;
   parsedJsonText?: string;
   parseError?: string;

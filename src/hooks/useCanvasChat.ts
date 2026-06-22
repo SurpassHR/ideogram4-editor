@@ -588,6 +588,12 @@ export function useCanvasChat() {
           setIsLoading(false);
           resolve();
         },
+        onResponse: (status, headers) => {
+          updateCanvasChatRequestDetail(requestId, {
+            responseStatus: status,
+            responseHeaders: headers,
+          });
+        },
         onAbort: () => abortHandler(resolve),
         onError: finishWithError,
       }, {

@@ -13,6 +13,8 @@ export interface StreamCallbacks {
   onDone: (fullText: string) => void;
   onError: (error: string) => void;
   onAbort?: () => void;
+  /** 捕获 HTTP 响应状态和头信息，用于调试展示 */
+  onResponse?: (status: number, headers: Record<string, string>) => void;
 }
 
 export interface ChatRunOptions {
@@ -183,6 +185,7 @@ async function callOpenAIStream(
     }),
     signal,
   });
+  callbacks.onResponse?.(resp.status, Object.fromEntries(resp.headers.entries()));
 
   if (!resp.ok) {
     const body = await resp.text().catch(() => '');
@@ -240,6 +243,7 @@ async function callAnthropicStream(
     }),
     signal,
   });
+  callbacks.onResponse?.(resp.status, Object.fromEntries(resp.headers.entries()));
 
   if (!resp.ok) {
     const body = await resp.text().catch(() => '');
@@ -304,6 +308,7 @@ async function callGeminiStream(
     }),
     signal,
   });
+  callbacks.onResponse?.(resp.status, Object.fromEntries(resp.headers.entries()));
 
   if (!resp.ok) {
     const body = await resp.text().catch(() => '');

@@ -77,18 +77,32 @@ function buildTerminalSections(log: CanvasChatRequestLog): TerminalSection[] {
     });
   }
 
-  // 5. Response Body — 展示原始响应体（优先 responseText，回退 parseError）
+  // 5. Response Body — 展示 HTTP 响应（状态行 + 响应头 + 响应体）
   const hasResponse = detail.responseText !== undefined || detail.parseError !== undefined;
   if (hasResponse) {
-    const content = detail.responseText !== undefined
+    const bodyContent = detail.responseText !== undefined
       ? detail.responseText
       : (detail.parseError || '');
+    const statusCode = detail.responseStatus ?? (overallOk ? 200 : 500);
+    const statusText = overallOk ? 'OK' : 'Error';
+    const headers = detail.responseHeaders ?? {};
+    const headerLines = Object.entries(headers)
+      .filter(([k]) => !['transfer-encoding', 'accept-ranges', 'vary', 'cache-control'].includes(k.toLowerCase()))
+      .map(([k, v]) => `${k}: ${v}`)
+      .join('\n');
+    const content = [
+      `HTTP/1.1 ${statusCode} ${statusText}`,
+      headerLines,
+      headerLines ? `Content-Length: ${new TextEncoder().encode(bodyContent).length}` : '',
+      '',
+      bodyContent,
+    ].filter(Boolean).join('\n');
     sections.push({
       kind: 'response_body',
-      label: `Response Body (${(content.length / 1024).toFixed(1)}KB)`,
+      label: `Response Body (${(bodyContent.length / 1024).toFixed(1)}KB)`,
       status: overallOk ? 'success' : 'error',
       content,
-      contentType: 'json',
+      contentType: 'http',
     });
   }
 
@@ -109,8 +123,14 @@ function highlightContent(text: string, contentType: string): string {
     }
   }
   if (contentType === 'http') {
-    // HTTP 请求：高亮 method 和 header 行
+    // HTTP 请求/响应：高亮状态行、header 行和 body
     return text.split('\n').map(line => {
+      // HTTP 响应状态行: HTTP/1.1 200 OK
+      const respMatch = line.match(/^(HTTP\/[\d.]+)\s+(\d+)\s+(.+)/);
+      if (respMatch) {
+        return `<span class="hl-punct">${escapeHtml(respMatch[1])}</span> <span class="hl-num">${escapeHtml(respMatch[2])}</span> <span class="hl-str">${escapeHtml(respMatch[3])}</span>`;
+      }
+      // HTTP 请求行: POST /path HTTP/1.1
       if (/^(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)\s/.test(line)) {
         return line.replace(
           /^(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)(\s+\S+)(\s+HTTP\/[\d.]+)$/,
@@ -118,10 +138,12 @@ function highlightContent(text: string, contentType: string): string {
             `<span class="hl-method">${method}</span>${escapeHtml(path)}<span class="hl-punct">${escapeHtml(httpVer)}</span>`,
         );
       }
+      // Header 行
       if (/^[A-Za-z][A-Za-z0-9-]*:/.test(line)) {
         const idx = line.indexOf(':');
         return `<span class="hl-header-key">${escapeHtml(line.slice(0, idx))}</span>:<span class="hl-header-val">${escapeHtml(line.slice(idx + 1))}</span>`;
       }
+      // JSON body
       if (/^\s*[{[\]]/.test(line)) {
         try { return highlightJson(line); } catch { return escapeHtml(line); }
       }
