@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useLayoutEffect } from 'react';
 import { useEditorStore } from '../../store';
 import { useArtboardZoom } from '../../hooks/useArtboardZoom';
 import { useI18n } from '../../i18n/context';
@@ -39,8 +39,8 @@ export default function Artboard() {
     return () => ro.disconnect();
   }, [fitToArtboard]);
 
-  // canvas 尺寸变化时自适应
-  useEffect(() => {
+  // canvas 尺寸变化时自适应（useLayoutEffect 确保 zoom/pan 在 paint 前同步更新，消除错位帧）
+  useLayoutEffect(() => {
     fitToArtboard();
   }, [canvasW, canvasH, fitToArtboard]);
 
