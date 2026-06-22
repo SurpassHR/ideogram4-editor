@@ -299,13 +299,21 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
           });
           setDragPreviewOffset({ boxIds: [...ir.dragBoxIds], dx, dy });
         } else {
-          ir.currentBoxElement.style.left = `${ir.initialBoxX + dx}px`;
-          ir.currentBoxElement.style.top = `${ir.initialBoxY + dy}px`;
+          const newX = ir.initialBoxX + dx;
+          const newY = ir.initialBoxY + dy;
+          ir.currentBoxElement.style.left = `${newX}px`;
+          ir.currentBoxElement.style.top = `${newY}px`;
+          // 实时更新 store，使 BoundingBox 的 clip-path 和虚线样式即时响应
+          updateBox(ir.currentBoxElement.id, { x: newX, y: newY });
           setDragPreviewOffset(null);
         }
       } else if (ir.mode === 'resizing') {
-        ir.currentBoxElement.style.width = `${Math.max(10, ir.initialBoxW + (x - ir.dragStartX))}px`;
-        ir.currentBoxElement.style.height = `${Math.max(10, ir.initialBoxH + (y - ir.dragStartY))}px`;
+        const newW = Math.max(10, ir.initialBoxW + (x - ir.dragStartX));
+        const newH = Math.max(10, ir.initialBoxH + (y - ir.dragStartY));
+        ir.currentBoxElement.style.width = `${newW}px`;
+        ir.currentBoxElement.style.height = `${newH}px`;
+        // 实时更新 store，使 BoundingBox 的 clip-path 和虚线样式即时响应
+        updateBox(ir.currentBoxElement.id, { w: newW, h: newH });
       }
     };
 

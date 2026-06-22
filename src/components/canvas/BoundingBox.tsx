@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { IconClose } from '../ui/icons';
 import type { Box } from '../../types';
 import type { InteractionMode } from '../../types';
@@ -18,6 +18,8 @@ export default function BoundingBox({ box, isSelected, boxRef, interactionMode, 
   const setEditingBoxId = useEditorStore(s => s.setEditingBoxId);
   const updateBox = useEditorStore(s => s.updateBox);
   const clearBoxImage = useEditorStore(s => s.clearBoxImage);
+  const canvasW = useEditorStore(s => s.canvasW);
+  const canvasH = useEditorStore(s => s.canvasH);
   const isEditing = editingBoxId === box.id;
   const [editText, setEditText] = useState(box.text);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -65,6 +67,25 @@ export default function BoundingBox({ box, isSelected, boxRef, interactionMode, 
     clearBoxImage(box.id);
   }, [box.id, clearBoxImage]);
 
+  // 计算 clip-path：将实线边框裁切到画布边界内
+  const clipStyle = useMemo(() => {
+    const clipTop = Math.max(0, -box.y);
+    const clipLeft = Math.max(0, -box.x);
+    const clipBottom = Math.max(0, (box.y + box.h) - canvasH);
+    const clipRight = Math.max(0, (box.x + box.w) - canvasW);
+    return { clipPath: `inset(${clipTop}px ${clipRight}px ${clipBottom}px ${clipLeft}px)` };
+  }, [box.x, box.y, box.w, box.h, canvasW, canvasH]);
+
+  // 判断 box 是否完全在画布内/外，控制虚线/实线层的显隐
+  const isFullyInside = useMemo(
+    () => box.x >= 0 && box.y >= 0 && box.x + box.w <= canvasW && box.y + box.h <= canvasH,
+    [box.x, box.y, box.w, box.h, canvasW, canvasH],
+  );
+  const isFullyOutside = useMemo(
+    () => box.x + box.w <= 0 || box.y + box.h <= 0 || box.x >= canvasW || box.y >= canvasH,
+    [box.x, box.y, box.w, box.h, canvasW, canvasH],
+  );
+
   return (
     <div
       id={box.id}
@@ -82,6 +103,21 @@ export default function BoundingBox({ box, isSelected, boxRef, interactionMode, 
         onContextMenu?.(e, box.id);
       }}
     >
+      {/* 虚线边框层（底层，始终完整显示） */}
+      <div
+        className="bounding-box-dashed"
+        style={{ opacity: isFullyInside ? 0 : 1 }}
+      />
+
+      {/* 实线边框+背景填充层（clip-path 裁切到画布边界内） */}
+      <div
+        className="bounding-box-solid"
+        style={{
+          ...clipStyle,
+          opacity: isFullyOutside ? 0 : 1,
+        }}
+      />
+
       {box.imageDataUrl && (
         <img
           className="bounding-box-bg-img"

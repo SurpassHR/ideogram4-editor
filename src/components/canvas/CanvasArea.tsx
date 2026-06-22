@@ -217,7 +217,6 @@ export default function CanvasArea({ zoom, panX, panY, screenToCanvas, onFitToAr
         width: canvasW,
         height: canvasH,
         position: 'relative',
-        overflow: 'hidden',
         userSelect: 'none',
         touchAction: 'none',
       }}
@@ -259,75 +258,79 @@ export default function CanvasArea({ zoom, panX, panY, screenToCanvas, onFitToAr
             onContextMenu={handleBoxContextMenu}
           />
         ))}
-        {drawingGhost && (
-          <div
-            className="bounding-box"
-            style={{
-              left: drawingGhost.x,
-              top: drawingGhost.y,
-              width: drawingGhost.w,
-              height: drawingGhost.h,
-              pointerEvents: 'none',
-              zIndex: 5,
-            }}
-          />
-        )}
-        {marqueeGhost && (
-          <div
-            className="marquee-selection"
-            style={{
-              left: marqueeGhost.x,
-              top: marqueeGhost.y,
-              width: marqueeGhost.w,
-              height: marqueeGhost.h,
-            }}
-          >
-            <svg
-              className="marquee-ants"
-              viewBox={`0 0 ${marqueeGhost.w} ${marqueeGhost.h}`}
-              preserveAspectRatio="none"
-              aria-hidden="true"
+
+        {/* 交互层容器（overflow: hidden 裁切拖拽/框选时的溢出元素） */}
+        <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
+          {drawingGhost && (
+            <div
+              className="bounding-box"
+              style={{
+                left: drawingGhost.x,
+                top: drawingGhost.y,
+                width: drawingGhost.w,
+                height: drawingGhost.h,
+                pointerEvents: 'none',
+                zIndex: 5,
+              }}
+            />
+          )}
+          {marqueeGhost && (
+            <div
+              className="marquee-selection"
+              style={{
+                left: marqueeGhost.x,
+                top: marqueeGhost.y,
+                width: marqueeGhost.w,
+                height: marqueeGhost.h,
+              }}
             >
-              <rect
-                className="marquee-ants-path"
-                x="1"
-                y="1"
-                width={Math.max(0, marqueeGhost.w - 2)}
-                height={Math.max(0, marqueeGhost.h - 2)}
-                rx="2"
-                ry="2"
-              />
-            </svg>
-          </div>
-        )}
-        {selectedBounds && !marqueeGhost && (
-          <div
-            className="marquee-selection selected-bounds-marquee"
-            style={{
-              left: selectedBounds.x,
-              top: selectedBounds.y,
-              width: selectedBounds.w,
-              height: selectedBounds.h,
-            }}
-          >
-            <svg
-              className="marquee-ants"
-              viewBox={`0 0 ${selectedBounds.w} ${selectedBounds.h}`}
-              preserveAspectRatio="none"
-              aria-hidden="true"
+              <svg
+                className="marquee-ants"
+                viewBox={`0 0 ${marqueeGhost.w} ${marqueeGhost.h}`}
+                preserveAspectRatio="none"
+                aria-hidden="true"
+              >
+                <rect
+                  className="marquee-ants-path"
+                  x="1"
+                  y="1"
+                  width={Math.max(0, marqueeGhost.w - 2)}
+                  height={Math.max(0, marqueeGhost.h - 2)}
+                  rx="2"
+                  ry="2"
+                />
+              </svg>
+            </div>
+          )}
+          {selectedBounds && !marqueeGhost && (
+            <div
+              className="marquee-selection selected-bounds-marquee"
+              style={{
+                left: selectedBounds.x,
+                top: selectedBounds.y,
+                width: selectedBounds.w,
+                height: selectedBounds.h,
+              }}
             >
-              <rect
-                className="marquee-ants-path"
-                x="1"
-                y="1"
-                width={Math.max(0, selectedBounds.w - 2)}
-                height={Math.max(0, selectedBounds.h - 2)}
-                rx="2"
-                ry="2"
-              />
-            </svg>
-          </div>
-        )}
+              <svg
+                className="marquee-ants"
+                viewBox={`0 0 ${selectedBounds.w} ${selectedBounds.h}`}
+                preserveAspectRatio="none"
+                aria-hidden="true"
+              >
+                <rect
+                  className="marquee-ants-path"
+                  x="1"
+                  y="1"
+                  width={Math.max(0, selectedBounds.w - 2)}
+                  height={Math.max(0, selectedBounds.h - 2)}
+                  rx="2"
+                  ry="2"
+                />
+              </svg>
+            </div>
+          )}
+        </div>
       </div>
       <ChatPanel />
 

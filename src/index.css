@@ -286,20 +286,46 @@ body {
 /* Bounding box */
 .bounding-box {
   position: absolute;
-  border: 2px solid var(--box-border);
-  background: var(--box-fill);
   cursor: grab;
   box-sizing: border-box;
   z-index: 1;
   border-radius: 2px;
-  transition: border-color 0.15s, background 0.15s;
   display: flex;
   align-items: flex-start;
 }
 
-.bounding-box.selected {
+/* 虚线边框层（底层，始终完整显示） */
+.bounding-box-dashed {
+  position: absolute;
+  inset: 0;
+  border: 2px dashed var(--text-muted);
+  border-radius: 2px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s, border-color 0.15s;
+}
+
+/* 实线边框+背景填充层（顶层，clip-path 裁切到画布内） */
+.bounding-box-solid {
+  position: absolute;
+  inset: 0;
+  border: 2px solid var(--box-border);
+  background: var(--box-fill);
+  border-radius: 2px;
+  pointer-events: none;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.bounding-box.selected .bounding-box-solid {
   border-color: var(--box-selected-border);
   background: var(--box-selected-fill);
+}
+
+.bounding-box.selected .bounding-box-dashed {
+  border-color: var(--box-selected-border);
+}
+
+.bounding-box.selected {
   z-index: 10;
 }
 
@@ -3328,6 +3354,89 @@ input[type="color"]::-webkit-color-swatch {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+}
+
+.settings-page-general {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px;
+}
+
+.settings-general-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(136, 136, 170, 0.1);
+}
+
+.settings-general-item:last-child {
+  border-bottom: none;
+}
+
+.settings-general-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settings-general-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.settings-general-desc {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.35;
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.toggle-switch input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.toggle-switch-track {
+  position: relative;
+  width: 32px;
+  height: 18px;
+  border-radius: 999px;
+  background: rgba(136, 136, 170, 0.28);
+  transition: background 0.15s;
+}
+
+.toggle-switch-track::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--text);
+  transition: transform 0.15s, background 0.15s;
+}
+
+.toggle-switch input:checked + .toggle-switch-track {
+  background: rgba(0, 212, 170, 0.46);
+}
+
+.toggle-switch input:checked + .toggle-switch-track::after {
+  transform: translateX(14px);
+  background: #fff;
 }
 
 .settings-page-workspace {
