@@ -251,7 +251,7 @@ describe('sendChatMessageStream', () => {
     });
   });
 
-  it('openai_compat 不应发送 OpenAI 专有 thinking 参数', async () => {
+  it('openai_compat 也应发送 reasoning_effort（Grok/DeepSeek 等兼容 API 均支持）', async () => {
     mockFetch.mockResolvedValue(makeSSEResponse([
       'data: {"choices":[{"delta":{"content":"ok"}}]}\n',
       'data: [DONE]\n',
@@ -259,7 +259,7 @@ describe('sendChatMessageStream', () => {
 
     await sendChatMessageWithOptions(
       makeProvider('openai_compat'),
-      'test-model',
+      'grok-3',
       [{ role: 'user', content: 'Hi' }],
       'Be helpful.',
       {
@@ -270,7 +270,40 @@ describe('sendChatMessageStream', () => {
       { streamEnabled: true, thinkingLevel: 'high' },
     );
 
-    expect(JSON.parse(mockFetch.mock.calls[0][1].body as string)).not.toHaveProperty('reasoning_effort');
+    expect(JSON.parse(mockFetch.mock.calls[0][1].body as string)).toMatchObject({
+      stream: true,
+      reasoning_effort: 'high',
+    });
+  });
+
+  it('OpenAI 流式应提取 reasoning_content 作为 thinking 块', async () => {
+    const sseChunks = [
+      'data: {"choices":[{"delta":{"reasoning_content":"Let me think about this"}}]}\n',
+      'data: {"choices":[{"delta":{"content":"Final answer"}}]}\n',
+      'data: [DONE]\n',
+    ];
+    mockFetch.mockResolvedValue(makeSSEResponse(sseChunks));
+
+    const contentChunks: string[] = [];
+    const thinkingChunks: string[] = [];
+
+    await sendChatMessageStream(
+      makeProvider('openai'),
+      'o3-mini',
+      [{ role: 'user', content: 'Hi' }],
+      'Be helpful.',
+      {
+        onChunk: (chunk) => {
+          if (chunk.type === 'content') contentChunks.push(chunk.text);
+          if (chunk.type === 'thinking') thinkingChunks.push(chunk.text);
+        },
+        onDone: () => {},
+        onError: () => {},
+      },
+    );
+
+    expect(thinkingChunks).toEqual(['Let me think about this']);
+    expect(contentChunks).toEqual(['Final answer']);
   });
 
   it('Anthropic 流式请求应按 thinkingLevel 映射 thinking budget', async () => {

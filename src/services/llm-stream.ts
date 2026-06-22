@@ -194,6 +194,7 @@ async function callOpenAIStream(
 
   const reader = resp.body!.getReader();
   let accumulated = '';
+  let reasoningAccumulated = '';
 
   await readSSEStream(reader, (line) => {
     if (!line.startsWith('data: ')) return;
@@ -205,6 +206,10 @@ async function callOpenAIStream(
       if (delta?.content) {
         accumulated += delta.content;
         callbacks.onChunk({ type: 'content', text: delta.content });
+      }
+      if (delta?.reasoning_content) {
+        reasoningAccumulated += delta.reasoning_content;
+        callbacks.onChunk({ type: 'thinking', text: delta.reasoning_content });
       }
     } catch { /* skip unparseable lines */ }
   });
@@ -360,7 +365,7 @@ async function dispatchStreamCall(
       return callOpenAIStream(baseUrl, apiKey, model, [
         { role: 'system', content: systemPrompt },
         ...apiMessages,
-      ], callbacks, signal);
+      ], callbacks, signal, options.thinkingLevel);
     case 'anthropic':
       return callAnthropicStream(baseUrl, apiKey, model, systemPrompt, apiMessages, callbacks, signal, options.thinkingLevel);
     case 'gemini':

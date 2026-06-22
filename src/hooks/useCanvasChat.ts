@@ -94,7 +94,7 @@ function buildHttpRequestString(
         messages: msgs,
         stream: streamEnabled,
       };
-      if (thinkingLevel !== 'off' && providerKind === 'openai') {
+      if (thinkingLevel !== 'off') {
         (body as Record<string, unknown>).reasoning_effort = thinkingLevel;
       }
       extraHeaders = { Authorization: 'Bearer sk-••••••••' };
