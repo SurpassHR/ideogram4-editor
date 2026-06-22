@@ -77,14 +77,17 @@ function buildTerminalSections(log: CanvasChatRequestLog): TerminalSection[] {
     });
   }
 
-  // 5. Response Body
-  const respText = detail.responseText || detail.parseError || '';
-  if (respText) {
+  // 5. Response Body — 展示原始响应体（优先 responseText，回退 parseError）
+  const hasResponse = detail.responseText !== undefined || detail.parseError !== undefined;
+  if (hasResponse) {
+    const content = detail.responseText !== undefined
+      ? detail.responseText
+      : (detail.parseError || '');
     sections.push({
       kind: 'response_body',
-      label: `Response Body (${(respText.length / 1024).toFixed(1)}KB)`,
+      label: `Response Body (${(content.length / 1024).toFixed(1)}KB)`,
       status: overallOk ? 'success' : 'error',
-      content: respText,
+      content,
       contentType: 'json',
     });
   }

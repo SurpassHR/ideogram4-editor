@@ -497,7 +497,7 @@ export function useCanvasChat() {
           content: (partialResponse || '') + `\n\n[Stream Error: ${err}]`,
         });
         updateCanvasChatRequestDetail(requestId, {
-          ...(partialResponse ? { responseText: partialResponse } : {}),
+          responseText: partialResponse || '',
           parseError: err,
         });
         appendCanvasChatRequestStep(requestId, {
