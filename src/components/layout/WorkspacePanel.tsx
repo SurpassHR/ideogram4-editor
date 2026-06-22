@@ -134,6 +134,7 @@ export default function WorkspacePanel({ embedded = false }: WorkspacePanelProps
           chatResponseLang: state.chatResponseLang,
           chatStreamEnabled: state.chatStreamEnabled,
           chatThinkingLevel: state.chatThinkingLevel,
+          canvasChatAutoMaximize: state.canvasChatAutoMaximize,
         },
       });
       const packageJson = JSON.stringify(backup, null, 2);
@@ -236,6 +237,9 @@ export default function WorkspacePanel({ embedded = false }: WorkspacePanelProps
         setChatResponseLang(prefs.chatResponseLang);
         setChatStreamEnabled(prefs.chatStreamEnabled);
         if (isThinkingLevel(prefs.chatThinkingLevel)) setChatThinkingLevel(prefs.chatThinkingLevel);
+        if (typeof prefs.canvasChatAutoMaximize === 'boolean') {
+          useEditorStore.getState().setCanvasChatAutoMaximize(prefs.canvasChatAutoMaximize);
+        }
       }
 
       setWorkspaceBackupSettings({

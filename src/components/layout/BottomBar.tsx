@@ -10,6 +10,8 @@ export default function BottomBar() {
   const photoArtStyleMode = useEditorStore(s => s.photoArtStyleMode);
   const isCanvasChatOpen = useEditorStore(s => s.isCanvasChatOpen);
   const setCanvasChatOpen = useEditorStore(s => s.setCanvasChatOpen);
+  const canvasChatAutoMaximize = useEditorStore(s => s.canvasChatAutoMaximize);
+  const setCanvasChatMaximized = useEditorStore(s => s.setCanvasChatMaximized);
   const { t } = useI18n();
 
   const modeLabel = photoArtStyleMode === MODE_PHOTO ? 'Photo' : 'Art Style';
@@ -21,7 +23,12 @@ export default function BottomBar() {
         {/* 左侧：Canvas Chat 入口 */}
         <button
           className={`btn bottom-chat-btn ${isCanvasChatOpen ? 'active' : ''}`}
-          onClick={() => setCanvasChatOpen(!isCanvasChatOpen)}
+          onClick={() => {
+            setCanvasChatOpen(!isCanvasChatOpen);
+            if (canvasChatAutoMaximize && !isCanvasChatOpen) {
+              setCanvasChatMaximized(true);
+            }
+          }}
           title={t('canvasChat.title')}
         >
           <IconBrain size={14} />

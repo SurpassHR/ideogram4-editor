@@ -355,6 +355,8 @@ interface EditorStore {
   clearCanvasChat: () => void;
   isCanvasChatLoading: boolean;
   setCanvasChatLoading: (loading: boolean) => void;
+  canvasChatAutoMaximize: boolean;
+  setCanvasChatAutoMaximize: (enabled: boolean) => void;
   updateCanvasChatMessage: (messageId: string, updates: Partial<Omit<ChatMessage, 'id'>>) => void;
   startCanvasChatRequest: (promptPreview: string) => string;
   appendCanvasChatRequestStep: (
@@ -705,6 +707,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   activeCanvasChatRequestId: null,
   canvasChatMessages: initialCanvasChatRuntime.messages,
   isCanvasChatLoading: false,
+  canvasChatAutoMaximize: false,
   pendingIdeogramOutput: initialCanvasChatRuntime.pendingIdeogramOutput,
 
   createCanvasChatSession: (title) => {
@@ -815,6 +818,8 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   },
 
   setCanvasChatMaximized: (maximized) => set({ isCanvasChatMaximized: maximized }),
+
+  setCanvasChatAutoMaximize: (enabled) => set({ canvasChatAutoMaximize: enabled }),
 
   setCanvasChatOpen: (open) => set({ isCanvasChatOpen: open }),
 

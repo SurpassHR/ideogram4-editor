@@ -54,6 +54,7 @@ export interface WorkspaceUiPreferences {
   chatResponseLang: string;
   chatStreamEnabled: boolean;
   chatThinkingLevel: ChatThinkingLevel;
+  canvasChatAutoMaximize?: boolean;
 }
 
 export interface WorkspaceBackupPackageV1 {

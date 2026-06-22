@@ -39,12 +39,20 @@ export interface Translations {
         description: string;
         status: string;
       };
+      general: {
+        title: string;
+        description: string;
+      };
       workspace: {
         title: string;
         description: string;
         status: string;
         statusWithGist: string;
       };
+    };
+    general: {
+      canvasChatAutoMaximize: string;
+      canvasChatAutoMaximizeDesc: string;
     };
     workspace: {
       heading: string;
@@ -430,6 +438,10 @@ const en: Translations = {
         description: 'Configure the models used by box chat and canvas composition.',
         status: 'Provider list opens here',
       },
+      general: {
+        title: 'General',
+        description: 'Configure application-wide behavior and default interactions.',
+      },
       presets: {
         title: 'Prompt Presets',
         description: 'Manage reusable templates for per-box chat and canvas chat.',
@@ -495,6 +507,10 @@ const en: Translations = {
         llmProviders: 'LLM Providers',
         uiPreferences: 'UI Preferences',
       },
+    },
+    general: {
+      canvasChatAutoMaximize: 'Auto-maximize Canvas Chat',
+      canvasChatAutoMaximizeDesc: 'Open the canvas composition panel in full-screen mode when clicking the Chat button.',
     },
   },
   panels: {
@@ -826,6 +842,10 @@ const zh: Translations = {
         description: '配置边界框对话和画布构图使用的模型。',
         status: '提供商列表在此管理',
       },
+      general: {
+        title: '常规',
+        description: '配置全局行为和默认交互方式。',
+      },
       presets: {
         title: '提示词预设',
         description: '管理 per-box chat 和 canvas chat 的可复用模板。',
@@ -891,6 +911,10 @@ const zh: Translations = {
         llmProviders: 'LLM 提供商',
         uiPreferences: 'UI 偏好',
       },
+    },
+    general: {
+      canvasChatAutoMaximize: '点击 Canvas Chat 时自动最大化',
+      canvasChatAutoMaximizeDesc: '打开画布构图对话面板时直接进入全屏模式。',
     },
   },
   panels: {

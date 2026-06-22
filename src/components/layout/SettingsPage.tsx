@@ -5,8 +5,9 @@ import SystemPromptPanel from '../chat/SystemPromptPanel';
 import { useI18n } from '../../i18n/context';
 import { useEditorStore } from '../../store';
 import WorkspacePanel from './WorkspacePanel';
+import GeneralSettingsPanel from './GeneralSettingsPanel';
 
-type SettingsModuleId = 'llm' | 'presets' | 'sysprompt' | 'workspace';
+type SettingsModuleId = 'llm' | 'presets' | 'sysprompt' | 'workspace' | 'general';
 
 export default function SettingsPage() {
   const { t } = useI18n();
@@ -21,6 +22,13 @@ export default function SettingsPage() {
     : t('chat.systemPrompt.default');
 
   const modules = useMemo(() => [
+    {
+      id: 'general' as const,
+      marker: 'GE',
+      title: t('settings.modules.general.title'),
+      description: t('settings.modules.general.description'),
+      status: '',
+    },
     {
       id: 'llm' as const,
       marker: 'LLM',
@@ -57,6 +65,8 @@ export default function SettingsPage() {
 
   const renderActiveModule = () => {
     switch (activeModule) {
+      case 'general':
+        return <GeneralSettingsPanel />;
       case 'presets':
         return <PresetManagerPanel embedded />;
       case 'sysprompt':
