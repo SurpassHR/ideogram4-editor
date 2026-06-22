@@ -22,6 +22,18 @@ interface ChatMessageProps {
   isLoading?: boolean;
 }
 
+/** 检测纯文本是否为有效 JSON（用于兜底渲染 models 不返回 ```json 的情况） */
+function isJsonText(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return false;
+  try {
+    JSON.parse(trimmed);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function formatTime(ts: number): string {
   const d = new Date(ts);
   const h = String(d.getHours()).padStart(2, '0');
@@ -114,6 +126,20 @@ export default function ChatMessage({ message, onAdopt, onDismiss, onApply, onRe
               return (
                 <pre key={i}>
                   <code className={seg.lang ? `language-${seg.lang}` : ''}>{seg.code}</code>
+                </pre>
+              );
+            }
+            // 兜底：LLM 可能返回纯 JSON 而不包裹 ```json 代码块
+            if (isJsonText(seg.text)) {
+              if (message.canvasSnapshotUrl) {
+                return <JsonCodeBlock key={i} json={seg.text} snapshotUrl={message.canvasSnapshotUrl} />;
+              }
+              return (
+                <pre key={i}>
+                  <code
+                    className="language-json"
+                    dangerouslySetInnerHTML={{ __html: highlightJson(seg.text) }}
+                  />
                 </pre>
               );
             }

@@ -561,7 +561,20 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     ...(state.activeChatBoxId ? { isChatOpen: false, activeChatBoxId: null } : {}),
   })),
 
-  clearBoxes: () => set({ boxes: [], selectedBoxId: null, selectedBoxIds: [] }),
+  clearBoxes: () => set({
+    boxes: [],
+    selectedBoxId: null,
+    selectedBoxIds: [],
+    // 同时清除全局设置，避免构建 LLM 上下文时仍携带旧值
+    globalPalette: [],
+    highLevelDescription: '',
+    aesthetics: '',
+    lighting: '',
+    medium: '',
+    artStyle: '',
+    background: '',
+    photoArtStyleMode: MODE_ARTSTYLE,
+  }),
 
   globalPalette: [],
   highLevelDescription: '',

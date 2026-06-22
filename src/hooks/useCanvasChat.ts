@@ -299,9 +299,13 @@ export function useCanvasChat() {
     const apiMessages: ChatMessageForApi[] = allMessages.map(m => ({ role: m.role, content: m.content }));
     const lastUserIdx = apiMessages.map((m, i) => (m.role === 'user' ? i : -1)).reduce((a, b) => Math.max(a, b), -1);
     if (lastUserIdx >= 0) {
+      const bgHint = canvasBackgroundUrl
+        ? 'Background reference image: present (attached to this message)'
+        : 'Background reference image: none';
       const targetHint = [
         `Target output canvas: ${canvasChatTargetSize} x ${canvasChatTargetSize}`,
         'Keep bbox values in the 0-1000 normalized coordinate system; do not use 1024 as a default canvas size.',
+        bgHint,
       ].join('\n');
       let enriched = `${targetHint}\n\nCurrent canvas state (JSON prompt):\n\`\`\`json\n${contextJson}\n\`\`\`\n\nMy composition request: ${apiMessages[lastUserIdx].content}`;
       if (retryContext?.feedback) enriched += buildLayoutFeedbackPrompt(retryContext.feedback);
@@ -466,7 +470,7 @@ export function useCanvasChat() {
     parseModel, chatModel, finishCanvasChatRequest,
     boxes, canvasW, canvasH, globalPalette, highLevelDescription,
     aesthetics, lighting, medium, artStyle, background, photoArtStyleMode,
-    canvasChatMessages, chatResponseLang, chatStreamEnabled, chatThinkingLevel, canvasChatTargetSize, customCanvasSystemPrompt, systemPrompts, activeCanvasChatSystemPromptId, setPendingIdeogramOutput, setPendingQualityReport,
+    canvasChatMessages, chatResponseLang, chatStreamEnabled, chatThinkingLevel, canvasChatTargetSize, customCanvasSystemPrompt, systemPrompts, activeCanvasChatSystemPromptId, setPendingIdeogramOutput, setPendingQualityReport, canvasBackgroundUrl,
   ]);
 
   /** 将给定的 IdeogramOutput 应用到画布，并基于已落地布局生成质量诊断 */
