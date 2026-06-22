@@ -329,7 +329,43 @@ kanban task create --title "Task 1" --prompt "..." --base-ref main --project-pat
 
 **为什么会犯这个错：** 在 JSON tab 中新增了视图切换按钮组（`.json-view-toggle`），但 `ChatMessage` 里的 `JsonCodeBlock` 组件已经有完全相同的交互模式（`.json-code-block-toggle`）。应该直接复用后者，而不是造新的按钮组。
 
-### 6. 前端修改后必须用 Playwright 验证无白屏/样式丢失
+### 6. 剪贴板粘贴/外部数据导入规则
+
+涉及 `clipboardData`、`DataTransfer`、文件拖放等外部数据导入时，必须遵守以下规则：
+
+#### 事件选择
+- ❌ **不要用 React 合成事件的 `onPaste`** — 非 focusable 元素收不到
+- ✅ **用 `document.addEventListener('paste', handler)`** — 原生事件，不管焦点在哪都能捕获
+
+#### 区域过滤
+- 当 `e.target` 是 BODY 或祖先元素时，`el.contains(target)` 返回 **false**
+- ✅ 必须双向检查：`el.contains(target) || target.contains(el)`
+
+#### clipboardData.items 消费
+- ❌ **不要多次读取** — `getAsFile()` / `getAsString()` 第二次调用可能返回 null 或卡死
+- ✅ **一次性读取全部缓存**到内存，后续处理都用缓存
+
+#### 大图处理
+- ❌ **不要用 `FileReader.readAsDataURL`** — 大图（>5MB）转 base64 会卡死主线程数秒
+- ✅ **用 `URL.createObjectURL(file/blob)`** — 瞬时完成，零拷贝
+- Blob URL 在当前会话中可用，跨会话持久化需异步转 Data URL
+
+#### keydown 拦截
+- ❌ **不要无差别 `e.preventDefault()`** — 会阻止 paste 事件触发
+- ✅ 只在确有必要（如内部剪贴板有内容）时拦截
+
+#### Demo 流程
+- ✅ 涉及外部数据导入时，**先做可交互 demo 验证真实数据流**，再改项目代码
+- ✅ demo 必须能接收**真实粘贴/拖放**，不要用模拟按钮代替
+- ✅ 打开 demo 服务器后给出 **`http://localhost:端口`**，不要加文件名
+
+#### 为什么容易犯错
+- `clipboardData.items` 看似可多次读取，实则消费一次后失效——违反直觉
+- `e.target` 在粘贴事件中经常是 BODY，不是触发粘贴的 UI 元素
+- 大图 base64 在小图时没问题，大图才暴露——容易漏测
+- keydown 的 `preventDefault()` 与 paste 事件的关系在不同浏览器行为不同
+
+### 7. 前端修改后必须用 Playwright 验证无白屏/样式丢失
 
 每次修改前端代码后（包括但不限于：新增组件、修改 CSS 变量/类名、编辑 i18n 翻译、修改 store 初始化逻辑），**必须使用 Playwright 验证页面是否能正常渲染**，防止出现白屏或样式丢失。
 

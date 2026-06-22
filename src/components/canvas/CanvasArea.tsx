@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, useCallback } from 'react';
+import { useMemo, useRef, useState, useCallback, useEffect } from 'react';
 import { useEditorStore } from '../../store';
 import { usePointerInteraction } from '../../hooks/usePointerInteraction';
 import { useI18n } from '../../i18n/context';
@@ -15,6 +15,49 @@ interface CanvasAreaProps {
   panY: number;
   screenToCanvas: (sx: number, sy: number) => { x: number; y: number };
   onFitToArtboard: () => void;
+}
+
+// ─── 剪贴板粘贴辅助函数 ──────────────────────────────────────────
+
+/** 从 HTML 字符串中提取第一个 <img> 的 src 属性 */
+function extractImgSrc(html: string): string | null {
+  const d = document.createElement('div');
+  d.innerHTML = html;
+  const img = d.querySelector('img');
+  return img?.getAttribute('src') || null;
+}
+
+/** 判断纯文本是否为图片 URL */
+function isImageUrl(text: string): boolean {
+  try {
+    const u = new URL(text.trim());
+    return /\.(jpe?g|png|gif|webp|bmp|svg)([?#]|$)/i.test(u.pathname);
+  } catch { return false; }
+}
+
+/** 从文本中提取图片 URL */
+function extractUrlFromText(text: string): string | null {
+  const m = text.match(/(https?:\/\/[^\s"'<>]+\.(jpe?g|png|gif|webp|bmp|svg)(\?[^\s"'<>]*)?)/i);
+  return m ? m[1] : null;
+}
+
+/**
+ * 下载远程图片并创建 Blob URL（即时显示，不阻塞主线程）
+ * 失败时返回原始 URL 作为 fallback
+ */
+async function loadRemoteImageAsBlobUrl(url: string): Promise<string> {
+  try {
+    const c = new AbortController();
+    const t = setTimeout(() => c.abort(), 15000);
+    const r = await fetch(url, { mode: 'cors', signal: c.signal });
+    clearTimeout(t);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const blob = await r.blob();
+    return URL.createObjectURL(blob);
+  } catch {
+    // fallback: 直接用原始 URL
+    return url;
+  }
 }
 
 /** 通过文件选择器导入图像，返回 Data URL */
@@ -139,6 +182,104 @@ export default function CanvasArea({ zoom, panX, panY, screenToCanvas, onFitToAr
   } | null>(null);
 
   const closeContextMenu = useCallback(() => setContextMenu(null), []);
+
+  // ─── 画布粘贴（外部图片：document 级原生事件监听） ────────────
+  useEffect(() => {
+    const handlePaste = async (e: ClipboardEvent) => {
+      const target = e.target as HTMLElement;
+      const wrapper = canvasRef.current;
+
+      if (!wrapper) return;
+
+      // 检查粘贴是否发生在画布区域内（target 可能是 wrapper 的祖先如 BODY）
+      const isCanvasArea = wrapper === target || wrapper.contains(target) || (target instanceof Node && target.contains(wrapper));
+      if (!isCanvasArea) return;
+
+      // 不拦截输入框/富文本编辑器
+      if (
+        target.closest('[contenteditable]') ||
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA'
+      ) return;
+
+      const items = Array.from(e.clipboardData?.items || []);
+      if (items.length === 0) return;
+
+      e.preventDefault();
+
+      let imageDataUrl: string | null = null;
+
+      // 1. 优先处理直接图片（image/*）→ 用 Blob URL 避免大图 base64 解码卡顿
+      const imageItem = items.find(i => i.type.startsWith('image/'));
+      if (imageItem) {
+        const file = imageItem.getAsFile();
+        if (file) {
+          imageDataUrl = URL.createObjectURL(file);
+        }
+      }
+
+      // 2. text/html → 提取 <img src>
+      if (!imageDataUrl) {
+        const htmlItem = items.find(i => i.type === 'text/html');
+        if (htmlItem) {
+          const html = await new Promise<string>(resolve => {
+            htmlItem.getAsString(resolve);
+          });
+          const src = extractImgSrc(html);
+          if (src) {
+            imageDataUrl = await loadRemoteImageAsBlobUrl(src);
+          }
+        }
+      }
+
+      // 3. text/plain → URL / HTML / 提取 URL
+      if (!imageDataUrl) {
+        const textItem = items.find(i => i.type === 'text/plain');
+        if (textItem) {
+          const text = await new Promise<string>(resolve => {
+            textItem.getAsString(resolve);
+          });
+          const trimmed = text.trim();
+
+          if (isImageUrl(trimmed)) {
+            imageDataUrl = await loadRemoteImageAsBlobUrl(trimmed);
+          } else if (/<img[\s>]/i.test(trimmed)) {
+            const src = extractImgSrc(trimmed);
+            if (src) imageDataUrl = await loadRemoteImageAsBlobUrl(src);
+          } else {
+            const url = extractUrlFromText(trimmed);
+            if (url) imageDataUrl = await loadRemoteImageAsBlobUrl(url);
+          }
+        }
+      }
+
+      if (!imageDataUrl) return;
+
+      const state = useEditorStore.getState();
+      const selectedIds = state.selectedBoxIds;
+
+      if (selectedIds.length > 0) {
+        // 有选中 box → 设为所有选中 box 的参考图
+        for (const boxId of selectedIds) {
+          state.importImageToBox(boxId, imageDataUrl);
+        }
+      } else {
+        // 无选中 box → 设为画布背景图，自动匹配画布尺寸
+        const img = new Image();
+        img.onload = () => {
+          const clampDim = (n: number) => Math.max(256, Math.min(4096, Math.round(n / 16) * 16));
+          state.setCanvasDimensions(clampDim(img.naturalWidth), clampDim(img.naturalHeight));
+          state.setCanvasRatio('custom');
+          state.setCanvasBackgroundUrl(imageDataUrl!);
+        };
+        img.onerror = () => state.setCanvasBackgroundUrl(imageDataUrl);
+        img.src = imageDataUrl;
+      }
+    };
+
+    document.addEventListener('paste', handlePaste);
+    return () => document.removeEventListener('paste', handlePaste);
+  }, []);
 
   // ─── 框右键菜单 ──────────────────────────────────────────────
   const handleBoxContextMenu = useCallback((e: React.MouseEvent, boxId: string) => {

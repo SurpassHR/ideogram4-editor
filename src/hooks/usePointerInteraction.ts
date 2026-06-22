@@ -1,7 +1,7 @@
 import { useCallback, useRef, useEffect, useState } from 'react';
 import type { InteractionMode } from '../types';
 import type { InteractionState } from '../types';
-import { useEditorStore } from '../store';
+import { useEditorStore, hasInternalClipboard } from '../store';
 
 interface UsePointerInteractionOptions {
   canvasRef: React.RefObject<HTMLDivElement | null>;
@@ -440,8 +440,11 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
             }
             break;
           case 'v':
-            e.preventDefault();
-            store.pasteBox();
+            // 内部剪贴板有内容 → 粘贴 box；无内容 → 让浏览器默认行为触发 paste 事件（处理外部图片）
+            if (hasInternalClipboard()) {
+              e.preventDefault();
+              store.pasteBox();
+            }
             break;
         }
       } else if (e.key === 'Delete' || e.key === 'Backspace') {

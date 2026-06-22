@@ -21,6 +21,11 @@ import { buildCanvasSnapshotLite, buildPersistedCanvasChatState } from '../servi
 // ─── 内部剪贴板（模块级变量，非 OS 剪贴板）──────────────────────────
 let internalClipboard: Box[] = [];
 
+/** 检查内部剪贴板是否有内容（供外部模块判断是否应由 pasteBox 处理） */
+export function hasInternalClipboard(): boolean {
+  return internalClipboard.length > 0;
+}
+
 function normalizeSelection(ids: string[], boxes: Box[]): string[] {
   const existingIds = new Set(boxes.map(box => box.id));
   return Array.from(new Set(ids)).filter(id => existingIds.has(id));
