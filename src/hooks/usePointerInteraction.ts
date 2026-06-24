@@ -1,7 +1,7 @@
 import { useCallback, useRef, useEffect, useState } from 'react';
 import type { InteractionMode } from '../types';
 import type { InteractionState } from '../types';
-import { useEditorStore, hasInternalClipboard } from '../store';
+import { useEditorStore } from '../store';
 
 interface UsePointerInteractionOptions {
   canvasRef: React.RefObject<HTMLDivElement | null>;
@@ -459,11 +459,8 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
             }
             break;
           case 'v':
-            // 内部剪贴板有内容 → 粘贴 box；无内容 → 让浏览器默认行为触发 paste 事件（处理外部图片）
-            if (hasInternalClipboard()) {
-              e.preventDefault();
-              store.pasteBox();
-            }
+            // Ctrl+V 始终让浏览器原生 paste 事件触发，由 CanvasArea 的 paste 处理器统一处理
+            // （图像粘贴 与 内部剪贴板粘贴 均在 paste handler 中判断优先级）
             break;
         }
       } else if (e.key === 'Delete' || e.key === 'Backspace') {

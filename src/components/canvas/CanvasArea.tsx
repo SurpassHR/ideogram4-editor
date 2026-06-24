@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, useCallback, useEffect } from 'react';
-import { useEditorStore } from '../../store';
+import { useEditorStore, hasInternalClipboard } from '../../store';
 import { usePointerInteraction } from '../../hooks/usePointerInteraction';
 import { useI18n } from '../../i18n/context';
 import BoundingBox from './BoundingBox';
@@ -57,6 +57,32 @@ async function loadRemoteImageAsBlobUrl(url: string): Promise<string> {
   } catch {
     // fallback: 直接用原始 URL
     return url;
+  }
+}
+
+/**
+ * 将图像 Data URL / Blob URL 应用到画布：
+ * - 有选中 box → 设为选中 box 的参考图
+ * - 无选中 box → 设为画布背景图（自动匹配尺寸）
+ */
+function applyImageUrlToCanvas(imageDataUrl: string) {
+  const state = useEditorStore.getState();
+  const selectedIds = state.selectedBoxIds;
+
+  if (selectedIds.length > 0) {
+    for (const boxId of selectedIds) {
+      state.importImageToBox(boxId, imageDataUrl);
+    }
+  } else {
+    const img = new Image();
+    img.onload = () => {
+      const clampDim = (n: number) => Math.max(256, Math.min(4096, Math.round(n / 16) * 16));
+      state.setCanvasDimensions(clampDim(img.naturalWidth), clampDim(img.naturalHeight));
+      state.setCanvasRatio('custom');
+      state.setCanvasBackgroundUrl(imageDataUrl);
+    };
+    img.onerror = () => state.setCanvasBackgroundUrl(imageDataUrl);
+    img.src = imageDataUrl;
   }
 }
 
@@ -253,28 +279,16 @@ export default function CanvasArea({ zoom, panX, panY, screenToCanvas, onFitToAr
         }
       }
 
-      if (!imageDataUrl) return;
-
-      const state = useEditorStore.getState();
-      const selectedIds = state.selectedBoxIds;
-
-      if (selectedIds.length > 0) {
-        // 有选中 box → 设为所有选中 box 的参考图
-        for (const boxId of selectedIds) {
-          state.importImageToBox(boxId, imageDataUrl);
+      if (!imageDataUrl) {
+        // 无图像数据 → 回退到内部剪贴板粘贴（box 复制/剪切）
+        if (hasInternalClipboard()) {
+          const state = useEditorStore.getState();
+          state.pasteBox();
         }
-      } else {
-        // 无选中 box → 设为画布背景图，自动匹配画布尺寸
-        const img = new Image();
-        img.onload = () => {
-          const clampDim = (n: number) => Math.max(256, Math.min(4096, Math.round(n / 16) * 16));
-          state.setCanvasDimensions(clampDim(img.naturalWidth), clampDim(img.naturalHeight));
-          state.setCanvasRatio('custom');
-          state.setCanvasBackgroundUrl(imageDataUrl!);
-        };
-        img.onerror = () => state.setCanvasBackgroundUrl(imageDataUrl);
-        img.src = imageDataUrl;
+        return;
       }
+
+      applyImageUrlToCanvas(imageDataUrl);
     };
 
     document.addEventListener('paste', handlePaste);
@@ -321,7 +335,28 @@ export default function CanvasArea({ zoom, panX, panY, screenToCanvas, onFitToAr
     const { x: canvasX, y: canvasY } = screenToCanvas(e.clientX, e.clientY);
 
     const items: (ContextMenuItem | 'divider')[] = [
-      { label: t('contextMenu.paste'), shortcut: 'Ctrl+V', onClick: () => pasteBox(canvasX, canvasY) },
+      { label: t('contextMenu.paste'), shortcut: 'Ctrl+V', onClick: async () => {
+        // 1. 尝试从 OS 剪贴板读取图像
+        try {
+          const clipboardItems = await navigator.clipboard.read();
+          for (const item of clipboardItems) {
+            for (const type of item.types) {
+              if (type.startsWith('image/')) {
+                const blob = await item.getType(type);
+                const imageDataUrl = URL.createObjectURL(blob);
+                applyImageUrlToCanvas(imageDataUrl);
+                return;
+              }
+            }
+          }
+        } catch {
+          // clipboard read 失败或权限被拒 — 回退到内部剪贴板
+        }
+        // 2. 回退到内部剪贴板粘贴
+        if (hasInternalClipboard()) {
+          pasteBox(canvasX, canvasY);
+        }
+      }},
       { label: t('contextMenu.importBackgroundImage'), onClick: async () => {
         const dataUrl = await pickImageFile();
         if (!dataUrl) return;
