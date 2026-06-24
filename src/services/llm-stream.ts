@@ -1,7 +1,7 @@
 import type { LlmProvider } from '../components/llm/types';
 import { DEFAULT_BASE_URLS } from '../components/llm/types';
 import type { ChatMessage, ChatMessageForApi, ChatThinkingLevel } from '../types/chat';
-import { buildMultimodalMessages, sendChatMessage } from './llm-chat';
+import { buildMultimodalMessages, ensureDataUrl, sendChatMessage } from './llm-chat';
 
 export interface StreamChunk {
   type: 'thinking' | 'content';
@@ -103,8 +103,9 @@ export async function sendChatMessageStream(
   imageDataUrl?: string,
   options: StreamRequestOptions = {},
 ): Promise<void> {
-  const apiMessages = imageDataUrl
-    ? buildMultimodalMessages(messages, imageDataUrl, provider.kind)
+  const safeImageUrl = imageDataUrl ? await ensureDataUrl(imageDataUrl) : undefined;
+  const apiMessages = safeImageUrl
+    ? buildMultimodalMessages(messages, safeImageUrl, provider.kind)
     : messages;
   const baseUrl = provider.base_url || DEFAULT_BASE_URLS[provider.kind];
 

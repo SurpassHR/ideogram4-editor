@@ -95,9 +95,11 @@ function buildTerminalSections(log: CanvasChatRequestLog): TerminalSection[] {
       503: 'Service Unavailable', 504: 'Gateway Timeout',
     }[statusCode] ?? 'Unknown';
     const headers = detail.responseHeaders ?? {};
+    const EXCLUDED_HEADERS = ['transfer-encoding', 'accept-ranges', 'vary', 'cache-control', 'content-length'];
     const headerLines = Object.entries(headers)
-      .filter(([k]) => !['transfer-encoding', 'accept-ranges', 'vary', 'cache-control'].includes(k.toLowerCase()))
+      .filter(([k]) => !EXCLUDED_HEADERS.includes(k.toLowerCase()))
       .map(([k, v]) => `${k}: ${v}`);
+    // 以实际响应体长度为准，避免与原始 content-length 重复
     const allHeaders = headerLines.length > 0
       ? [...headerLines, `Content-Length: ${new TextEncoder().encode(bodyContent).length}`]
       : [];

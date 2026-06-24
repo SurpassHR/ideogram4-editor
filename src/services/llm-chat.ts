@@ -14,6 +14,28 @@ import type { Box } from '../types';
 
 // ─── 多模态辅助函数 ─────────────────────────────────────────────────
 
+/**
+ * 确保图片 URL 可用于 API 发送。
+ * blob: URL 仅在浏览器本地有效，API 无法解析——必须转为 data: URL。
+ * 其他格式原样返回。
+ */
+export async function ensureDataUrl(url: string): Promise<string> {
+  if (!url.startsWith('blob:')) return url;
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return url;
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return url; // 转换失败时回退到原始 URL（让 API 自行处理）
+  }
+}
+
 /** 从 Data URL 中提取 base64 数据部分 */
 export function extractBase64FromDataUrl(dataUrl: string): string {
   return dataUrl.split(',')[1] || '';
@@ -387,9 +409,10 @@ export async function sendChatMessage(
   imageDataUrl?: string,
 ): Promise<ChatResult> {
   const rawApiMessages = messagesToApiFormat(messages);
-  // 当有参考图时，构造多模态消息格式
-  const apiMessages = imageDataUrl
-    ? buildMultimodalMessages(rawApiMessages, imageDataUrl, provider.kind)
+  // 当有参考图时，构造多模态消息格式（先确保 blob: URL 转为 data: URL）
+  const safeImageUrl = imageDataUrl ? await ensureDataUrl(imageDataUrl) : undefined;
+  const apiMessages = safeImageUrl
+    ? buildMultimodalMessages(rawApiMessages, safeImageUrl, provider.kind)
     : rawApiMessages;
   const baseUrl = provider.base_url || DEFAULT_BASE_URLS[provider.kind];
 
