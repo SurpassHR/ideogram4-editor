@@ -440,6 +440,9 @@ interface EditorStore {
 
   // 快捷键速查弹窗
   isShortcutsModalOpen: boolean;
+  // 浮动图层面板
+  isLayerPanelOpen: boolean;
+  toggleLayerPanel: () => void;
   setShortcutsModalOpen: (open: boolean) => void;
 
   // 框操作（右键菜单 + 键盘快捷键）
@@ -1311,6 +1314,10 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   // ─── 快捷键速查弹窗 ─────────────────────────────────────────
   isShortcutsModalOpen: false,
   setShortcutsModalOpen: (open) => set({ isShortcutsModalOpen: open }),
+
+  // ─── 图层面板 ────────────────────────────────────────────────
+  isLayerPanelOpen: false,
+  toggleLayerPanel: () => set(state => ({ isLayerPanelOpen: !state.isLayerPanelOpen })),
 
   // ─── Undo/Redo ──────────────────────────────────────────────
   undoStack: [],

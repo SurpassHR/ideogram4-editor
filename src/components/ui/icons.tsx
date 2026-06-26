@@ -171,3 +171,12 @@ export const IconSendToBack = createIcon(
 export const IconImagePlus = createIcon(
   <><path d="M21 12v3a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h7" /><line x1="16" y1="5" x2="22" y2="5" /><line x1="19" y1="2" x2="19" y2="8" /><circle cx="9" cy="9" r="2" /></>,
 );
+
+/** 图层堆叠 — 图层面板切换 */
+export const IconLayers = createIcon(
+  <g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2">
+    <rect x="2" y="6" width="20" height="14" rx="2" />
+    <path d="M6 6V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2" />
+    <line x1="2" y1="10" x2="22" y2="10" />
+  </g>,
+);

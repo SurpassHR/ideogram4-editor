@@ -354,6 +354,13 @@ export interface Translations {
       attachImage: string;
     };
   };
+
+  layerPanel: {
+    title: string;
+    toggle: string;
+    close: string;
+    empty: string;
+  };
   layoutQuality: {
     title: string;
     passedTitle: string;
@@ -762,6 +769,13 @@ const en: Translations = {
       attachImage: 'Attach image as reference',
     },
   },
+
+  layerPanel: {
+    title: 'Layers',
+    toggle: 'Toggle Layer Panel',
+    close: 'Close',
+    empty: 'No boxes',
+  },
   layoutQuality: {
     title: 'Layout Quality Check',
     passedTitle: 'Layout Check Passed',
@@ -1169,6 +1183,13 @@ const zh: Translations = {
       clear: '移除图像',
       attachImage: '附加图像作为参考',
     },
+  },
+
+  layerPanel: {
+    title: '图层',
+    toggle: '图层面板',
+    close: '关闭',
+    empty: '暂无边界框',
   },
   layoutQuality: {
     title: '布局质量检测',

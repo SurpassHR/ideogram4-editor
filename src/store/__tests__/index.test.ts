@@ -1171,3 +1171,17 @@ describe('EditorStore', () => {
     });
   });
 });
+
+describe('layerPanel', () => {
+  it('isLayerPanelOpen 初始应为 false', () => {
+    expect(useEditorStore.getState().isLayerPanelOpen).toBe(false);
+  });
+
+  it('toggleLayerPanel 应切换 isLayerPanelOpen', () => {
+    const store = useEditorStore.getState();
+    store.toggleLayerPanel();
+    expect(useEditorStore.getState().isLayerPanelOpen).toBe(true);
+    store.toggleLayerPanel();
+    expect(useEditorStore.getState().isLayerPanelOpen).toBe(false);
+  });
+});

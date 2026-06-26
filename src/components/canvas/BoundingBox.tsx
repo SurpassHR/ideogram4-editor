@@ -20,6 +20,7 @@ export default function BoundingBox({ box, isSelected, boxRef, interactionMode, 
   const clearBoxImage = useEditorStore(s => s.clearBoxImage);
   const canvasW = useEditorStore(s => s.canvasW);
   const canvasH = useEditorStore(s => s.canvasH);
+  const selectedBoxIds = useEditorStore(s => s.selectedBoxIds);
   const isEditing = editingBoxId === box.id;
   const [editText, setEditText] = useState(box.text);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -90,7 +91,7 @@ export default function BoundingBox({ box, isSelected, boxRef, interactionMode, 
     <div
       id={box.id}
       ref={boxRef}
-      className={`bounding-box ${isSelected ? 'selected' : ''}`}
+      className={`bounding-box ${isSelected ? 'selected' : ''}${selectedBoxIds.length > 0 && !isSelected ? ' dimmed' : ''}`}
       style={{
         left: box.x,
         top: box.y,
