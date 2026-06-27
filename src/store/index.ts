@@ -1535,7 +1535,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       newBoxes.push({
         id: `box_${counter}`,
         x, y, w, h,
-        mode: el.type,
+        mode: el.type === 'text' ? 'text' : 'obj',
         text: el.text || '',
         desc: el.desc || '',
         colors: el.color_palette || [],

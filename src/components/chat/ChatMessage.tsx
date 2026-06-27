@@ -5,7 +5,7 @@ import type { ChatMessage as ChatMessageType } from '../../types/chat';
 import { useI18n } from '../../i18n/context';
 import { useEditorStore } from '../../store';
 import { IconCopy, IconRefresh } from '../ui/icons';
-import { extractAndValidateIdeogramJSON } from '../../services/llm-canvas-chat';
+import { validateIdeogramJSONVerbose } from '../../services/llm-canvas-chat';
 import { parseContentSegments } from '../../utils/code-block-parser';
 import { highlightJson } from '../../utils/json-highlight';
 import JsonCodeBlock from './JsonCodeBlock';
@@ -60,10 +60,12 @@ export default function ChatMessage({ message, onAdopt, onDismiss, onApply, onRe
   const responseLang = useEditorStore(s => s.chatResponseLang);
   const isChinese = responseLang === 'zh' || (responseLang === 'auto' && lang === 'zh');
 
-  const parsedOutput = useMemo(
-    () => (isUser ? null : extractAndValidateIdeogramJSON(message.content)),
+  const parseResult = useMemo(
+    () => (isUser ? null : validateIdeogramJSONVerbose(message.content)),
     [isUser, message.content],
   );
+  const parsedOutput = parseResult?.output ?? null;
+  const parseError = parseResult?.error ?? null;
   const hasOutput = parsedOutput !== null && !!onApply;
   const showApply = hasOutput;
   const applyLabel = message.applied ? 'Re-Apply' : 'Apply';
@@ -84,6 +86,9 @@ export default function ChatMessage({ message, onAdopt, onDismiss, onApply, onRe
         <span className="chat-msg-card-role">{roleLabel}</span>
         <span className="chat-msg-card-spacer" />
         <span className="chat-msg-card-time">{timeLabel}</span>
+        {!isUser && parseError && (
+          <span className="chat-parse-error-icon" title={parseError}>!</span>
+        )}
       </div>
 
 

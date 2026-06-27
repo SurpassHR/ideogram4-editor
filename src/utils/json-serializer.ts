@@ -72,7 +72,7 @@ export function parseBoxesFromJSON(
       y: denorm(y1, canvasH),
       w: denorm(x2 - x1, canvasW),
       h: denorm(y2 - y1, canvasH),
-      mode: el.type,
+      mode: el.type === 'text' ? 'text' : 'obj',
       text: el.text || '',
       desc: el.desc || '',
       colors: el.color_palette || [],

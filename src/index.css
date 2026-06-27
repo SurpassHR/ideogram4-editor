@@ -5143,6 +5143,35 @@ input[type="color"]::-webkit-color-swatch {
   flex-shrink: 0;
 }
 
+.canvas-chat-toast-error {
+  padding: 8px 14px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+/* ─── Chat Parse Error Icon ─────────────────────────────────────────- */
+
+.chat-parse-error-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--danger);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: help;
+  margin-left: 6px;
+  flex-shrink: 0;
+}
+
 /* ─── Canvas Chat Apply Confirm Modal ───────────────────────────────── */
 
 .canvas-chat-confirm {

@@ -15,7 +15,7 @@ export interface Box {
 }
 
 export interface IdeogramElement {
-  type: 'obj' | 'text';
+  type: string;
   bbox: [number, number, number, number];
   text?: string;
   desc: string;

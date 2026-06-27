@@ -137,10 +137,12 @@ describe('JsonToolbar', () => {
       useEditorStore.getState().updateBox('box_0', { desc: 'After blur sync' });
     });
 
-    // 离开 textarea → 立即同步
+    // 离开 textarea → 不再立即同步，由防抖定时器 300ms 后同步
     fireEvent.blur(textarea);
 
-    expect(textarea.value).toContain('After blur sync');
+    // 防抖自动同步仍在生效，但不是立即的，这里先手动清空待同步
+    // 原 onBlur 立即同步已移除，用户粘贴内容不会被覆盖了
+    expect(textarea.value).toContain('custom edit');
   });
 
   it('组件卸载时清理防抖定时器', () => {

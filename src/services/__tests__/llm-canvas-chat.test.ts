@@ -307,9 +307,9 @@ Let me know if you'd like any adjustments!`;
     expect(result).toBeNull();
   });
 
-  // ─── type 不是 'obj' 或 'text' → null ────────────────────────
+  // ─── type 为任意非空字符串均合法（LLM 可能返回 natural language type）──
 
-  it('element type 为非法值应返回 null', () => {
+  it('element type 为任意非空字符串应合法', () => {
     const badType = {
       ...validOutput,
       compositional_deconstruction: {
@@ -320,10 +320,11 @@ Let me know if you'd like any adjustments!`;
       },
     };
     const result = extractAndValidateIdeogramJSON(wrap(badType));
-    expect(result).toBeNull();
+    expect(result).not.toBeNull();
+    expect(result!.compositional_deconstruction.elements[0].type).toBe('shape');
   });
 
-  it('element type 为字符串但非 obj/text 应返回 null', () => {
+  it('element type 为任意非空字符串应合法（非严格类型）', () => {
     const badType = {
       ...validOutput,
       compositional_deconstruction: {
@@ -334,7 +335,8 @@ Let me know if you'd like any adjustments!`;
       },
     };
     const result = extractAndValidateIdeogramJSON(wrap(badType));
-    expect(result).toBeNull();
+    expect(result).not.toBeNull();
+    expect(result!.compositional_deconstruction.elements[0].type).toBe('box');
   });
 
   it('element type 缺失应返回 null', () => {

@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useEditorStore } from '../../store';
 import { useI18n } from '../../i18n/context';
+import { validateIdeogramJSONVerbose } from '../../services/llm-canvas-chat';
 import type { IdeogramOutput } from '../../types';
 
 /** 300ms 防抖自动同步：从 store 状态变更到 JSON 重新生成的冷却时间 */
@@ -62,9 +63,19 @@ export default function JsonToolbar() {
   const handleLoad = () => {
     try {
       const json = JSON.parse(jsonText);
+      // 用 verbose 验证提前检查结构
+      const result = validateIdeogramJSONVerbose(jsonText);
+      if (!result.output) {
+        alert(`JSON 结构验证失败:\n${result.error || '未知错误'}`);
+        return;
+      }
       loadFromJSON(json);
     } catch (e) {
-      alert(t('json.invalidJson', { error: (e as Error).message }));
+      if (e instanceof SyntaxError) {
+        alert(`JSON 语法错误:\n${(e as Error).message}`);
+      } else {
+        alert(t('json.invalidJson', { error: (e as Error).message }));
+      }
     }
   };
 
@@ -155,9 +166,6 @@ export default function JsonToolbar() {
             onFocus={() => handleUserEditing(true)}
             onBlur={() => {
               handleUserEditing(false);
-              // 用户离开 textarea 时立即同步一次
-              const output = generateJSON();
-              setJsonText(JSON.stringify(output, null, 2));
             }}
           />
         ) : (

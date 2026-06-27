@@ -290,9 +290,6 @@ export function useCanvasChat() {
         if (typeof el !== 'object' || el === null) {
           return `\n\n[Parse Error]\nelements[${i}] is not an object.`;
         }
-        if (el.type !== 'obj' && el.type !== 'text') {
-          return `\n\n[Parse Error]\nelements[${i}].type must be "obj" or "text", got "${el.type}".`;
-        }
         const bbox = el.bbox;
         if (!Array.isArray(bbox) || bbox.length !== 4) {
           return `\n\n[Parse Error]\nelements[${i}].bbox must be an array of 4 numbers.`;
@@ -641,7 +638,7 @@ export function useCanvasChat() {
       const { x, y, w, h } = bboxToPixels(el.bbox, cw, ch, system);
       store.addBox({
         x, y, w, h,
-        mode: el.type,
+        mode: el.type === 'text' ? 'text' : 'obj',
         text: el.text || '',
         desc: el.desc || '',
         colors: el.color_palette || [],

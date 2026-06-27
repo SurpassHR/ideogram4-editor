@@ -285,26 +285,23 @@ function extractJSONCandidate(text: string): string | null {
 }
 
 /**
- * 从 AI 回复文本中提取 JSON，解析并验证为 IdeogramOutput。
- *
- * 验证规则：
- * 1. compositional_deconstruction.elements 存在且为非空数组
- * 2. 每个 element.type ∈ ['obj', 'text']
- * 3. 每个 element.bbox 恰好 4 个值，范围 0-1000
- * 4. 每个 element.desc 为非空字符串
- *
- * @returns 验证通过的 IdeogramOutput，或 null（提取/解析/验证任一失败）
+ * 从 AI 回复中提取并验证 IdeogramOutput，返回详细错误信息。
  */
-export function extractAndValidateIdeogramJSON(text: string): IdeogramOutput | null {
+export function validateIdeogramJSONVerbose(text: string): {
+  output: IdeogramOutput | null;
+  error: string | null;
+} {
   const jsonStr = extractJSONCandidate(text);
-  if (!jsonStr) return null;
+  if (!jsonStr) {
+    return { output: null, error: '未找到 JSON 代码块或 {…} 结构。AI 回复需包含 ```json 代码块或纯 JSON。' };
+  }
 
   // 2. JSON.parse
   let parsed: unknown;
   try {
     parsed = JSON.parse(jsonStr);
   } catch {
-    return null;
+    return { output: null, error: 'JSON 解析失败：语法错误，请检查 JSON 格式是否正确。' };
   }
 
   // 3. 类型收窄：必须有 compositional_deconstruction.elements
@@ -313,12 +310,14 @@ export function extractAndValidateIdeogramJSON(text: string): IdeogramOutput | n
     parsed === null ||
     Array.isArray(parsed)
   ) {
-    return null;
+    return { output: null, error: 'JSON 顶层必须是对象，且包含 compositional_deconstruction 和 style_description 字段。' };
   }
 
   const obj = parsed as Record<string, unknown>;
   const cd = obj.compositional_deconstruction;
-  if (typeof cd !== 'object' || cd === null) return null;
+  if (typeof cd !== 'object' || cd === null) {
+    return { output: null, error: '缺少 compositional_deconstruction 字段，或该字段不是对象。' };
+  }
 
   const cdObj = cd as Record<string, unknown>;
   // 规范：style_description.color_palette max 16，element.color_palette max 5
@@ -326,36 +325,69 @@ export function extractAndValidateIdeogramJSON(text: string): IdeogramOutput | n
   if (typeof sd === 'object' && sd !== null) {
     const sdObj = sd as Record<string, unknown>;
     const globalPalette = sdObj.color_palette;
-    if (Array.isArray(globalPalette) && globalPalette.length > 16) return null;
+    if (Array.isArray(globalPalette) && globalPalette.length > 16) {
+      return { output: null, error: 'style_description.color_palette 最多支持 16 种颜色。' };
+    }
   }
   const elements = cdObj.elements;
-  if (!Array.isArray(elements) || elements.length === 0) return null;
+  if (!Array.isArray(elements) || elements.length === 0) {
+    return { output: null, error: 'compositional_deconstruction.elements 必须是非空数组。' };
+  }
 
   // 4. 验证每个 element
-  for (const el of elements) {
-    if (typeof el !== 'object' || el === null) return null;
+  for (let i = 0; i < elements.length; i++) {
+    const el = elements[i];
+    if (typeof el !== 'object' || el === null) {
+      return { output: null, error: `elements[${i}] 不是对象。` };
+    }
     const e = el as Record<string, unknown>;
 
-    // type ∈ ['obj', 'text']
-    if (e.type !== 'obj' && e.type !== 'text') return null;
+    // type: 非空字符串即可（LLM 可能返回自然语义类型如 "person"、"tree"）
+    if (typeof e.type !== 'string' || e.type.trim().length === 0) {
+      return { output: null, error: `elements[${i}].type 必须是非空字符串（当前类型: ${typeof e.type}）。` };
+    }
 
     // bbox: 恰好 4 个值，范围 0-1000
     const bbox = e.bbox;
-    if (!Array.isArray(bbox) || bbox.length !== 4) return null;
-    for (const v of bbox) {
-      if (typeof v !== 'number' || Number.isNaN(v)) return null;
-      if (v < 0) return null;
+    if (!Array.isArray(bbox) || bbox.length !== 4) {
+      return { output: null, error: `elements[${i}].bbox 必须是包含 4 个数字的数组（当前类型: ${typeof bbox}，长度: ${Array.isArray(bbox) ? bbox.length : 'N/A'}）。` };
+    }
+    for (let j = 0; j < bbox.length; j++) {
+      const v = bbox[j];
+      if (typeof v !== 'number' || Number.isNaN(v)) {
+        return { output: null, error: `elements[${i}].bbox[${j}] 不是有效数字。` };
+      }
+      if (v < 0) {
+        return { output: null, error: `elements[${i}].bbox[${j}] 不能为负数。` };
+      }
     }
 
     // desc: 非空字符串
-    if (typeof e.desc !== 'string' || e.desc.trim().length === 0) return null;
+    if (typeof e.desc !== 'string' || e.desc.trim().length === 0) {
+      return { output: null, error: `elements[${i}].desc 必须是有效的非空描述字符串。` };
+    }
     // ✅ 新增: per-element color_palette ≤ 5
-    if (Array.isArray(e.color_palette) && e.color_palette.length > 5) return null;
+    if (Array.isArray(e.color_palette) && e.color_palette.length > 5) {
+      return { output: null, error: `elements[${i}].color_palette 最多支持 5 种颜色。` };
+    }
     // ✅ 新增: type=text 且 text 含 CJK 字符 → 拒绝
     if (e.type === 'text' && typeof e.text === 'string') {
-      if (CJK_TEXT_RE.test(e.text)) return null;
+      if (CJK_TEXT_RE.test(e.text)) {
+        return { output: null, error: `elements[${i}].text 含中日韩字符，type=text 不支持。` };
+      }
     }
   }
 
-  return parsed as IdeogramOutput;
+  return { output: parsed as IdeogramOutput, error: null };
+}
+
+/**
+ * 从 AI 回复中提取 ```json 代码块并验证 IdeogramOutput 结构。
+ * 简化版本，只返回输出或 null。
+ *
+ * @returns 验证通过的 IdeogramOutput，或 null（提取/解析/验证任一失败）
+ */
+export function extractAndValidateIdeogramJSON(text: string): IdeogramOutput | null {
+  const result = validateIdeogramJSONVerbose(text);
+  return result.output;
 }

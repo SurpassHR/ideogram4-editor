@@ -31,6 +31,7 @@ vi.mock('../../../store', () => ({
 // Mock llm-canvas-chat (parsedOutput extraction)
 vi.mock('../../../services/llm-canvas-chat', () => ({
   extractAndValidateIdeogramJSON: () => null, // default: no valid JSON
+  validateIdeogramJSONVerbose: () => ({ output: null, error: null }), // default: no valid JSON
 }));
 
 // Mock JsonCodeBlock to simplify verification

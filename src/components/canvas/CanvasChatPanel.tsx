@@ -9,6 +9,7 @@ import { IconClose, IconMaximize, IconArrowRight, IconStop, IconMoreHorizontal, 
 import { useI18n } from '../../i18n/context';
 import { useEditorStore } from '../../store';
 import { resolveTemplate } from '../../utils/resolveTemplate';
+import { validateIdeogramJSONVerbose } from '../../services/llm-canvas-chat';
 import { highlightJson } from '../../utils/json-highlight';
 import type { CanvasChatRequestLog } from '../../types/chat';
 
@@ -284,6 +285,7 @@ export default function CanvasChatPanel() {
   const [renamingSessionId, setRenamingSessionId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState('');
   const [applyToast, setApplyToast] = useState<string | null>(null);
+  const [errorToast, setErrorToast] = useState<string | null>(null);
   const [detailLogId, setDetailLogId] = useState<string | null>(null);
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
   const [expandedStepId, setExpandedStepId] = useState<string | null>(null);
@@ -632,6 +634,11 @@ export default function CanvasChatPanel() {
   const handleApplyMessage = useCallback((messageId: string) => {
     const msg = messages.find(m => m.id === messageId);
     if (!msg) return;
+    const result = validateIdeogramJSONVerbose(msg.content);
+    if (!result.output) {
+      setErrorToast(result.error || 'JSON 解析失败，请检查格式');
+      return;
+    }
     const count = applyMessageOutput(msg);
     if (count) {
       setApplyToast(`Applied ${count} boxes`);
@@ -784,6 +791,9 @@ export default function CanvasChatPanel() {
           {/* Apply 成功 Toast */}
           {applyToast && (
             <div className="canvas-chat-toast">{applyToast}</div>
+          )}
+          {errorToast && (
+            <div className="canvas-chat-toast-error">{errorToast}</div>
           )}
         </div>
         {isCanvasChatMaximized && (
