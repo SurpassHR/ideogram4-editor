@@ -12,6 +12,7 @@ export default function JsonToolbar() {
     JSON.stringify(useEditorStore.getState().generateJSON(), null, 2),
   );
   const [mode, setMode] = useState<'json' | 'preview'>('json');
+  const [errorToast, setErrorToast] = useState<string | null>(null);
   const generateJSON = useEditorStore(s => s.generateJSON);
   const loadFromJSON = useEditorStore(s => s.loadFromJSON);
   const { t } = useI18n();
@@ -66,18 +67,26 @@ export default function JsonToolbar() {
       // 用 verbose 验证提前检查结构
       const result = validateIdeogramJSONVerbose(jsonText);
       if (!result.output) {
-        alert(`JSON 结构验证失败:\n${result.error || '未知错误'}`);
+        setErrorToast(result.error || '未知错误');
         return;
       }
       loadFromJSON(json);
     } catch (e) {
       if (e instanceof SyntaxError) {
-        alert(`JSON 语法错误:\n${(e as Error).message}`);
+        setErrorToast(`JSON 语法错误: ${(e as Error).message}`);
       } else {
-        alert(t('json.invalidJson', { error: (e as Error).message }));
+        setErrorToast(t('json.invalidJson', { error: (e as Error).message }));
       }
     }
   };
+
+  // Error toast auto-dismiss
+  useEffect(() => {
+    if (errorToast) {
+      const t = setTimeout(() => setErrorToast(null), 4000);
+      return () => clearTimeout(t);
+    }
+  }, [errorToast]);
 
   const getPreviewState = (): { output: IdeogramOutput | null; error: string | null } => {
     if (!jsonText.trim()) {
@@ -212,6 +221,10 @@ export default function JsonToolbar() {
         </div>
       )}
     </div>
+      {/* Error toast */}
+      {errorToast && (
+        <div className="json-toolbar-toast-error">{errorToast}</div>
+      )}
     </div>
   );
 }
