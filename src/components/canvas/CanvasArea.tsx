@@ -295,6 +295,14 @@ export default function CanvasArea({ zoom, panX, panY, screenToCanvas, onFitToAr
     return () => document.removeEventListener('paste', handlePaste);
   }, []);
 
+  // ─── 挂载后自动聚焦 canvas，确保浏览器 paste 事件能触发 ────────
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (el && document.activeElement === document.body) {
+      el.focus();
+    }
+  }, []);
+
   // ─── 框右键菜单 ──────────────────────────────────────────────
   const handleBoxContextMenu = useCallback((e: React.MouseEvent, boxId: string) => {
     const isContextOnSelectedGroup = selectedBoxIds.length > 1 && selectedBoxIds.includes(boxId);
@@ -388,6 +396,7 @@ export default function CanvasArea({ zoom, panX, panY, screenToCanvas, onFitToAr
     <div
       ref={canvasRef}
       id="canvas-wrapper"
+      tabIndex={-1}
       className={`canvas-bg${altPressed ? ' alt-create-mode' : ''}`}
       style={{
         width: canvasW,
