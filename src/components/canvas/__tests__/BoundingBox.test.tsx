@@ -45,7 +45,7 @@ describe('BoundingBox', () => {
     expect(label!.textContent).toBe('Hello World');
   });
 
-  it('当 editingBoxId 匹配时，应显示编辑 input', () => {
+  it('当 editingBoxId 匹配时，应显示可编辑内容', () => {
     useEditorStore.setState({ editingBoxId: 'box_0' });
 
     const boxRef = () => {};
@@ -58,17 +58,17 @@ describe('BoundingBox', () => {
       />
     );
 
-    // 应显示 input 而不是文字标签
-    const input = document.querySelector('.bounding-box-input') as HTMLInputElement;
-    expect(input).not.toBeNull();
-    expect(input!.value).toBe('Hello World');
+    // 应显示 contenteditable div 而不是文字标签
+    const editable = document.querySelector('[contenteditable="true"]');
+    expect(editable).not.toBeNull();
+    expect(editable!.textContent).toBe('Hello World');
   });
 
-  it('编辑 input 按 Enter 应更新 box 并退出编辑模式', () => {
+  it('编辑模式按 Enter 应更新 box 并退出', () => {
     useEditorStore.setState({ editingBoxId: 'box_0' });
 
     const boxRef = () => {};
-    const { rerender } = render(
+    render(
       <BoundingBox
         box={baseBox}
         isSelected={true}
@@ -77,9 +77,9 @@ describe('BoundingBox', () => {
       />
     );
 
-    const input = document.querySelector('.bounding-box-input') as HTMLInputElement;
-    fireEvent.change(input, { target: { value: 'Updated Text' } });
-    fireEvent.keyDown(input, { key: 'Enter' });
+    const editable = document.querySelector('[contenteditable="true"]')!;
+    editable.textContent = 'Updated Text';
+    fireEvent.keyDown(editable, { key: 'Enter' });
 
     // 验证 box 文本被更新
     const state = useEditorStore.getState();
@@ -88,7 +88,7 @@ describe('BoundingBox', () => {
     expect(state.editingBoxId).toBeNull();
   });
 
-  it('编辑 input 按 Escape 应取消编辑并恢复原文本', () => {
+  it('编辑模式按 Escape 应取消编辑并恢复原文本', () => {
     useEditorStore.setState({ editingBoxId: 'box_0' });
 
     const boxRef = () => {};
@@ -101,9 +101,9 @@ describe('BoundingBox', () => {
       />
     );
 
-    const input = document.querySelector('.bounding-box-input') as HTMLInputElement;
-    fireEvent.change(input, { target: { value: 'Should Not Save' } });
-    fireEvent.keyDown(input, { key: 'Escape' });
+    const editable = document.querySelector('[contenteditable="true"]')!;
+    editable.textContent = 'Should Not Save';
+    fireEvent.keyDown(editable, { key: 'Escape' });
 
     // 验证退出编辑模式
     const state = useEditorStore.getState();
@@ -142,7 +142,7 @@ describe('BoundingBox', () => {
     expect(btn).toBeNull();
   });
 
-  it('当编辑模式时，sparkle 按钮应在 input 内部', () => {
+  it('当编辑模式时，sparkle 按钮应可见', () => {
     useEditorStore.setState({ editingBoxId: 'box_0' });
 
     const boxRef = () => {};
@@ -155,11 +155,12 @@ describe('BoundingBox', () => {
       />
     );
 
-    // sparkle 按钮应在 input wrapper 内部
-    const wrapper = document.querySelector('.bounding-box-input-wrapper');
-    expect(wrapper).not.toBeNull();
-    const btn = wrapper!.querySelector('.chat-bubble-btn');
+    // sparkle 按钮应存在（在 bounding-box-content 内）
+    const btn = document.querySelector('.chat-bubble-btn');
     expect(btn).not.toBeNull();
+    // 不再有 input wrapper
+    const wrapper = document.querySelector('.bounding-box-input-wrapper');
+    expect(wrapper).toBeNull();
   });
 
   describe('background image', () => {

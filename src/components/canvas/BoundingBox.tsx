@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { useCallback, useEffect, useRef, useMemo } from 'react';
 import { IconClose } from '../ui/icons';
 import type { Box } from '../../types';
 import type { InteractionMode } from '../../types';
@@ -22,43 +22,45 @@ export default function BoundingBox({ box, isSelected, boxRef, interactionMode, 
   const canvasH = useEditorStore(s => s.canvasH);
   const selectedBoxIds = useEditorStore(s => s.selectedBoxIds);
   const isEditing = editingBoxId === box.id;
-  const [editText, setEditText] = useState(box.text);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const savedTextRef = useRef('');
 
-  // 进入编辑模式时，聚焦 textarea 并初始化文本
+  // 进入编辑模式时聚焦并全选文本
   useEffect(() => {
-    if (isEditing && textareaRef.current) {
-      setEditText(box.text);
-      const ta = textareaRef.current;
-      ta.focus();
-      ta.select();
+    if (isEditing && contentRef.current) {
+      const el = contentRef.current;
+      savedTextRef.current = el.textContent || '';
+      el.focus();
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const sel = window.getSelection();
+      sel?.removeAllRanges();
+      sel?.addRange(range);
     }
-  }, [isEditing, box.text]);
+  }, [isEditing]);
 
-  // 自动调整 textarea 高度
-  useEffect(() => {
-    const ta = textareaRef.current;
-    if (ta && isEditing) {
-      ta.style.height = 'auto';
-      ta.style.height = ta.scrollHeight + 'px';
-    }
-  }, [editText, isEditing]);
+  const handleSave = useCallback(() => {
+    const text = contentRef.current?.textContent || '';
+    updateBox(box.id, { text });
+    setEditingBoxId(null);
+  }, [box.id, updateBox, setEditingBoxId]);
 
-  const handleInputKeyDown = useCallback((e: React.KeyboardEvent) => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      updateBox(box.id, { text: editText });
-      setEditingBoxId(null);
+      handleSave();
     } else if (e.key === 'Escape') {
       e.preventDefault();
+      if (contentRef.current) {
+        contentRef.current.textContent = savedTextRef.current;
+      }
       setEditingBoxId(null);
     }
-  }, [box.id, editText, updateBox, setEditingBoxId]);
+  }, [handleSave, setEditingBoxId]);
 
-  const handleInputBlur = useCallback(() => {
-    updateBox(box.id, { text: editText });
-    setEditingBoxId(null);
-  }, [box.id, editText, updateBox, setEditingBoxId]);
+  const handleBlur = useCallback(() => {
+    handleSave();
+  }, [handleSave]);
 
   const displayText = box.text || box.desc || '';
 
@@ -137,29 +139,21 @@ export default function BoundingBox({ box, isSelected, boxRef, interactionMode, 
         </button>
       )}
       <div className="bounding-box-content">
-        {isEditing ? (
-          <div className="bounding-box-input-wrapper">
-            <textarea
-              ref={textareaRef}
-              className="bounding-box-input"
-              rows={1}
-              value={editText}
-              onChange={e => setEditText(e.target.value)}
-              onKeyDown={handleInputKeyDown}
-              onBlur={handleInputBlur}
-              onPointerDown={e => e.stopPropagation()}
-            />
-            {isSelected && (
-              <ChatBubbleButton boxId={box.id} interactionMode={interactionMode} />
-            )}
-          </div>
-        ) : (
-          <span className="bounding-box-label">{displayText}</span>
+        <div
+          ref={contentRef}
+          className={`bounding-box-label${isEditing ? ' editing' : ''}`}
+          contentEditable={isEditing}
+          suppressContentEditableWarning
+          onBlur={isEditing ? handleBlur : undefined}
+          onKeyDown={isEditing ? handleKeyDown : undefined}
+          onPointerDown={e => e.stopPropagation()}
+        >
+          {displayText}
+        </div>
+        {isSelected && (
+          <ChatBubbleButton boxId={box.id} interactionMode={interactionMode} />
         )}
       </div>
-      {isSelected && !isEditing && (
-        <ChatBubbleButton boxId={box.id} interactionMode={interactionMode} />
-      )}
       <div className="resize-handle" />
     </div>
   );
