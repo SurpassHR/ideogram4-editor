@@ -43,6 +43,12 @@ Ideogram4 Editor 是一个基于 Web 的可视化编辑器，专为 [Ideogram 4]
 - 🧠 **模型思维链** — 自动检测并显示模型的推理过程（CoT），以可折叠块形式呈现在 AI 回复上方
 - 🖼️ **画布缩略图** — Canvas Chat 每条 AI 回复附带发送时刻的画布快照缩略图
 - ⌨️ **快捷键速查** — Header 右侧 ⌨ 按钮打开速查弹窗（分组展示所有快捷键，中英双语）；首次进入应用自动弹出一次引导（localStorage 标记，一次性）
+- ↩️ **撤销/重做** — Ctrl+Z 撤销，Ctrl+Y 重做，快照式历史记录（最多 50 步）
+- 📋 **浮动图层面板** — 选中被遮挡边界框的浮动面板，支持重命名/可见性切换
+- 💬 **画布级构图对话** — Canvas Chat 面板，AI 返回结构化 IdeogramOutput 并支持 Apply/Regenerate 工作流
+- ⚙️ **通用设置面板** — Canvas Chat 自动最大化、工作区备份管理
+- 💾 **工作区备份** — GitHub Gist 备份/恢复，支持跨客户端发现
+- ✅ **布局质量校验** — 生成前软校验（面积覆盖率、间距、边距、宽高比）
 
 ---
 
@@ -72,7 +78,7 @@ Ideogram4 Editor 是一个基于 Web 的可视化编辑器，专为 [Ideogram 4]
 | 框参考图 | 拖放/粘贴图片到边界框，作为视觉参考或多模态 AI 输入 |
 | 画布背景图 | 右键画布空白 →「设置背景图」，导入底图参考（opacity 0.5） |
 | 框操作 | 右键框 → 复制/剪切/删除/层级调整/图像管理/AI Chat |
-| 键盘快捷键 | `Ctrl+D` 复制框 · `Ctrl+C` 复制到剪贴板 · `Ctrl+X` 剪切 · `Ctrl+V` 粘贴 · `Delete` 删除 |
+| 键盘快捷键 | `Ctrl+Z` 撤销 · `Ctrl+Y` 重做 · `Ctrl+D` 复制框 · `Ctrl+C` 复制到剪贴板 · `Ctrl+X` 剪切 · `Ctrl+V` 粘贴 · `Delete` 删除 |
 | 画板缩放/平移 | 滚轮缩放（以光标为中心）· 中键拖拽平移 · 底部滑块（10%–500%） |
 | PNG 元数据导入 | 拖入 ComfyUI 生成的 PNG → 自动提取嵌入的 prompt 并加载 |
 
@@ -106,63 +112,95 @@ Ideogram4 Editor 是一个基于 Web 的可视化编辑器，专为 [Ideogram 4]
 src/
 ├── main.tsx                              # 入口，挂载 App + I18nProvider
 ├── index.css                             # Tailwind + 自定义 CSS 变量 + 全局样式
+├── test-setup.ts                         # 测试 setup（@testing-library/jest-dom）
 ├── i18n/
-│   ├── context.tsx                       # I18nProvider + useI18n() hook（t() 函数 + 插值）
-│   └── translations.ts                   # 中英双语字典（~90 条目），按 UI 区域组织
+│   ├── context.tsx                       # I18nProvider + useI18n() hook（t() + 插值）
+│   └── translations.ts                   # 中英双语字典（~120 条目），按 UI 区域组织
 ├── store/
 │   └── index.ts                          # Zustand store（useEditorStore），单一数据源
 ├── types/
 │   ├── index.ts                          # Box, IdeogramOutput, GenerationStatus 等类型
-│   └── chat.ts                           # ChatMessage 类型（id, role, content, timestamp, adopted）
+│   ├── chat.ts                           # ChatMessage 类型
+│   ├── presets.ts                        # PromptPreset 接口 + 4 个内置预设模板
+│   └── workspace.ts                      # WorkspaceBackupSettings, WorkspaceBackupPackageV1
 ├── hooks/
-│   ├── usePointerInteraction.ts          # 画布 Pointer Events：绘制/拖拽/缩放 boxes + interactionMode 状态
+│   ├── usePointerInteraction.ts          # 画布 Pointer Events：绘制/拖拽/缩放 boxes + 键盘快捷键
 │   ├── useImageDrop.ts                   # 图片拖放导入，PNG 元数据提取
+│   ├── useBoxImageImport.ts              # Box 图像导入：拖放/上传/粘贴 → Data URL
 │   ├── useComfyUIGeneration.ts           # ComfyUI 生成流程编排
 │   ├── useArtboardZoom.ts                # 画板缩放/平移：wheel 缩放+中键拖拽+坐标转换
-│   ├── useChatPanel.ts                   # AI 对话面板逻辑：消息发送/采纳/清空/模型选择
-│   └── useHashRoute.ts                   # Hash 路由 Hook：监听 hashchange 事件
+│   ├── useChatPanel.ts                   # AI 对话面板逻辑：消息发送/采纳/清空/预设/多模态
+│   ├── useCanvasChat.ts                  # 画布级 AI 构图对话：发送/流式/重试/解析/Apply/布局校验
+│   ├── useGeneratedJSON.ts               # JSON 生成逻辑：generateJSON + watch + 格式化输出
+│   └── useHashRoute.ts                   # Hash 路由 Hook
 ├── components/
 │   ├── layout/
 │   │   ├── App.tsx                       # 根组件：Hash 路由（#/ → CanvasPage, #/settings → SettingsPage）
-│   │   ├── HeaderControls.tsx            # 全局 Header：Logo + 居中 Canvas/Settings 导航 + 右侧快捷键+语言切换
+│   │   ├── HeaderControls.tsx            # 全局 Header：Logo + 导航 + 快捷键+语言切换
 │   │   ├── MainContent.tsx               # CanvasPage：左列（Artboard） + 右列（面板）
-│   │   └── SettingsPage.tsx              # 设置页：左右两栏（LLM 提供商 + 提示词预设）
+│   │   ├── BottomBar.tsx                 # 底部工具栏：JSON 生成 + ComfyUI 控件 + 图片预览
+│   │   ├── SettingsPage.tsx              # 设置页：LLM 提供商管理 + 提示词预设管理
+│   │   ├── GeneralSettingsPanel.tsx       # 通用设置面板（模态框内嵌）
+│   │   └── WorkspacePanel.tsx            # 工作区备份：GitHub Token/Gist ID、备份/恢复
 │   ├── canvas/
-│   │   ├── Artboard.tsx                  # 画板容器：固定视口、滚轮缩放+中键平移 + 组合 ArtboardToolbar
+│   │   ├── Artboard.tsx                  # 画板容器：固定视口、滚轮缩放+中键平移
 │   │   ├── ArtboardToolbar.tsx           # 画布上边缘悬浮工具栏：比例/缩放/尺寸/收藏
-│   │   ├── CanvasArea.tsx                # 交互式画布（Pointer Events）+ ChatPanel 渲染
-│   │   ├── BoundingBox.tsx               # 单个边界框覆盖层 + resize handle + ChatBubbleButton
-│   │   └── ChatBubbleButton.tsx          # ✨ 按钮：选中 box 右上角，点击打开 AI 对话面板
+│   │   ├── CanvasArea.tsx                # 交互式画布 + 右键上下文菜单 + ChatPanel
+│   │   ├── BoundingBox.tsx               # 边界框：文字标签 + inline 编辑 + 背景图像 + resize
+│   │   ├── ContextMenu.tsx               # 通用右键上下文菜单（createPortal→body）
+│   │   ├── ChatBubbleButton.tsx          # ✨ 按钮：选中 box 右上角
+│   │   ├── CanvasChatPanel.tsx           # 画布级 AI 构图浮动面板
+│   │   ├── LayoutQualityDialog.tsx       # 布局质量校验结果弹窗
+│   │   └── LayerPanel.tsx                # 图层管理面板
 │   ├── panels/
 │   │   ├── GlobalSettingsPanel.tsx        # 全局设置：模式/描述/美学/光照/媒介/背景/调色板
 │   │   ├── BoxPropertiesPanel.tsx         # 边界框属性：模式/文本/描述/调色板/删除
 │   │   ├── ColorPalette.tsx              # 可复用颜色选择器 + 色板组件
+│   │   ├── GlowGrid.tsx                 # 装饰性交互式发光点阵背景容器
+│   │   ├── OptimizableInput.tsx          # 可优化输入框：带 ✨ 按钮触发 AI 优化
+│   │   ├── SuggestionBar.tsx             # AI 建议条
 │   │   └── RightPanelContainer.tsx       # 右列 Tab 导航容器（全局/边界框 两 tab）
 │   ├── json/
-│   │   └── JsonToolbar.tsx              # 生成 JSON / 从粘贴加载
+│   │   └── JsonToolbar.tsx               # 生成 JSON / 从粘贴加载
 │   ├── comfyui/
 │   │   ├── ComfyUIControls.tsx           # 生成控制：种子滑块/API URL/生成按钮
 │   │   └── ImagePreview.tsx              # 生成结果图片展示
-│   └── llm/
-│       ├── LlmPanel.tsx                  # LLM 工具面板：提供商列表 + 配置入口
-│       ├── LlmConfigPanel.tsx            # LLM 配置面板（模态框 + 内嵌模式）：CRUD + 模型拉取
-│       ├── types.ts                      # LlmProvider, ProviderKind 类型 + 常量
-│       └── api.ts                        # LLM 提供商 CRUD（localStorage）+ 模型 API 调用
-│   └── chat/
-│       ├── ChatPanel.tsx                 # AI 对话浮动面板（createPortal→body），预设/模型/语言 SelectMenu
-│       ├── ChatMessage.tsx               # 用户/AI 消息气泡 + 采纳/忽略按钮
-│       ├── PresetManagerPanel.tsx        # 预设管理面板（模态框 + 内嵌模式）：搜索/标签筛选/CRUD
-│       └── SelectMenu.tsx                # 可复用 Portal 下拉选择菜单组件
-│       └── ChatMessage.tsx               # 用户/AI 消息气泡 + 采纳/忽略按钮
+│   ├── llm/
+│   │   ├── LlmPanel.tsx                  # LLM 工具面板（已迁移到 SettingsPage）
+│   │   ├── LlmConfigPanel.tsx            # LLM 配置面板：CRUD + 模型拉取
+│   │   ├── types.ts                      # LlmProvider, ProviderKind 类型
+│   │   └── api.ts                        # LLM 提供商 CRUD（localStorage）
+│   ├── chat/
+│   │   ├── ChatPanel.tsx                 # AI 对话浮动面板（createPortal→body）
+│   │   ├── ChatMessage.tsx               # 用户/AI 消息气泡 + 采纳/忽略
+│   │   ├── ChatRunControls.tsx           # 对话运行控制：发送/停止/重新生成
+│   │   ├── SystemPromptPanel.tsx         # 系统提示词编辑面板
+│   │   ├── JsonCodeBlock.tsx             # JSON 代码块：json/预览切换
+│   │   ├── PresetManagerPanel.tsx        # 预设管理面板
+│   │   └── SelectMenu.tsx                # 可复用 Portal 下拉选择菜单
+│   ├── shortcuts/
+│   │   ├── ShortcutsModal.tsx            # 快捷键速查模态
+│   │   └── shortcuts-data.ts             # 静态分组数据
+│   └── ui/
+│       └── icons.tsx                     # 所有 SVG 图标组件
 ├── utils/
 │   ├── coordinates.ts                    # 坐标归一化/反归一化（0-1000 ↔ 像素）
 │   ├── json-serializer.ts               # generateJSON() + parseBoxesFromJSON()
-│   ├── json-highlight.ts                 # 轻量 JSON 语法高亮（单遍正则 token 匹配，零依赖）
+│   ├── canvas-dims.ts                   # 画布尺寸计算：roundTo16 约束
+│   ├── json-highlight.ts                 # 轻量 JSON 语法高亮（零依赖）
 │   ├── code-block-parser.ts              # Markdown fenced code block 切分
-│   ├── png-metadata.ts                   # 从 PNG tEXt chunk 提取 prompt/workflow 元数据
+│   ├── panelPosition.ts                 # 面板定位计算
+│   ├── resolveTemplate.ts               # 模板变量替换
+│   ├── png-metadata.ts                   # 从 PNG tEXt chunk 提取元数据
 │   └── comfyui-api.ts                    # 轮询 ComfyUI /history 端点
 ├── services/
-│   └── llm-chat.ts                       # sendChatMessage() 多提供商 LLM API 调用
+│   ├── llm-chat.ts                       # sendChatMessage() 多提供商 LLM + 多模态
+│   ├── llm-stream.ts                     # sendChatMessageStream() SSE 流式服务层
+│   ├── llm-canvas-chat.ts               # Canvas Chat system prompt + JSON 提取
+│   ├── layout-validator.ts              # 布局质量软校验
+│   ├── gist-backup.ts                   # GitHub Gist CRUD
+│   ├── workspace-backup.ts               # 备份包构建/解析/恢复预览
+│   └── workspace-persistence.ts          # workspace 状态持久化
 └── workflow/
     ├── comfyui-workflow.ts               # 静态 ComfyUI workflow JSON 模板
     └── workflow-mutator.ts               # 向模板注入 prompt/width/height/seed
@@ -209,6 +247,13 @@ POST /api/prompt → 轮询 /history/{id} → 显示生成图片
 | `isChatOpen` | `false` | AI 对话面板是否打开 |
 | `chatHistories` | `{}` | 每个 box 的对话历史（`Record<string, ChatMessage[]>`） |
 | `chatModel` | localStorage | 选中的 LLM 模型标识（格式 `providerId:modelName`） |
+| `undoStack / redoStack` | `[]` | 快照式撤销/重做历史（各最多 50 步） |
+| `editingBoxId` | `null` | 当前内联编辑的 box ID（双击进入） |
+| `canvasChatMessages` | `[]` | 画布级构图对话消息历史 |
+| `pendingIdeogramOutput` | `null` | 待 Apply 的结构化 IdeogramOutput |
+| `canvasBackgroundUrl` | `null` | 画布背景参考图 Data URL |
+| `isCanvasChatMaximized` | `false` | Canvas Chat 是否全屏显示 |
+| `chatThinkingLevel` | `'medium'` | LLM 推理力度：`off | low | medium | high` |
 
 ### 坐标系统
 

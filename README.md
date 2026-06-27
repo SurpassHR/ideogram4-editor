@@ -40,6 +40,13 @@ Ideogram4 Editor is a web-based visual tool for crafting structured JSON prompts
 - ⌨️ **Keyboard Shortcuts** — `Ctrl+D/X/C/V` for box operations, `Delete` to remove
 - ⚡ **SSE Streaming** — Token-by-token streaming for all LLM interactions
 - ✨ **Interactive Glow Grid** — Dynamic dot-matrix glow background via CSS Masking + JS coordinate mapping
+- ↩️ **Undo/Redo** — Ctrl+Z to undo, Ctrl+Y to redo, snapshot-based history (up to 50 steps)
+- 📋 **Layer Panel** — Floating layer panel to select and manage boxes hidden behind others
+- 🖼️ **Box Image Import** — Drag & drop, upload, or paste images into a box as visual reference and multimodal AI input
+- 💬 **Canvas Chat** — Canvas-level AI composition dialog returning structured IdeogramOutput with Apply/Regenerate workflow
+- ⚙️ **General Settings** — Settings for Canvas Chat auto-maximize and canvas-level preferences
+- 💾 **Workspace Backup** — GitHub Gist-based backup/restore with cross-client discovery
+- ✅ **Layout Quality Validation** — Soft validation (area coverage, spacing, aspect ratios) before image generation
 
 ---
 
@@ -67,7 +74,7 @@ npm run preview
    - **Mode**: `obj` (object/photo) or `text` (text/art style)
    - **Text**: Label displayed inside the box
    - **Description**: Detailed visual description for this region
-   - **Colors**: Assign colors (max 5 per box); same-colored boxes are treated as parts of the same object
+   - **Colors**: Assign colors (max 16 per box); same-colored boxes are treated as parts of the same object
 4. **Configure global settings** — Switch to the "Global" tab in the right panel: style mode, description, aesthetics, lighting, medium, and global palette
 5. **Generate JSON** — Click "Generate JSON" to normalize box coordinates to 0–1000 and produce a standardized prompt
 6. **Copy / Load** — Copy the JSON to clipboard, or paste JSON to load into the editor
@@ -83,6 +90,7 @@ npm run preview
 | Box operations | Right-click box → duplicate/cut/copy/delete/layer/image/AI Chat |
 | Artboard controls | Scroll to zoom · Middle-click to pan · Bottom slider (10%–500%) |
 | PNG metadata import | Drag a ComfyUI-generated PNG → auto-extract embedded prompt |
+| Undo / Redo | Ctrl+Z (undo) · Ctrl+Y (redo) |
 
 ### Image Generation (local ComfyUI required)
 
@@ -192,6 +200,15 @@ POST /api/prompt → poll /history/{id} → display generated image
 | `generationStatus` | `'idle'` | `idle \| generating \| polling \| done \| error` |
 | `isCanvasChatMaximized` | `false` | Whether Canvas Chat is in full-screen mode |
 | `chatThinkingLevel` | `'medium'` | LLM reasoning effort: `off \| low \| medium \| high` |
+| `undoStack / redoStack` | `[]` | Snapshot-based undo/redo history (max 50 steps each) |
+| `editingBoxId` | `null` | Box ID currently being inline-edited (double-click) |
+| `activeChatBoxId` | `null` | Box ID with open AI chat panel (✨ button) |
+| `chatHistories` | `{}` | Chat history per box (`Record<string, ChatMessage[]>`) |
+| `canvasChatMessages` | `[]` | Canvas-level composition chat message history |
+| `pendingIdeogramOutput` | `null` | Pending structured IdeogramOutput awaiting Apply |
+| `canvasBackgroundUrl` | `null` | Canvas background reference image Data URL |
+| `generatedImageUrl` | `null` | URL of the latest generated image |
+| `chatModel` | localStorage | Selected LLM model identifier (`providerId:modelName`) |
 
 ---
 
