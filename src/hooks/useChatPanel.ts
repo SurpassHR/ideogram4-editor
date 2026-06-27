@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useEditorStore } from '../store';
 import { getLlmProviders } from '../components/llm/api';
 import { sendChatMessageWithOptions, abortActiveRequest } from '../services/llm-stream';
-import { buildBoxChatSystemPrompt } from '../services/llm-chat';
+import { buildBoxChatJsonSystemPrompt, extractBoxChatJson } from '../services/llm-chat';
 import { resolveTemplate } from '../utils/resolveTemplate';
 import type { LlmProvider } from '../components/llm/types';
 import type { ChatMessage } from '../types/chat';
@@ -131,7 +131,7 @@ export function useChatPanel() {
         ? (useEditorStore.getState().chatHistories[activeChatBoxId] || [])
         : [];
       const allMessages = [...currentMessages];
-      const systemPrompt = buildBoxChatSystemPrompt(currentBox, {
+      const systemPrompt = buildBoxChatJsonSystemPrompt(currentBox, {
         highLevelDescription,
         aesthetics,
         lighting,
@@ -192,7 +192,23 @@ export function useChatPanel() {
     if (!activeChatBoxId || !currentBox) return;
     const msg = messages.find(m => m.id === messageId);
     if (!msg || msg.role !== 'assistant') return;
-    updateBox(activeChatBoxId, { desc: msg.content });
+
+    // 尝试结构化 JSON 解析 => 同时更新 desc + colors + text（不改变位置）
+    const parsed = extractBoxChatJson(msg.content);
+    if (parsed) {
+      const updates: Record<string, unknown> = { desc: parsed.desc };
+      if (parsed.colors && parsed.colors.length > 0) {
+        updates.colors = parsed.colors;
+      }
+      if (parsed.text && currentBox.mode === 'text') {
+        updates.text = parsed.text;
+      }
+      updateBox(activeChatBoxId, updates);
+    } else {
+      // 兜底：写入完整文本到 desc（保持旧行为）
+      updateBox(activeChatBoxId, { desc: msg.content });
+    }
+
     markChatMessageAdopted(activeChatBoxId, messageId);
   }, [activeChatBoxId, currentBox, messages, updateBox, markChatMessageAdopted]);
 

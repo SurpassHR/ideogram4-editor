@@ -193,6 +193,72 @@ export function buildBoxChatSystemPrompt(box: Box, ctx: BoxChatContext, response
   return lines.join('\n');
 }
 
+/** 结构化 JSON 版本的 Box Chat system prompt — 要求 LLM 返回 box 级 JSON 而非自由文本 */
+export const BOX_CHAT_JSON_SYSTEM_PROMPT = `You are an expert prompt writer for the Ideogram 4 image generation model. The user is improving the content of a specific region (bounding box) in an image.
+
+Output ONLY a valid JSON object inside a \`\`\`json code block. No explanation, no other text outside the code block.
+
+The JSON describes this bounding box's content:
+
+{
+  "desc": "Detailed English description of the visual content in this region. Include rich visual details (color, material, lighting, posture, scene details, etc.). 1-3 vivid sentences.",
+  "colors": ["#RRGGBB", "#RRGGBB", ...],
+  "text": "... (only if the box mode is 'text')"
+}
+
+## Rules
+- "desc": REQUIRED. This is the primary prompt for the box content. The language matches your output language setting below.
+- "colors": OPTIONAL. Max 5 hex colors, uppercase #RRGGBB format. These REPLACE the current box colors on this region.
+- "text": Only include if the box mode is 'text'. The text to display in this region.
+- Keep "desc" focused on this specific region, not the entire image.
+- Output ONLY the \`\`\`json code block.`;
+
+/** 构建结构化 JSON 版本的 Box Chat system prompt（含 box 属性 + 全局上下文） */
+export function buildBoxChatJsonSystemPrompt(
+  box: Box,
+  ctx: BoxChatContext,
+  responseLang?: string,
+  customSystemPrompt?: string,
+): string {
+  const modeLabel = box.mode === 'text' ? 'text' : 'object';
+  const basePrompt = customSystemPrompt || BOX_CHAT_JSON_SYSTEM_PROMPT;
+  const lines = [
+    basePrompt,
+    '',
+    `Current box properties:`,
+    `- Mode: ${modeLabel}`,
+    `- Text: ${box.text || '(empty)'}`,
+    `- Description: ${box.desc || '(empty)'}`,
+    `- Colors: ${box.colors.length > 0 ? box.colors.join(', ') : '(none)'}`,
+    '',
+    `Global composition context:`,
+    `- High-level description: ${ctx.highLevelDescription || '(empty)'}`,
+    `- Aesthetics: ${ctx.aesthetics || '(empty)'}`,
+    `- Lighting: ${ctx.lighting || '(empty)'}`,
+    `- Medium: ${ctx.medium || '(empty)'}`,
+    `- Art style: ${ctx.artStyle || '(empty)'}`,
+    `- Background: ${ctx.background || '(empty)'}`,
+    `- Global color palette: ${ctx.globalPalette.length > 0 ? ctx.globalPalette.join(', ') : '(none)'}`,
+    '',
+    `Help the user improve the box's description for better image generation results.`,
+  ];
+
+  if (responseLang === 'en') {
+    lines.push('Your response MUST be in English.');
+  } else if (responseLang === 'zh') {
+    lines.push('你的回复必须使用中文。');
+  } else {
+    lines.push('Respond in the same language the user uses.');
+  }
+
+  if (box.imageDataUrl && box.imageRole !== 'background') {
+    lines.push('');
+    lines.push('This box has a reference image attached. Use the visual content of the image to inform your output.');
+  }
+
+  return lines.join('\n');
+}
+
 /** 各全局设置字段的优化提示词 */
 export const OPTIMIZE_PROMPTS: Record<string, string> = {
   highLevelDescription: `You are an expert prompt writer for the Ideogram 4 image generation model. The user has written a high-level description of the image they want to create. Rewrite it with more vivid visual details, compositional hints, and mood cues. Output only the improved English description, nothing else.`,
@@ -500,4 +566,81 @@ export function loadOptimizeSelection(): OptimizeSelection | null {
 
 export function saveOptimizeSelection(selection: OptimizeSelection): void {
   localStorage.setItem(OPTIMIZE_STORAGE_KEY, JSON.stringify(selection));
+}
+
+// ─── Box Chat 结构化 JSON 输出 ──────────────────────────────────
+
+/** Box Chat JSON 输出类型 — LLM 返回的解析后结构 */
+export interface BoxChatJsonOutput {
+  desc: string;
+  colors?: string[];
+  text?: string;
+}
+
+/** 从文本中提取裸 JSON 对象（无 ```json 代码块时的兜底） */
+function extractBareBoxJson(text: string): string | null {
+  const trimmed = text.trim();
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) return trimmed;
+
+  const start = text.indexOf('{');
+  if (start < 0) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < text.length; i++) {
+    const char = text[i];
+    if (escaped) { escaped = false; continue; }
+    if (char === '\\') { escaped = true; continue; }
+    if (char === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (char === '{') depth += 1;
+    if (char === '}') {
+      depth -= 1;
+      if (depth === 0) return text.slice(start, i + 1).trim();
+    }
+  }
+  return null;
+}
+
+/**
+ * 从 LLM 回复中提取并验证 box 级 JSON。
+ *
+ * 支持格式（按优先级）：
+ * 1. ```json ... ``` 代码块
+ * 2. 纯 JSON 对象（以 { 开头，以 } 结尾）
+ * 3. 文本中的第一个 {…} 结构
+ *
+ * 验证通过后返回 BoxChatJsonOutput，失败返回 null。
+ */
+export function extractBoxChatJson(text: string): BoxChatJsonOutput | null {
+  const jsonBlockMatch = text.match(/```json\s*([\s\S]*?)```/i);
+  const jsonStr = jsonBlockMatch?.[1]?.trim() || extractBareBoxJson(text);
+  if (!jsonStr) return null;
+
+  try {
+    const obj = JSON.parse(jsonStr);
+    if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) return null;
+
+    const result: BoxChatJsonOutput = { desc: '' };
+
+    // desc：必须字段
+    if (typeof obj.desc !== 'string' || !obj.desc.trim()) return null;
+    result.desc = obj.desc.trim();
+
+    // colors：可选字段，过滤合法 hex 色值，最多 5 个
+    if (Array.isArray(obj.colors)) {
+      const hexColors = obj.colors
+        .filter((c: unknown) => typeof c === 'string' && /^#[0-9A-Fa-f]{6}$/.test(c))
+        .map((c: string) => c.toUpperCase());
+      if (hexColors.length > 0) result.colors = hexColors.slice(0, 5);
+    }
+
+    // text：可选字段（仅 text mode 的 box 使用）
+    if (typeof obj.text === 'string' && obj.text.trim()) result.text = obj.text.trim();
+
+    return result;
+  } catch {
+    return null;
+  }
 }
