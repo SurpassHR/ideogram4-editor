@@ -1,3 +1,4 @@
+import { useRef, useEffect } from 'react';
 import { useEditorStore } from '../../store';
 import { useI18n } from '../../i18n/context';
 import ColorPalette from './ColorPalette';
@@ -14,6 +15,14 @@ export default function BoxPropertiesPanel() {
   const { t } = useI18n();
 
   const box = boxes.find(b => b.id === selectedBoxId);
+  const descRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (descRef.current) {
+      descRef.current.style.height = 'auto';
+      descRef.current.style.height = descRef.current.scrollHeight + 'px';
+    }
+  }, [box?.desc, box?.text]);
 
   if (selectedBoxIds.length > 1) {
     return (
@@ -67,7 +76,9 @@ export default function BoxPropertiesPanel() {
       <div className="input-group">
         <label>{t('panels.boxProperties.description')}</label>
         <textarea
-          value={box.desc}
+          ref={descRef}
+          value={box.desc || box.text}
+          placeholder={box.desc || box.text || t('panels.boxProperties.description')}
           onChange={e => updateBox(box.id, { desc: e.target.value })}
         />
       </div>

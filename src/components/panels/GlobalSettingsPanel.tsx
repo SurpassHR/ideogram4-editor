@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useEditorStore } from '../../store';
 import { MODE_PHOTO, MODE_ARTSTYLE } from '../../types';
 import { useI18n } from '../../i18n/context';
@@ -54,6 +54,15 @@ export default function GlobalSettingsPanel() {
     setNsfwActive(value.endsWith(NSFW_SUFFIX));
   }, [setGlobalSetting]);
 
+  const hldRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (hldRef.current) {
+      hldRef.current.style.height = 'auto';
+      hldRef.current.style.height = hldRef.current.scrollHeight + 'px';
+    }
+  }, [highLevelDescription]);
+
   return (
     <GlowGrid className="panel">
       <div className="pill-group" style={{ marginBottom: 16 }}>
@@ -92,9 +101,9 @@ export default function GlobalSettingsPanel() {
           </button>
         </div>
         <textarea
+          ref={hldRef}
           value={highLevelDescription}
           onChange={e => handleHldChange(e.target.value)}
-          rows={2}
           placeholder={t('panels.globalSettings.highLevelDescription')}
           style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, fontSize: 13, background: 'var(--surface-raised)', color: 'var(--text)', fontFamily: 'inherit', resize: 'vertical', minHeight: 50, boxSizing: 'border-box' }}
         />

@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import GlobalSettingsPanel from './GlobalSettingsPanel';
 import BoxPropertiesPanel from './BoxPropertiesPanel';
 import JsonToolbar from '../json/JsonToolbar';
 import ComfyUIControls from '../comfyui/ComfyUIControls';
 import ImagePreview from '../comfyui/ImagePreview';
 import { useI18n } from '../../i18n/context';
+import { useEditorStore } from '../../store';
 import { IconGear, IconBox, IconFile, IconZap } from '../ui/icons';
 
 type TabId = 'global' | 'box' | 'json' | 'generate';
@@ -17,7 +18,14 @@ interface Tab {
 
 export default function RightPanelContainer() {
   const [activeTab, setActiveTab] = useState<TabId>('global');
+  const selectedBoxId = useEditorStore(s => s.selectedBoxId);
   const { t } = useI18n();
+
+  // 点击 box 时自动切换到边界框属性，点击画布时切换到全局设置
+  useEffect(() => {
+    setActiveTab(selectedBoxId ? 'box' : 'global');
+  }, [selectedBoxId]);
+
 
   const tabs: Tab[] = [
     { id: 'global', label: t('panels.globalSettings.title'), icon: <IconGear size={14} /> },
