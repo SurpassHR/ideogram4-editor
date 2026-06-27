@@ -404,9 +404,11 @@ export function useCanvasChat() {
     // 语言偏好 append 到 system prompt
     let langHint = '';
     if (chatResponseLang === 'en') {
-      langHint = '\nYou MUST respond in English.';
+      langHint = '\nYou MUST respond in English. Provide all text descriptions (high_level_description, element desc, background, etc.) in English.';
     } else if (chatResponseLang === 'zh') {
-      langHint = '\n你必须用中文回复。';
+      langHint = '\n你必须用中文回复。所有描述字段（high_level_description、element desc、background 等）都必须使用中文。';
+    } else {
+      langHint = '\nRespond in the same language the user uses. All description fields should match the user\'s language.';
     }
 
     const placeholderId = generateMessageId();
