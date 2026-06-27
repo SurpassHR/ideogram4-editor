@@ -452,8 +452,11 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
               store.cutBox(actionTarget);
             }
             break;
-          case 'c':
-            if (activeSelection.length > 0) {
+         case 'c':
+            // 如果 DOM 中有文本被选中，让浏览器原生 Ctrl+C 复制文本，
+            // 不要拦截为 canvas box 复制
+            const selectedText = window.getSelection()?.toString();
+            if (activeSelection.length > 0 && !selectedText) {
               e.preventDefault();
               store.copyBox(actionTarget);
             }
