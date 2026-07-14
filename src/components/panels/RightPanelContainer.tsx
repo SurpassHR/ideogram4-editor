@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react';
 import GlobalSettingsPanel from './GlobalSettingsPanel';
 import BoxPropertiesPanel from './BoxPropertiesPanel';
 import JsonToolbar from '../json/JsonToolbar';
+import NaturalLanguagePanel from './NaturalLanguagePanel';
 import ComfyUIControls from '../comfyui/ComfyUIControls';
 import ImagePreview from '../comfyui/ImagePreview';
 import { useI18n } from '../../i18n/context';
 import { useEditorStore } from '../../store';
-import { IconGear, IconBox, IconFile, IconZap } from '../ui/icons';
+import { IconGear, IconBox, IconFile, IconZap, IconSparkle } from '../ui/icons';
 
-type TabId = 'global' | 'box' | 'json' | 'generate';
+type TabId = 'global' | 'box' | 'json' | 'natural' | 'generate';
 
 interface Tab {
   id: TabId;
@@ -31,6 +32,7 @@ export default function RightPanelContainer() {
     { id: 'global', label: t('panels.globalSettings.title'), icon: <IconGear size={14} /> },
     { id: 'box', label: t('panels.boxProperties.title'), icon: <IconBox size={14} /> },
     { id: 'json', label: t('json.panel'), icon: <IconFile size={14} /> },
+    { id: 'natural', label: t('json.naturalLanguageMode'), icon: <IconSparkle size={14} /> },
     { id: 'generate', label: t('comfyui.generation'), icon: <IconZap size={14} /> },
   ];
 
@@ -39,6 +41,7 @@ export default function RightPanelContainer() {
       case 'global': return t('panels.globalSettings.title');
       case 'box': return t('panels.boxProperties.title');
       case 'json': return t('json.panel');
+      case 'natural': return t('json.naturalLanguageMode');
       case 'generate': return t('comfyui.generation');
     }
   };
@@ -52,9 +55,9 @@ export default function RightPanelContainer() {
             key={tab.id}
             className={`panel-tab ${activeTab === tab.id ? 'active' : ''}`}
             onClick={() => setActiveTab(tab.id)}
+            title={tab.label}
           >
             <span className="panel-tab-icon">{tab.icon}</span>
-            <span className="panel-tab-label">{tab.label}</span>
           </button>
         ))}
         <div className="panel-tab-indicator" style={{ '--tab-index': tabs.findIndex(t => t.id === activeTab) } as React.CSSProperties} />
@@ -62,8 +65,8 @@ export default function RightPanelContainer() {
 
       {/* Content */}
       <div className="panel-tab-content">
-        {/* Section header — JSON tab 有自己的 header 在 json-code-block 内部 */}
-        {activeTab !== 'json' && (
+        {/* Section header — JSON tab 和 Natural tab 有自己的 header 在内部 */}
+        {activeTab !== 'json' && activeTab !== 'natural' && (
           <>
             <div className="panel-tab-section-header">
               <span className="panel-tab-section-header-title">{sectionTitle()}</span>
@@ -77,6 +80,11 @@ export default function RightPanelContainer() {
         {activeTab === 'json' && (
           <div className="panel-tab-json">
             <JsonToolbar />
+          </div>
+        )}
+        {activeTab === 'natural' && (
+          <div className="panel-tab-natural">
+            <NaturalLanguagePanel />
           </div>
         )}
         {activeTab === 'generate' && (

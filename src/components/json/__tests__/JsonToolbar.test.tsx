@@ -57,7 +57,8 @@ describe('JsonToolbar', () => {
   it('切换 Preview 时应使用当前画布状态渲染只读预览', () => {
     renderToolbar();
 
-    fireEvent.click(screen.getByRole('switch'));
+    // 点击 Preview tab
+    fireEvent.click(screen.getByRole('tab', { name: 'Preview' }));
 
     expect(screen.getByText('Poster scene')).toBeInTheDocument();
     expect(screen.getByText('Hero object')).toBeInTheDocument();
@@ -70,7 +71,8 @@ describe('JsonToolbar', () => {
     fireEvent.change(screen.getByPlaceholderText('JSON output will appear here...'), {
       target: { value: '{ bad json' },
     });
-    fireEvent.click(screen.getByRole('switch'));
+    // 点击 Preview tab
+    fireEvent.click(screen.getByRole('tab', { name: 'Preview' }));
 
     expect(screen.getByText(/Invalid JSON:/)).toBeInTheDocument();
     expect(window.alert).not.toHaveBeenCalled();

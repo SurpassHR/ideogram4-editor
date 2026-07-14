@@ -146,6 +146,21 @@ export interface Translations {
     previewMode: string;
     placeholder: string;
     invalidJson: string;
+    naturalLanguageMode: string;
+    convertToNatural: string;
+    nlScene: string;
+    nlStyle: string;
+    nlBackground: string;
+    nlElements: string;
+    nlElement: string;
+    nlText: string;
+    nlObject: string;
+    nlTextContent: string;
+    nlPosition: string;
+    nlSize: string;
+    nlColors: string;
+    nlColorPalette: string;
+    nlEmpty: string;
   };
   comfyui: {
     generation: string;
@@ -561,6 +576,21 @@ const en: Translations = {
     previewMode: 'Preview',
     placeholder: 'JSON output will appear here...',
     invalidJson: 'Invalid JSON: {error}',
+    naturalLanguageMode: 'Natural Language',
+    convertToNatural: 'Convert to Natural Language',
+    nlScene: 'Scene',
+    nlStyle: 'Style',
+    nlBackground: 'Background',
+    nlElements: 'Elements',
+    nlElement: 'Element',
+    nlText: 'Text',
+    nlObject: 'Object',
+    nlTextContent: 'Text Content',
+    nlPosition: 'Position: {left}% left to {right}% right, {top}% top to {bottom}% bottom',
+    nlSize: 'Size: {width}% × {height}%',
+    nlColors: 'Colors: {colors}',
+    nlColorPalette: 'Color Palette: {colors}',
+    nlEmpty: 'Add boxes and configure styles to generate a natural language description',
   },
   comfyui: {
     generation: 'Generation',
@@ -976,6 +1006,21 @@ const zh: Translations = {
     previewMode: '预览',
     placeholder: 'JSON 输出将显示在此处...',
     invalidJson: '无效的 JSON：{error}',
+    naturalLanguageMode: '自然语言',
+    convertToNatural: '转换为自然语言',
+    nlScene: '整体场景',
+    nlStyle: '风格描述',
+    nlBackground: '背景',
+    nlElements: '布局元素',
+    nlElement: '元素',
+    nlText: '文本',
+    nlObject: '对象',
+    nlTextContent: '文本内容',
+    nlPosition: '位置：从左 {left}% 到 {right}%，从上 {top}% 到 {bottom}%',
+    nlSize: '尺寸：宽 {width}% × 高 {height}%',
+    nlColors: '颜色：{colors}',
+    nlColorPalette: '调色板：{colors}',
+    nlEmpty: '添加边界框并配置风格以生成自然语言描述',
   },
   comfyui: {
     generation: '图像生成',
