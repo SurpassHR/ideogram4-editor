@@ -34,3 +34,6 @@ _site/
 Gemfile.lock
 # Codex CLI local artifacts
 .codex/
+
+# pi-subagents artifacts
+.pi-subagents/
