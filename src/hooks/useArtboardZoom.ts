@@ -51,8 +51,30 @@ export function useArtboardZoom(
 
   const handleWheel = useCallback(
     (e: WheelEvent) => {
-      e.preventDefault();
+      // 检查事件是否来自可滚动容器，若是则让浏览器原生处理滚动
+      const target = e.target as HTMLElement | null;
       const artboard = artboardRef.current;
+      if (target && artboard) {
+        let el: HTMLElement | null = target;
+        while (el && el !== artboard) {
+          const overflowY = getComputedStyle(el).overflowY;
+          if (
+            (overflowY === 'auto' || overflowY === 'scroll') &&
+            el.scrollHeight > el.clientHeight
+          ) {
+            // 不在滚动边界时让原生滚动，在边界时继续冒泡给画布缩放
+            const atTop = el.scrollTop === 0 && e.deltaY < 0;
+            const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight && e.deltaY > 0;
+            if (!atTop && !atBottom) {
+              return;
+            }
+            break;
+          }
+          el = el.parentElement;
+        }
+      }
+
+      e.preventDefault();
       if (!artboard) return;
       const rect = artboard.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
