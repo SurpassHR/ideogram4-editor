@@ -34,6 +34,8 @@ export interface Translations {
     manage: string;
     copyModelPrompt: string;
     nonIdeogramHint: string;
+    applyFailed: string;
+    noBboxOutput: string;
   };
   header: {
     ratio: string;
@@ -498,6 +500,8 @@ const en: Translations = {
     manage: 'Manage skills',
     copyModelPrompt: 'Copy model prompt',
     nonIdeogramHint: 'This skill outputs its own format: copy the model prompt into the matching workflow. The JSON panel still exports the Ideogram format.',
+    applyFailed: 'Cannot apply: the reply does not match the active skill format.',
+    noBboxOutput: 'This reply has no bounding boxes to apply — copy the model prompt instead.',
   },
   header: {
     ratio: 'Ratio:',
@@ -962,6 +966,8 @@ const zh: Translations = {
     manage: '管理 Skill',
     copyModelPrompt: '复制模型 prompt',
     nonIdeogramHint: '该 skill 输出的是自己的格式：请复制模型 prompt 到对应工作流。JSON 面板仍导出 Ideogram 格式。',
+    applyFailed: '无法 Apply：回复内容不符合当前 skill 的输出格式。',
+    noBboxOutput: '该回复没有可 Apply 的 bbox，请改用复制模型 prompt。',
   },
   header: {
     ratio: '比例：',

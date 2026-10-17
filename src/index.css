@@ -6041,3 +6041,72 @@ input[type="color"]::-webkit-color-swatch {
   gap: 8px;
   flex-wrap: wrap;
 }
+
+/* ─── Canvas Chat × Skill ────────────────────────────────────── */
+
+.chat-skill-manage-btn {
+  font-size: 11px;
+  padding: 5px 10px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.chat-skill-manage-btn:hover {
+  color: var(--text);
+  border-color: var(--primary);
+}
+
+.canvas-chat-skill-hint {
+  margin: 0 14px 8px;
+  padding: 8px 10px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  background: rgba(124, 92, 252, 0.08);
+  border: 1px solid rgba(124, 92, 252, 0.2);
+  border-radius: 6px;
+}
+
+.canvas-chat-message-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.canvas-chat-message-skill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 4px;
+}
+
+.canvas-chat-message-skill-name {
+  font-size: 10px;
+  color: var(--text-muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 8px;
+}
+
+.canvas-chat-copy-prompt {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+.canvas-chat-copy-prompt:hover {
+  color: var(--text);
+  border-color: var(--primary);
+}

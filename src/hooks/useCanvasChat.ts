@@ -2,7 +2,13 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useEditorStore } from '../store';
 import { getLlmProviders } from '../components/llm/api';
 import { sendChatMessageWithOptions, abortActiveRequest } from '../services/llm-stream';
-import { CANVAS_CHAT_SYSTEM_PROMPT, buildCanvasChatContext, buildLayoutFeedbackPrompt, extractAndValidateIdeogramJSON } from '../services/llm-canvas-chat';
+import { buildLayoutFeedbackPrompt } from '../services/llm-canvas-chat';
+import { getAdapter } from '../services/skill-adapters';
+import { isSkillExtractionError } from '../services/skill-adapters/types';
+import type { SkillExtraction } from '../services/skill-adapters/types';
+import { applyExtractionToStore } from '../services/skill-apply';
+import { getBuiltinSkills } from '../skills/builtin-skills';
+import { resolveActiveSkill } from '../types/skill';
 import { buildMultimodalMessages } from '../services/llm-chat';
 import { validateLayout } from '../services/layout-validator';
 import { generateMessageId, createUserMessage, createAssistantMessage } from '../types/chat';
@@ -209,13 +215,10 @@ export function useCanvasChat() {
   const chatModel = useEditorStore(s => s.chatModel);
   const chatResponseLang = useEditorStore(s => s.chatResponseLang);
   const chatStreamEnabled = useEditorStore(s => s.chatStreamEnabled);
-  const systemPrompts = useEditorStore(s => s.systemPrompts);
   const canvasBackgroundUrl = useEditorStore(s => s.canvasBackgroundUrl);
-  const activeCanvasChatSystemPromptId = useEditorStore(s => s.activeCanvasChatSystemPromptId);
-  const selectedCanvasSystemPrompt = activeCanvasChatSystemPromptId
-    ? systemPrompts.find(p => p.id === activeCanvasChatSystemPromptId)
-    : null;
-  const customCanvasSystemPrompt = selectedCanvasSystemPrompt?.content ?? null;
+  const importedSkills = useEditorStore(s => s.importedSkills);
+  const skillPrefs = useEditorStore(s => s.skillPrefs);
+  const setPendingApply = useEditorStore(s => s.setPendingApply);
   const chatThinkingLevel = useEditorStore(s => s.chatThinkingLevel);
   const canvasChatTargetSize = useEditorStore(s => s.canvasChatTargetSize);
   const setChatModel = useEditorStore(s => s.setChatModel);
@@ -243,6 +246,18 @@ export function useCanvasChat() {
   const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
   const isLoading = useEditorStore(s => s.isCanvasChatLoading);
   const setIsLoading = useEditorStore(s => s.setCanvasChatLoading);
+
+  /** 当前生效的 skill 与其 adapter（Canvas Chat 的 prompt / 解析 / Apply 契约） */
+  const skills = useMemo(
+    () => [...getBuiltinSkills(), ...importedSkills],
+    [importedSkills],
+  );
+  const activeSkill = useMemo(
+    () => resolveActiveSkill(skills, skillPrefs),
+    [skills, skillPrefs],
+  );
+  const skillAdapter = useMemo(() => getAdapter(activeSkill.adapter), [activeSkill.adapter]);
+  const activeSkillReferencePaths = skillPrefs.overrides[activeSkill.id]?.enabledReferencePaths;
 
   // 加载提供商列表
   useEffect(() => {
@@ -401,16 +416,6 @@ export function useCanvasChat() {
       },
     });
 
-    // 语言偏好 append 到 system prompt
-    let langHint = '';
-    if (chatResponseLang === 'en') {
-      langHint = '\nYou MUST respond in English. Provide all text descriptions (high_level_description, element desc, background, etc.) in English.';
-    } else if (chatResponseLang === 'zh') {
-      langHint = '\n你必须用中文回复。所有描述字段（high_level_description、element desc、background 等）都必须使用中文。';
-    } else {
-      langHint = '\nRespond in the same language the user uses. All description fields should match the user\'s language.';
-    }
-
     const placeholderId = generateMessageId();
     const placeholder: ChatMessage = {
       id: placeholderId,
@@ -418,10 +423,12 @@ export function useCanvasChat() {
       content: '',
       timestamp: Date.now(),
       canvasSnapshotUrl: snapshotUrl,
+      skillId: activeSkill.id,
+      skillName: activeSkill.displayName,
     };
     addCanvasChatMessage(placeholder);
 
-    const contextJson = buildCanvasChatContext(snapshot);
+    const contextJson = skillAdapter.buildCanvasContext(snapshot, canvasChatTargetSize);
     // 从 store 直接读取消息列表（retry 截断后需要最新状态）
     // 过滤掉尚未完成的 stream 占位消息
     const rawMessages = useEditorStore.getState().canvasChatMessages;
@@ -432,16 +439,23 @@ export function useCanvasChat() {
       const bgHint = canvasBackgroundUrl
         ? 'Background reference image: present (attached to this message)'
         : 'Background reference image: none';
+      const bboxHint = activeSkill.adapter === 'moss-layout'
+        ? 'Follow the MOSS-Image draft conventions for any layout output (absolute pixels, xyxy, canvas dimensions as multiples of 16).'
+        : 'Keep bbox values in the 0-1000 normalized coordinate system; do not use 1024 as a default canvas size.';
       const targetHint = [
         `Target output canvas: ${canvasChatTargetSize} x ${canvasChatTargetSize}`,
-        'Keep bbox values in the 0-1000 normalized coordinate system; do not use 1024 as a default canvas size.',
+        bboxHint,
         bgHint,
+        `Active skill: ${activeSkill.displayName} (${activeSkill.adapter})`,
       ].join('\n');
-      let enriched = `${targetHint}\n\nCurrent canvas state (JSON prompt):\n\`\`\`json\n${contextJson}\n\`\`\`\n\nMy composition request: ${apiMessages[lastUserIdx].content}`;
+      let enriched = `${targetHint}\n\nCurrent canvas state:\n\`\`\`json\n${contextJson}\n\`\`\`\n\nMy composition request: ${apiMessages[lastUserIdx].content}`;
       if (retryContext?.feedback) enriched += buildLayoutFeedbackPrompt(retryContext.feedback);
       apiMessages[lastUserIdx] = { role: 'user', content: enriched };
     }
-    const systemPrompt = (customCanvasSystemPrompt || CANVAS_CHAT_SYSTEM_PROMPT) + langHint;
+    const systemPrompt = skillAdapter.buildSystemPrompt(activeSkill, {
+      responseLang: chatResponseLang,
+      enabledReferencePaths: activeSkillReferencePaths,
+    });
     const hostUrl = provider.base_url || DEFAULT_BASE_URLS[provider.kind];
     const requestBody = buildHttpRequestString(
       provider.kind,
@@ -551,26 +565,33 @@ export function useCanvasChat() {
             parsedJsonText: extractJsonCodeBlock(finalContent),
           });
 
-          const parsedJson = extractAndValidateIdeogramJSON(finalContent);
-          if (parsedJson !== null) {
-            setPendingIdeogramOutput(parsedJson);
+          const storeForParse = useEditorStore.getState();
+          const extraction = skillAdapter.extract(finalContent, {
+            canvasW: storeForParse.canvasW,
+            canvasH: storeForParse.canvasH,
+          });
+          if (!isSkillExtractionError(extraction)) {
+            if (extraction.ideogramOutput) setPendingIdeogramOutput(extraction.ideogramOutput);
             appendCanvasChatRequestStep(requestId, {
               kind: 'parse_success',
               status: 'success',
-              label: 'Parse Ideogram JSON',
-              detail: `${parsedJson.compositional_deconstruction.elements.length} elements`,
+              label: `Parse ${skillAdapter.label} output`,
+              detail: `${extraction.elements.length} elements`,
             });
-
             setPendingQualityReport(null);
             appendCanvasChatRequestStep(requestId, {
               kind: 'done',
               status: 'success',
               label: 'Ready to apply',
-              detail: 'JSON is valid. Layout quality will be diagnosed after Apply.',
+              detail: extraction.elements.length > 0
+                ? 'Output is valid. Layout quality will be diagnosed after Apply.'
+                : 'No bounding boxes in this output — copy the model prompt instead.',
             });
             finishCanvasChatRequest(requestId, 'success');
           } else {
-            const errorText = buildParseErrorText(finalContent);
+            const errorText = skillAdapter.id === 'ideogram4'
+              ? buildParseErrorText(finalContent)
+              : `\n\n[Parse Error]\n${extraction.error}`;
             const parseError = errorText.replace(/\n\n\[Parse Error\]\n/, '');
             updateCanvasChatRequestDetail(requestId, {
               parsedJsonText: extractJsonCodeBlock(finalContent),
@@ -579,7 +600,7 @@ export function useCanvasChat() {
             appendCanvasChatRequestStep(requestId, {
               kind: 'parse_failed',
               status: 'error',
-              label: 'Parse Ideogram JSON failed',
+              label: `Parse ${skillAdapter.label} output failed`,
               detail: parseError,
             });
             finishCanvasChatRequest(requestId, 'error', parseError);
@@ -619,69 +640,53 @@ export function useCanvasChat() {
     parseModel, chatModel, finishCanvasChatRequest,
     boxes, canvasW, canvasH, globalPalette, highLevelDescription,
     aesthetics, lighting, medium, artStyle, background, photoArtStyleMode,
-    canvasChatMessages, chatResponseLang, chatStreamEnabled, chatThinkingLevel, canvasChatTargetSize, customCanvasSystemPrompt, systemPrompts, activeCanvasChatSystemPromptId, setPendingIdeogramOutput, setPendingQualityReport, canvasBackgroundUrl,
+    canvasChatMessages, chatResponseLang, chatStreamEnabled, chatThinkingLevel, canvasChatTargetSize,
+    activeSkill, skillAdapter, activeSkillReferencePaths,
+    setPendingIdeogramOutput, setPendingQualityReport, canvasBackgroundUrl,
   ]);
 
-  /** 将给定的 IdeogramOutput 应用到画布，并基于已落地布局生成质量诊断 */
-  const applyIdeogramOutput = useCallback((output: IdeogramOutput): number => {
+  /**
+   * 将给定的 skill 输出应用到画布，并基于已落地布局生成质量诊断。
+   * 返回落框数量；null 表示该消息无法按当前 skill 的格式解析。
+   */
+  const applyExtraction = useCallback((extraction: SkillExtraction, skillId: string): number => {
     const store = useEditorStore.getState();
-    // 如果 LLM 返回的画布尺寸与 store 不同，同步更新
-    if (output.canvasW && output.canvasH &&
-        (output.canvasW !== store.canvasW || output.canvasH !== store.canvasH)) {
-      store.setCanvasDimensions(output.canvasW, output.canvasH);
+    setPendingApply({ skillId, adapter: extraction.adapter, extraction });
+    if (extraction.ideogramOutput) setPendingIdeogramOutput(extraction.ideogramOutput);
+
+    const count = applyExtractionToStore(extraction, store);
+    if (count === 0) {
+      store.setPendingQualityReport(null);
+      return 0;
     }
-    const elements = output.compositional_deconstruction.elements;
-    const system = detectBboxSystem(elements);
-    const cw = output.canvasW ?? store.canvasW;
-    const ch = output.canvasH ?? store.canvasH;
 
-    store.clearBoxes();
-    elements.forEach(el => {
-      const { x, y, w, h } = bboxToPixels(el.bbox, cw, ch, system);
-      store.addBox({
-        x, y, w, h,
-        mode: el.type === 'text' ? 'text' : 'obj',
-        text: el.text || '',
-        desc: el.desc || '',
-        colors: el.color_palette || [],
-        imageDataUrl: null,
-        imageRole: 'both' as const,
-      });
-    });
+    const cw = extraction.canvas?.width ?? store.canvasW;
+    const ch = extraction.canvas?.height ?? store.canvasH;
+    store.setPendingQualityReport(validateLayout(extraction.elements, cw, ch));
+    return count;
+  }, [setPendingApply, setPendingIdeogramOutput]);
 
-    const sd = output.style_description;
-    store.setGlobalSetting('highLevelDescription', output.high_level_description || '');
-    store.setGlobalSetting('aesthetics', sd.aesthetics || '');
-    store.setGlobalSetting('lighting', sd.lighting || '');
-    store.setGlobalSetting('background', output.compositional_deconstruction.background || '');
-    if ('photo' in sd) {
-      store.setPhotoArtStyleMode(MODE_PHOTO);
-      store.setGlobalSetting('medium', (sd.photo as string) || '');
-      store.setGlobalSetting('artStyle', sd.medium || '');
-    } else {
-      store.setPhotoArtStyleMode(MODE_ARTSTYLE);
-      store.setGlobalSetting('medium', sd.medium || '');
-      store.setGlobalSetting('artStyle', sd.art_style || '');
-    }
-    (sd.color_palette || []).forEach(c => store.addGlobalColor(c));
-
-    const normalizedElements = system === 'normalized' ? elements : elements.map(el => {
-      const [y1, x1, y2, x2] = el.bbox;
-      if (system === 'fractional') return { ...el, bbox: [y1 * 1000, x1 * 1000, y2 * 1000, x2 * 1000] as [number, number, number, number] };
-      return { ...el, bbox: [(y1 / ch) * 1000, (x1 / cw) * 1000, (y2 / ch) * 1000, (x2 / cw) * 1000] as [number, number, number, number] };
-    });
-    store.setPendingQualityReport(validateLayout(normalizedElements, cw, ch));
-
-    return output.compositional_deconstruction.elements.length;
-  }, []);
-
-  /** 解析消息内容中的 IdeogramOutput 并应用到画布 */
+  /** 解析消息内容并按当前 skill 的 adapter 应用到画布 */
   const applyMessageOutput = useCallback((message: ChatMessage): number | null => {
-    const parsed = extractAndValidateIdeogramJSON(message.content);
-    if (!parsed) return null;
-    setPendingIdeogramOutput(parsed);
-    return applyIdeogramOutput(parsed);
-  }, [applyIdeogramOutput, setPendingIdeogramOutput]);
+    const store = useEditorStore.getState();
+    const skillId = message.skillId ?? activeSkill.id;
+    const skill = skills.find(s => s.id === skillId) ?? activeSkill;
+    const adapter = getAdapter(skill.adapter);
+    const extracted = adapter.extract(message.content, { canvasW: store.canvasW, canvasH: store.canvasH });
+    if (isSkillExtractionError(extracted)) return null;
+    return applyExtraction(extracted, skill.id);
+  }, [activeSkill, skills, applyExtraction]);
+
+  /** 生成"复制模型 prompt"文本（无法解析时退回原始回复） */
+  const buildCopyText = useCallback((message: ChatMessage): string => {
+    const store = useEditorStore.getState();
+    const skillId = message.skillId ?? activeSkill.id;
+    const skill = skills.find(s => s.id === skillId) ?? activeSkill;
+    const adapter = getAdapter(skill.adapter);
+    const extracted = adapter.extract(message.content, { canvasW: store.canvasW, canvasH: store.canvasH });
+    if (isSkillExtractionError(extracted)) return message.content;
+    return adapter.toCopyText(extracted);
+  }, [activeSkill, skills]);
 
   /** 手动折叠 */
   const handleClose = useCallback(() => {
@@ -797,15 +802,16 @@ export function useCanvasChat() {
     retryMessage,
     editAndSend,
     applyMessageOutput,
+    buildCopyText,
     handleClose,
     handleClearHistory,
     handleSelectModel: setChatModel,
     setChatResponseLang,
     canvasChatTargetSize,
     setCanvasChatTargetSize,
-    // 系统提示词
-    systemPrompts,
-    activeCanvasChatSystemPromptId,
+    // Skill
+    skills,
+    activeSkill,
     // 预设
     chatPresets,
     selectedPresetId,

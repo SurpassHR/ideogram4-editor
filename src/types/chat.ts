@@ -19,6 +19,10 @@ export interface ChatMessage {
   thinking?: string;
   /** 消息发送时刻的画布截图 Data URL（仅 Canvas Chat 使用） */
   canvasSnapshotUrl?: string;
+  /** 生成该回复时使用的 skill（仅 assistant 消息，用于复制模型 prompt） */
+  skillId?: string;
+  /** 该 skill 的展示名 */
+  skillName?: string;
 }
 
 /** Canvas Chat 的单个会话，后续可直接持久化到 localStorage */

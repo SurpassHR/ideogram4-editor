@@ -5,13 +5,13 @@ import ChatMessage from '../chat/ChatMessage';
 import SelectMenu from '../chat/SelectMenu';
 import ChatRunControls from '../chat/ChatRunControls';
 import ContextMenu from './ContextMenu';
-import { IconClose, IconMaximize, IconArrowRight, IconStop, IconMoreHorizontal, IconPencil, IconBroom, IconTrash } from '../ui/icons';
+import { IconClose, IconMaximize, IconArrowRight, IconStop, IconMoreHorizontal, IconPencil, IconBroom, IconTrash, IconCopy } from '../ui/icons';
 import { useI18n } from '../../i18n/context';
 import { useEditorStore } from '../../store';
 import { resolveTemplate } from '../../utils/resolveTemplate';
-import { validateIdeogramJSONVerbose } from '../../services/llm-canvas-chat';
 import { highlightJson } from '../../utils/json-highlight';
-import type { CanvasChatRequestLog } from '../../types/chat';
+import SkillManagerPanel from '../skills/SkillManagerPanel';
+import type { CanvasChatRequestLog, ChatMessage as ChatMessageType } from '../../types/chat';
 
 // ─── Terminal 5 段折叠条目定义 ──────────────────────────────────────────
 
@@ -252,6 +252,7 @@ export default function CanvasChatPanel() {
     retryMessage,
     editAndSend,
     applyMessageOutput,
+    buildCopyText,
     handleSelectModel,
     setChatResponseLang,
     canvasChatTargetSize,
@@ -261,8 +262,8 @@ export default function CanvasChatPanel() {
     selectedPreset,
     selectedBox,
     handleSelectPreset,
-    systemPrompts,
-    activeCanvasChatSystemPromptId,
+    skills,
+    activeSkill,
   } = useCanvasChat();
 
   const isCanvasChatOpen = useEditorStore(s => s.isCanvasChatOpen);
@@ -508,24 +509,24 @@ export default function CanvasChatPanel() {
     }
   }, [chatPresets, handleSelectPreset]);
 
-  const activeCanvasChatSystemPrompt = activeCanvasChatSystemPromptId
-    ? systemPrompts.find(p => p.id === activeCanvasChatSystemPromptId)
-    : null;
+  const skillOptions = skills.map(skill => ({ value: skill.id, label: skill.displayName }));
 
-  const canvasSystemPromptOptions = [
-    { value: '', label: 'Default' },
-    ...systemPrompts
-      .filter(p => p.scope === 'canvas' || p.scope === 'both')
-      .map(p => ({ value: p.id, label: p.name })),
-  ];
-
-  const handleCanvasSystemPromptChange = useCallback((value: string) => {
-    if (!value) {
-      useEditorStore.getState().setActiveCanvasChatSystemPrompt(null);
-    } else {
-      useEditorStore.getState().setActiveCanvasChatSystemPrompt(value);
-    }
+  const handleActiveSkillChange = useCallback((value: string) => {
+    useEditorStore.getState().setActiveSkill(value);
   }, []);
+
+  const [isSkillManagerOpen, setSkillManagerOpen] = useState(false);
+
+  const handleCopyModelPrompt = useCallback(async (messageId: string) => {
+    const msg = messages.find(m => m.id === messageId);
+    if (!msg) return;
+    try {
+      await navigator.clipboard?.writeText(buildCopyText(msg));
+      setApplyToast(t('skills.copied'));
+    } catch {
+      setErrorToast(t('skills.applyFailed'));
+    }
+  }, [buildCopyText, messages, t]);
 
   const handleTargetSizeChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     setCanvasChatTargetSize(Number(e.currentTarget.value));
@@ -634,19 +635,45 @@ export default function CanvasChatPanel() {
   const handleApplyMessage = useCallback((messageId: string) => {
     const msg = messages.find(m => m.id === messageId);
     if (!msg) return;
-    const result = validateIdeogramJSONVerbose(msg.content);
-    if (!result.output) {
-      setErrorToast(result.error || 'JSON 解析失败，请检查格式');
+    const count = applyMessageOutput(msg);
+    if (count === null) {
+      setErrorToast(t('skills.applyFailed'));
       return;
     }
-    const count = applyMessageOutput(msg);
-    if (count) {
-      setApplyToast(`Applied ${count} boxes`);
-      useEditorStore.getState().updateCanvasChatMessage(messageId, { applied: true });
+    if (count === 0) {
+      setErrorToast(t('skills.noBboxOutput'));
+      return;
     }
-  }, [applyMessageOutput, messages]);
+    setApplyToast(`Applied ${count} boxes`);
+    useEditorStore.getState().updateCanvasChatMessage(messageId, { applied: true });
+  }, [applyMessageOutput, messages, t]);
 
   // ─── 始终渲染：底部横杠可点击 toggle + JS 状态驱动面板 ──────
+  const renderMessageItem = (msg: ChatMessageType) => (
+    <div className="canvas-chat-message-wrap" key={msg.id}>
+      {msg.role === 'assistant' && msg.skillName && (
+        <div className="canvas-chat-message-skill">
+          <span className="canvas-chat-message-skill-name">{msg.skillName}</span>
+          <button
+            className="canvas-chat-copy-prompt"
+            type="button"
+            onClick={() => void handleCopyModelPrompt(msg.id)}
+          >
+            <IconCopy size={12} /> {t('skills.copyModelPrompt')}
+          </button>
+        </div>
+      )}
+      <ChatMessage
+        message={msg}
+        dismissed={false}
+        onApply={handleApplyMessage}
+        onRetry={msg.role === 'assistant' ? handleRetry : undefined}
+        onEdit={msg.role === 'user' ? handleEdit : undefined}
+        isLoading={isLoading}
+      />
+    </div>
+  );
+
   return (
     <>
       <div
@@ -683,23 +710,18 @@ export default function CanvasChatPanel() {
             </div>
           )}
 
+          {/* 非 Ideogram skill 提示：产出需复制到对应工作流 */}
+          {hasProviders && activeSkill.adapter !== 'ideogram4' && (
+            <div className="canvas-chat-skill-hint">{t('skills.nonIdeogramHint')}</div>
+          )}
+
           {/* Messages */}
           {hasProviders && (
             <div className="chat-messages" ref={messagesRef}>
               {messages.length === 0 && !isLoading && (
                 <div className="chat-empty-hint">{t('chat.emptyHint')}</div>
               )}
-              {messages.map(msg => (
-                <ChatMessage
-                  key={msg.id}
-                  message={msg}
-                  dismissed={false}
-                  onApply={handleApplyMessage}
-                  onRetry={msg.role === 'assistant' ? handleRetry : undefined}
-                  onEdit={msg.role === 'user' ? handleEdit : undefined}
-                  isLoading={isLoading}
-                />
-              ))}
+              {messages.map(renderMessageItem)}
               {isLoading && (
                 <div className="chat-loading">
                   <span className="canvas-chat-spinner" />
@@ -724,12 +746,19 @@ export default function CanvasChatPanel() {
                   />
                 )}
                 <SelectMenu
-                  className="chat-sp-select"
-                  options={canvasSystemPromptOptions}
-                  value={activeCanvasChatSystemPrompt?.id || ''}
-                  onChange={handleCanvasSystemPromptChange}
-                  placeholder={t('chat.systemPrompt.sp')}
+                  className="chat-skill-select"
+                  options={skillOptions}
+                  value={activeSkill.id}
+                  onChange={handleActiveSkillChange}
+                  placeholder={t('skills.select')}
                 />
+                <button
+                  className="chat-skill-manage-btn"
+                  onClick={() => setSkillManagerOpen(true)}
+                  title={t('skills.manage')}
+                >
+                  {t('skills.manage')}
+                </button>
                 <SelectMenu
                   className="chat-model-select"
                   options={modelOptions.map(opt => ({ value: opt.value, label: opt.label }))}
@@ -874,17 +903,7 @@ export default function CanvasChatPanel() {
                 {hasProviders && messages.length === 0 && !isLoading && (
                   <div className="chat-empty-hint">{t('chat.emptyHint')}</div>
                 )}
-                {hasProviders && messages.map(msg => (
-                  <ChatMessage
-                    key={msg.id}
-                    message={msg}
-                    dismissed={false}
-                    onApply={handleApplyMessage}
-                    onRetry={msg.role === 'assistant' ? handleRetry : undefined}
-                    onEdit={msg.role === 'user' ? handleEdit : undefined}
-                    isLoading={isLoading}
-                  />
-                ))}
+                {hasProviders && messages.map(renderMessageItem)}
               </div>
               {hasProviders && (
                 <div className="canvas-chat-input-area canvas-chat-workbench-input-area">
@@ -907,12 +926,19 @@ export default function CanvasChatPanel() {
                       />
                     )}
                     <SelectMenu
-                      className="chat-sp-select"
-                      options={canvasSystemPromptOptions}
-                      value={activeCanvasChatSystemPrompt?.id || ''}
-                      onChange={handleCanvasSystemPromptChange}
-                      placeholder={t('chat.systemPrompt.sp')}
+                      className="chat-skill-select"
+                      options={skillOptions}
+                      value={activeSkill.id}
+                      onChange={handleActiveSkillChange}
+                      placeholder={t('skills.select')}
                     />
+                    <button
+                      className="chat-skill-manage-btn"
+                      onClick={() => setSkillManagerOpen(true)}
+                      title={t('skills.manage')}
+                    >
+                      {t('skills.manage')}
+                    </button>
                     <SelectMenu
                       className="chat-model-select"
                       options={modelOptions.map(opt => ({ value: opt.value, label: opt.label }))}
@@ -1071,6 +1097,10 @@ export default function CanvasChatPanel() {
         document.body,
       )}
       {renderRequestDetailModal()}
+      {isSkillManagerOpen && createPortal(
+        <SkillManagerPanel onClose={() => setSkillManagerOpen(false)} />,
+        document.body,
+      )}
     </>
   );
 }
