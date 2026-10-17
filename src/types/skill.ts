@@ -70,3 +70,19 @@ export const SKILL_PROMPT_BUDGET = 120_000;
 export function createEmptySkillPrefs(): SkillPrefs {
   return { activeSkillId: DEFAULT_SKILL_ID, overrides: {} };
 }
+
+/** 应用用户覆盖（adapter / reference 勾选）后的 skill 视图 */
+export function applySkillOverride(skill: SkillRecord, prefs: SkillPrefs): SkillRecord {
+  const override = prefs.overrides[skill.id];
+  if (!override?.adapter) return skill;
+  return { ...skill, adapter: override.adapter };
+}
+
+/** 取当前生效的 skill；指针失效时回落到默认 skill，再回落到列表首项 */
+export function resolveActiveSkill(skills: SkillRecord[], prefs: SkillPrefs): SkillRecord {
+  const apply = (skill: SkillRecord) => applySkillOverride(skill, prefs);
+  const found = skills.find(skill => skill.id === prefs.activeSkillId);
+  if (found) return apply(found);
+  const fallback = skills.find(skill => skill.id === DEFAULT_SKILL_ID) ?? skills[0];
+  return apply(fallback);
+}

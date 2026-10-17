@@ -3,6 +3,18 @@ import type { Box, IdeogramOutput, GenerationStatus, PhotoArtStyleMode } from '.
 import type { CanvasChatRequestLogDetail, CanvasChatRequestLogStep, CanvasChatSession, ChatMessage, ChatThinkingLevel, SystemPromptEntry } from '../types/chat';
 import type { PromptPreset } from '../types/presets';
 import type { CanvasFavorite, CanvasSnapshotLite, PersistedCanvasChatStateV1, WorkspaceBackupSettings } from '../types/workspace';
+import type { SkillAdapterId, SkillPrefs, SkillRecord } from '../types/skill';
+import {
+  DEFAULT_SKILL_ID,
+  MAX_TOTAL_SKILL_BYTES,
+  SKILLS_STORAGE_KEY,
+  SKILL_PREFS_STORAGE_KEY,
+  SKILL_MIGRATION_STORAGE_KEY,
+  createEmptySkillPrefs,
+} from '../types/skill';
+import { parseSkillPackage, type SkillPackageInput } from '../services/skill-parse';
+import { migrateCanvasSystemPrompts } from '../services/skill-migration';
+import type { PendingApply } from '../services/skill-adapters/types';
 import { PRESETS_STORAGE_KEY, createBuiltinPresets } from '../types/presets';
 import { MODE_ARTSTYLE, MODE_PHOTO } from '../types';
 import { computeCanvasDims, inferCanvasControlsFromDimensions, type RatioKey } from '../utils/canvas-dims';
@@ -265,6 +277,79 @@ function savePresetsToStorage(presets: PromptPreset[]): void {
   localStorage.setItem(PRESETS_STORAGE_KEY, JSON.stringify(presets));
 }
 
+// ─── Skill 持久化辅助 ──────────────────────────────────────────
+
+/** 从 localStorage 加载用户导入的 skill */
+function loadImportedSkillsFromStorage(): SkillRecord[] {
+  try {
+    const raw = localStorage.getItem(SKILLS_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed as SkillRecord[];
+    }
+  } catch {
+    // ignore corrupt data
+  }
+  return [];
+}
+
+function saveImportedSkillsToStorage(skills: SkillRecord[]): void {
+  localStorage.setItem(SKILLS_STORAGE_KEY, JSON.stringify(skills));
+}
+
+function loadSkillPrefsFromStorage(): SkillPrefs {
+  try {
+    const raw = localStorage.getItem(SKILL_PREFS_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<SkillPrefs>;
+      if (parsed && typeof parsed === 'object' && typeof parsed.activeSkillId === 'string') {
+        return {
+          activeSkillId: parsed.activeSkillId,
+          overrides: parsed.overrides && typeof parsed.overrides === 'object' ? parsed.overrides : {},
+        };
+      }
+    }
+  } catch {
+    // ignore corrupt data
+  }
+  return createEmptySkillPrefs();
+}
+
+function saveSkillPrefsToStorage(prefs: SkillPrefs): void {
+  localStorage.setItem(SKILL_PREFS_STORAGE_KEY, JSON.stringify(prefs));
+}
+
+/** 一次性迁移：画布级自定义 system prompt → skill（幂等） */
+const initialSkillMigration = (() => {
+  const result = migrateCanvasSystemPrompts({
+    systemPrompts: loadSystemPromptsFromStorage(),
+    activeCanvasChatSystemPromptId: localStorage.getItem('ideogram4-active-canvas-sp') || null,
+    activeBoxChatSystemPromptId: localStorage.getItem('ideogram4-active-box-sp') || null,
+    alreadyMigrated: localStorage.getItem(SKILL_MIGRATION_STORAGE_KEY) === '1',
+    importedSkills: loadImportedSkillsFromStorage(),
+  });
+
+  if (!result.migrated) return result;
+
+  localStorage.setItem('ideogram4-system-prompts', JSON.stringify(result.systemPrompts));
+  saveImportedSkillsToStorage(result.converted);
+  if (result.activeCanvasChatSystemPromptId) {
+    localStorage.setItem('ideogram4-active-canvas-sp', result.activeCanvasChatSystemPromptId);
+  } else {
+    localStorage.removeItem('ideogram4-active-canvas-sp');
+  }
+  if (result.activeBoxChatSystemPromptId) {
+    localStorage.setItem('ideogram4-active-box-sp', result.activeBoxChatSystemPromptId);
+  } else {
+    localStorage.removeItem('ideogram4-active-box-sp');
+  }
+  if (result.activeSkillId) {
+    saveSkillPrefsToStorage({ ...loadSkillPrefsFromStorage(), activeSkillId: result.activeSkillId });
+  }
+  localStorage.setItem(SKILL_MIGRATION_STORAGE_KEY, '1');
+  return result;
+})();
+
 // ─── Undo/Redo 快照 ────────────────────────────────────────────
 const MAX_UNDO_DEPTH = 50;
 
@@ -412,6 +497,20 @@ interface EditorStore {
   deleteSystemPrompt: (id: string) => void;
   setActiveCanvasChatSystemPrompt: (id: string | null) => void;
   setActiveBoxChatSystemPrompt: (id: string | null) => void;
+
+  // Skill（导入项持久化，内置项来自代码快照）
+  importedSkills: SkillRecord[];
+  skillPrefs: SkillPrefs;
+  pendingApply: PendingApply | null;
+  importSkill: (input: SkillPackageInput) => { ok: true; skill: SkillRecord } | { ok: false; error: string };
+  deleteSkill: (id: string) => void;
+  setActiveSkill: (id: string) => void;
+  updateSkillPref: (
+    id: string,
+    patch: { adapter?: SkillAdapterId | null; enabledReferencePaths?: string[] },
+  ) => void;
+  replaceImportedSkills: (records: SkillRecord[]) => void;
+  setPendingApply: (pending: PendingApply | null) => void;
 
   // Image 操作
   importImageToBox: (boxId: string, dataUrl: string) => void;
@@ -1137,9 +1236,9 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     set({ canvasChatTargetSize: nextSize });
   },
 
-  // 系统提示词列表
-  systemPrompts: loadSystemPromptsFromStorage(),
-  activeCanvasChatSystemPromptId: localStorage.getItem('ideogram4-active-canvas-sp') || null,
+  // 系统提示词列表（canvas 作用域条目已在启动时迁移为 skill）
+  systemPrompts: initialSkillMigration.systemPrompts,
+  activeCanvasChatSystemPromptId: initialSkillMigration.activeCanvasChatSystemPromptId,
   activeBoxChatSystemPromptId: localStorage.getItem('ideogram4-active-box-sp') || null,
   addSystemPrompt: (entry) => {
     const state = get();
@@ -1184,6 +1283,116 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       localStorage.removeItem('ideogram4-active-box-sp');
     }
     set({ activeBoxChatSystemPromptId: id });
+  },
+
+  // ─── Skill ───────────────────────────────────────────────────
+  importedSkills: initialSkillMigration.converted,
+  skillPrefs: loadSkillPrefsFromStorage(),
+  pendingApply: null,
+
+  importSkill: (input) => {
+    const parsed = parseSkillPackage(input);
+    if (!parsed.ok) return { ok: false, error: parsed.error };
+
+    const state = get();
+    const totalExisting = state.importedSkills.reduce(
+      (sum, skill) => sum + skill.files.reduce((fileSum, file) => fileSum + file.content.length, 0),
+      0,
+    );
+    if (totalExisting + parsed.totalBytes > MAX_TOTAL_SKILL_BYTES) {
+      return {
+        ok: false,
+        error: `导入后总占用超过上限 ${MAX_TOTAL_SKILL_BYTES} 字符，请先删除部分 skill。`,
+      };
+    }
+
+    const now = Date.now();
+    const hex = Math.random().toString(16).slice(2, 6);
+    const skill: SkillRecord = {
+      id: `skill_${now}_${hex}`,
+      name: parsed.name,
+      displayName: parsed.displayName,
+      description: parsed.description,
+      source: 'imported',
+      sourceUrl: parsed.sourceUrl,
+      license: parsed.license,
+      version: parsed.version,
+      adapter: parsed.adapter,
+      adapterConfirmed: false,
+      files: parsed.files,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const updated = [...state.importedSkills, skill];
+    saveImportedSkillsToStorage(updated);
+    set({ importedSkills: updated });
+    return { ok: true, skill };
+  },
+
+  deleteSkill: (id) => {
+    const state = get();
+    const target = state.importedSkills.find(skill => skill.id === id);
+    if (!target) return; // 内置 skill 或不存在：不可删除
+
+    const updated = state.importedSkills.filter(skill => skill.id !== id);
+    saveImportedSkillsToStorage(updated);
+
+    const overrides = { ...state.skillPrefs.overrides };
+    delete overrides[id];
+    const nextPrefs: SkillPrefs = {
+      activeSkillId: state.skillPrefs.activeSkillId === id
+        ? DEFAULT_SKILL_ID
+        : state.skillPrefs.activeSkillId,
+      overrides,
+    };
+    saveSkillPrefsToStorage(nextPrefs);
+    set({ importedSkills: updated, skillPrefs: nextPrefs });
+  },
+
+  setActiveSkill: (id) => {
+    const state = get();
+    const nextPrefs: SkillPrefs = { ...state.skillPrefs, activeSkillId: id };
+    saveSkillPrefsToStorage(nextPrefs);
+    set({ skillPrefs: nextPrefs });
+  },
+
+  updateSkillPref: (id, patch) => {
+    const state = get();
+    const existing = state.skillPrefs.overrides[id] ?? {};
+    const nextOverride = { ...existing };
+
+    if (patch.adapter === null) {
+      delete nextOverride.adapter;
+    } else if (patch.adapter) {
+      nextOverride.adapter = patch.adapter;
+    }
+    if (patch.enabledReferencePaths) {
+      nextOverride.enabledReferencePaths = [...patch.enabledReferencePaths];
+    }
+
+    const nextPrefs: SkillPrefs = {
+      ...state.skillPrefs,
+      overrides: { ...state.skillPrefs.overrides, [id]: nextOverride },
+    };
+    saveSkillPrefsToStorage(nextPrefs);
+
+    const importedSkills = patch.adapter
+      ? state.importedSkills.map(skill => (skill.id === id
+        ? { ...skill, adapter: patch.adapter as SkillAdapterId, adapterConfirmed: true, updatedAt: Date.now() }
+        : skill))
+      : state.importedSkills;
+    if (patch.adapter) saveImportedSkillsToStorage(importedSkills);
+
+    set({ skillPrefs: nextPrefs, importedSkills });
+  },
+
+  replaceImportedSkills: (records) => {
+    saveImportedSkillsToStorage(records);
+    set({ importedSkills: records });
+  },
+
+  setPendingApply: (pending) => {
+    set({ pendingApply: pending });
   },
 
   // Image 操作

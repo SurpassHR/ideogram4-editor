@@ -75,3 +75,10 @@ export interface SkillPromptPlan {
   skipped: string[];
   totalChars: number;
 }
+
+/** 待 Apply 到画布的 skill 输出（Canvas Chat 运行时状态） */
+export interface PendingApply {
+  skillId: string;
+  adapter: SkillAdapterId;
+  extraction: SkillExtraction;
+}
