@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback, type ChangeEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { useCanvasChat } from '../../hooks/useCanvasChat';
+import { useAutoGrowTextarea } from '../../hooks/useAutoGrowTextarea';
 import ChatMessage from '../chat/ChatMessage';
 import SelectMenu from '../chat/SelectMenu';
 import ChatRunControls from '../chat/ChatRunControls';
@@ -291,7 +292,8 @@ export default function CanvasChatPanel() {
   const [detailLogId, setDetailLogId] = useState<string | null>(null);
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
   const [expandedStepId, setExpandedStepId] = useState<string | null>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  /** 输入框随内容增高（面板 + 最大化工作台两个 textarea 共用） */
+  const registerAutoGrowTextarea = useAutoGrowTextarea(inputText, 160);
   const messagesRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const activeSession = canvasChatSessions.find(session => session.id === activeCanvasChatSessionId) ?? canvasChatSessions[0];
@@ -789,7 +791,7 @@ export default function CanvasChatPanel() {
               </div>
               <div className="canvas-chat-input-row">
                 <textarea
-                  ref={textareaRef}
+                  ref={registerAutoGrowTextarea}
                   className={`chat-input${editingMessageId ? ' editing' : ''}`}
                   rows={2}
                   value={inputText}
@@ -969,6 +971,7 @@ export default function CanvasChatPanel() {
                   </div>
                   <div className="canvas-chat-input-row">
                     <textarea
+                      ref={registerAutoGrowTextarea}
                       className={`chat-input${editingMessageId ? ' editing' : ''}`}
                       rows={2}
                       value={inputText}
