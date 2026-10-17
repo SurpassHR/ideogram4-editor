@@ -1,0 +1,178 @@
+/**
+ * FLUX 3 Image Klein adapter — 输出是「完整画面正文 + 末尾 JSON 数组」，
+ * bbox 为 [top, left, bottom, right] 0-1000（编辑行用 from/src_bbox/tgt_bbox）。
+ */
+
+import type { IdeogramElement } from '../../types';
+import { detectBboxSystem } from '../../utils/coordinates';
+import type { CanvasChatStoreSnapshot } from '../llm-canvas-chat';
+import { normalizeBboxTo1000 } from './bbox';
+import { canvasElementsTo1000, canvasGlobalSummary } from './context';
+import { composeSystemPrompt } from './prompt';
+import type {
+  SkillAdapter,
+  SkillExtractContext,
+  SkillExtraction,
+  SkillExtractionError,
+  SkillPromptOptions,
+} from './types';
+
+const FLUX3_BASE_PROMPT = `You are a FLUX 3 Image Klein prompt writer working on the user's canvas.
+
+## Output contract (mandatory)
+
+1. Write ONE complete paragraph describing the FULL final image in English, using <id> markers (e.g. <obj_1>, <headline_1>) for every element you place. The paragraph is the prompt the model reads — never describe the JSON itself.
+2. Then append a JSON array of placement rows, one per element:
+   [{"id":"obj_1","bbox":[top, left, bottom, right],"desc":"what the element looks like"}]
+   bbox values are integers on the 0-1000 grid, origin top-left, with top < bottom and left < right.
+3. Wrap the JSON array in a \`\`\`json code block. Never emit [left, top, right, bottom].
+4. The box decides WHERE, the row "desc" decides WHAT the object is, and the paragraph decides how it changes.
+5. When editing an existing image, use rows of {"id","from","src_bbox","tgt_bbox","desc"} instead of "bbox" (from = "ref_image_0", "ref_image_1", ...; tgt_bbox = null removes the element).
+6. The final answer must be usable as a single text prompt for a FLUX 3 layout workflow: no commentary, no extra tables.`;
+
+interface Flux3Row {
+  id?: unknown;
+  bbox?: unknown;
+  tgt_bbox?: unknown;
+  desc?: unknown;
+  type?: unknown;
+  label?: unknown;
+  text?: unknown;
+}
+
+/** 收集候选 JSON 数组文本：代码块（从后往前）+ 正文中的平衡方括号数组（从后往前） */
+export function collectJsonArrayCandidates(text: string): string[] {
+  const candidates: string[] = [];
+  const fences = [...text.matchAll(/```[ \t]*[a-zA-Z]*[ \t]*\r?\n([\s\S]*?)```/g)];
+  for (let i = fences.length - 1; i >= 0; i--) {
+    candidates.push(fences[i][1].trim());
+  }
+
+  const arrays: string[] = [];
+  let depth = 0;
+  let start = -1;
+  let inString = false;
+  let escaped = false;
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    if (escaped) { escaped = false; continue; }
+    if (char === '\\') { escaped = true; continue; }
+    if (inString) {
+      if (char === '"') inString = false;
+      continue;
+    }
+    if (char === '"') { inString = true; continue; }
+    if (char === '[') {
+      if (depth === 0) start = i;
+      depth += 1;
+    } else if (char === ']' && depth > 0) {
+      depth -= 1;
+      if (depth === 0 && start >= 0) {
+        arrays.push(text.slice(start, i + 1));
+        start = -1;
+      }
+    }
+  }
+  candidates.push(...arrays.reverse());
+  return candidates;
+}
+
+function parseBbox(value: unknown): [number, number, number, number] | null {
+  if (!Array.isArray(value) || value.length !== 4) return null;
+  if (value.some(v => typeof v !== 'number' || !Number.isFinite(v))) return null;
+  return [value[0], value[1], value[2], value[3]] as [number, number, number, number];
+}
+
+export const flux3LayoutAdapter: SkillAdapter = {
+  id: 'flux3-layout',
+  label: 'FLUX 3 Klein Layout',
+
+  buildSystemPrompt(skill, opts: SkillPromptOptions) {
+    return composeSystemPrompt(FLUX3_BASE_PROMPT, skill, opts);
+  },
+
+  buildCanvasContext(snapshot: CanvasChatStoreSnapshot, targetSize: number) {
+    return JSON.stringify({
+      canvas: {
+        width: snapshot.canvasW,
+        height: snapshot.canvasH,
+        target_render_size: `${targetSize}x${targetSize}`,
+      },
+      bbox_format: '0-1000 [top, left, bottom, right]',
+      globals: canvasGlobalSummary(snapshot),
+      elements: canvasElementsTo1000(snapshot),
+      background_reference: snapshot.canvasBackgroundUrl
+        ? 'present (attached as image in the same message)'
+        : 'none',
+    }, null, 2);
+  },
+
+  extract(text: string, ctx: SkillExtractContext): SkillExtraction | SkillExtractionError {
+    const warnings: string[] = [];
+    let rows: Flux3Row[] | null = null;
+
+    for (const candidate of collectJsonArrayCandidates(text)) {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(candidate);
+      } catch {
+        continue;
+      }
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        rows = parsed as Flux3Row[];
+        break;
+      }
+    }
+
+    if (!rows) {
+      return { error: '未在输出中找到 JSON 数组（bbox 表）。', raw: text };
+    }
+
+    const parsedRows: Array<{ element: IdeogramElement; bbox: [number, number, number, number] }> = [];
+    let skipped = 0;
+    for (const row of rows) {
+      if (!row || typeof row !== 'object') { skipped += 1; continue; }
+      const id = typeof row.id === 'string' ? row.id : '';
+      const bbox = parseBbox(row.bbox) ?? parseBbox(row.tgt_bbox);
+      if (!bbox) {
+        if (row.tgt_bbox === null) {
+          warnings.push(`元素 ${id || '?'} 的 tgt_bbox 为 null（表示删除），已跳过。`);
+        } else {
+          skipped += 1;
+        }
+        continue;
+      }
+      const desc = typeof row.desc === 'string' && row.desc.trim() ? row.desc.trim() : '';
+      if (!desc) { skipped += 1; continue; }
+      const isText = row.type === 'text' || row.label === 'text';
+      const element: IdeogramElement = {
+        type: isText ? 'text' : 'obj',
+        bbox: [0, 0, 0, 0],
+        desc,
+      };
+      if (isText && typeof row.text === 'string') element.text = row.text;
+      parsedRows.push({ element, bbox });
+    }
+
+    if (parsedRows.length === 0) {
+      return { error: 'JSON 数组里没有可用的 bbox 元素（需要 bbox/tgt_bbox 与 desc）。', raw: text };
+    }
+    if (skipped > 0) {
+      warnings.push(`有 ${skipped} 行缺少有效 bbox/desc，已跳过。`);
+    }
+
+    const system = detectBboxSystem(parsedRows.map(row => ({ bbox: row.bbox })));
+    if (system === 'fractional') warnings.push('bbox 使用 0-1 分数坐标，已放大到 0-1000。');
+
+    const elements = parsedRows.map(({ element, bbox }) => ({
+      ...element,
+      bbox: normalizeBboxTo1000(bbox, system, ctx.canvasW, ctx.canvasH),
+    }));
+
+    return { adapter: 'flux3-layout', elements, raw: text, warnings };
+  },
+
+  toCopyText(extraction: SkillExtraction) {
+    return extraction.raw;
+  },
+};
