@@ -253,11 +253,12 @@ describe('CanvasChatPanel', () => {
 
       const state = useEditorStore.getState();
       expect(state.boxes).toHaveLength(2);
-      expect(state.canvasW).toBe(2048);
-      expect(state.canvasH).toBe(2048);
-      // y=96/2048 → 96px, x=1264/2048 → 1264px
-      expect(state.boxes[0].y).toBeCloseTo(96, 0);
-      expect(state.boxes[0].x).toBeCloseTo(1264, 0);
+      // 画板保持用户设置的 1024×1024（模型草稿的 2048 不再覆盖画板）
+      expect(state.canvasW).toBe(1024);
+      expect(state.canvasH).toBe(1024);
+      // 草稿像素按比例落回画板：x=1264/2048 → 632px, y=96/2048 → 48px
+      expect(state.boxes[0].x).toBeCloseTo(632, 0);
+      expect(state.boxes[0].y).toBeCloseTo(48, 0);
     });
 
     it('MOSS caption 输出（无 bbox）不显示 Apply', async () => {

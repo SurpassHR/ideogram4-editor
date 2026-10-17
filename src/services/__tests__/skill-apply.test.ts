@@ -3,7 +3,11 @@ import { describe, it, expect, vi } from 'vitest';
 import { applyExtractionToStore, type SkillApplyTarget } from '../skill-apply';
 import type { SkillExtraction } from '../skill-adapters/types';
 
-function makeTarget(): SkillApplyTarget & { boxes: unknown[]; globals: Record<string, unknown> } {
+function makeTarget(): SkillApplyTarget & {
+  boxes: unknown[];
+  globals: Record<string, unknown>;
+  setCanvasDimensions: ReturnType<typeof vi.fn>;
+} {
   const boxes: unknown[] = [];
   const globals: Record<string, unknown> = {};
   return {
@@ -68,10 +72,14 @@ describe('applyExtractionToStore', () => {
     expect(target.setGlobalSetting).toHaveBeenCalledWith('artStyle', 'photograph');
   });
 
-  it('skill 指定画布尺寸时同步画布', () => {
+  it('模型返回的画布尺寸不覆盖画板（保护用户在画板选好的比例）', () => {
     const target = makeTarget();
-    applyExtractionToStore({ ...extraction, canvas: { width: 1536, height: 1024 } }, target);
-    expect(target.setCanvasDimensions).toHaveBeenCalledWith(1536, 1024);
+    const count = applyExtractionToStore({ ...extraction, canvas: { width: 1536, height: 1024 } }, target);
+
+    expect(target.setCanvasDimensions).not.toHaveBeenCalled();
+    expect(count).toBe(2);
+    // 仍按画板 1000x2000 反归一化（bbox 是 0-1000 归一化值）
+    expect(target.boxes[0]).toMatchObject({ x: 200, y: 200, w: 600, h: 800 });
   });
 
   it('没有 elements（如 MOSS caption）时不清空画布', () => {

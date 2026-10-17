@@ -5,6 +5,7 @@
 
 import type { IdeogramElement } from '../../types';
 import { detectBboxSystem } from '../../utils/coordinates';
+import { computeTargetCanvasSize, formatAspectRatio } from '../../utils/canvas-dims';
 import type { CanvasChatStoreSnapshot } from '../llm-canvas-chat';
 import { normalizeBboxTo1000 } from './bbox';
 import { canvasElementsTo1000, canvasGlobalSummary } from './context';
@@ -56,11 +57,13 @@ export const flux3LayoutAdapter: SkillAdapter = {
   },
 
   buildCanvasContext(snapshot: CanvasChatStoreSnapshot, targetSize: number) {
+    const target = computeTargetCanvasSize(snapshot.canvasW, snapshot.canvasH, targetSize);
     return JSON.stringify({
       canvas: {
         width: snapshot.canvasW,
         height: snapshot.canvasH,
-        target_render_size: `${targetSize}x${targetSize}`,
+        aspect_ratio: formatAspectRatio(snapshot.canvasW, snapshot.canvasH),
+        target_render_size: `${target.width}x${target.height}`,
       },
       bbox_format: '0-1000 [top, left, bottom, right]',
       globals: canvasGlobalSummary(snapshot),

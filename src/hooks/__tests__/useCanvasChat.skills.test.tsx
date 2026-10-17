@@ -122,4 +122,53 @@ describe('useCanvasChat × skill', () => {
     const lastUser = apiMessages[apiMessages.length - 1];
     expect(lastUser.content).toContain('"draft_bbox_convention": "absolute pixels, xyxy, origin top-left"');
   });
+
+  it('把画板比例传给模型（2:3 画板不再被当成 1:1）', async () => {
+    setupStore(DEFAULT_SKILL_ID);
+    useEditorStore.setState({ canvasW: 512, canvasH: 768, canvasChatTargetSize: 2048 });
+    const { result } = renderHook(() => useCanvasChat());
+    const { apiMessages } = await sendOnce(result);
+
+    const lastUser = apiMessages[apiMessages.length - 1];
+    expect(lastUser.content).toContain('Target output canvas: 1360 x 2048');
+    expect(lastUser.content).toContain('aspect ratio 2:3');
+    expect(lastUser.content).not.toContain('Target output canvas: 2048 x 2048');
+  });
+
+  it('模型返回的画布比例与画板不一致时保留画板并给出警告', async () => {
+    setupStore(DEFAULT_SKILL_ID);
+    useEditorStore.setState({ canvasW: 512, canvasH: 768, canvasChatTargetSize: 2048 });
+    const { result } = renderHook(() => useCanvasChat());
+    await waitFor(() => expect(result.current.hasProviders).toBe(true));
+
+    const reply = JSON.stringify({
+      high_level_description: 'A square scene',
+      canvasW: 2048,
+      canvasH: 2048,
+      style_description: { aesthetics: 'a', lighting: 'l', medium: 'photograph', photo: 'p', color_palette: [] },
+      compositional_deconstruction: {
+        background: 'bg',
+        elements: [{ type: 'obj', bbox: [100, 100, 900, 900], desc: 'a subject' }],
+      },
+    });
+    const message = {
+      id: 'msg_ratio_mismatch',
+      role: 'assistant' as const,
+      content: '```json\n' + reply + '\n```',
+      timestamp: 1,
+      skillId: DEFAULT_SKILL_ID,
+    };
+
+    const outcomes: Array<ReturnType<typeof result.current.applyMessageOutput>> = [];
+    act(() => { outcomes.push(result.current.applyMessageOutput(message)); });
+
+    const outcome = outcomes[0];
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(outcome.warnings.join(' ')).toContain('比例');
+    // 画板比例保持不变
+    expect(useEditorStore.getState().canvasW).toBe(512);
+    expect(useEditorStore.getState().canvasH).toBe(768);
+    expect(useEditorStore.getState().boxes).toHaveLength(1);
+  });
 });

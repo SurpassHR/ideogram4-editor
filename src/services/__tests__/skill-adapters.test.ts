@@ -4,6 +4,26 @@ import { getAdapter, listAdapters } from '../skill-adapters';
 import { planSkillPrompt, renderSkillPrompt } from '../skill-adapters/prompt';
 import { CANVAS_CHAT_SYSTEM_PROMPT } from '../llm-canvas-chat';
 import type { SkillRecord } from '../../types/skill';
+import type { CanvasChatStoreSnapshot } from '../llm-canvas-chat';
+
+/** 2:3 竖版画板（512×768），用于验证目标渲染尺寸跟随画板比例 */
+function makeSnapshot(overrides: Partial<CanvasChatStoreSnapshot> = {}): CanvasChatStoreSnapshot {
+  return {
+    boxes: [],
+    canvasW: 512,
+    canvasH: 768,
+    globalPalette: [],
+    highLevelDescription: '',
+    aesthetics: '',
+    lighting: '',
+    medium: '',
+    artStyle: '',
+    background: '',
+    photoArtStyleMode: 0,
+    canvasBackgroundUrl: null,
+    ...overrides,
+  };
+}
 
 function makeSkill(overrides: Partial<SkillRecord> = {}): SkillRecord {
   return {
@@ -100,6 +120,12 @@ describe('flux3-layout adapter', () => {
     { id: 'background_1', bbox: [0, 0, 1000, 1000], desc: 'A warm ivory studio background.' },
     { id: 'bottle_1', bbox: [260, 130, 920, 520], desc: 'A frosted sage-green serum bottle.' },
   ];
+
+  it('画布上下文里的目标渲染尺寸跟随画板比例（不是正方）', () => {
+    const context = adapter.buildCanvasContext(makeSnapshot(), 2048);
+    expect(context).toContain('"target_render_size": "1360x2048"');
+    expect(context).toContain('"aspect_ratio": "2:3"');
+  });
 
   it('system prompt 声明正文 + JSON 数组契约并注入 skill 文本', () => {
     const prompt = adapter.buildSystemPrompt(makeSkill({ adapter: 'flux3-layout' }), { responseLang: 'zh' });

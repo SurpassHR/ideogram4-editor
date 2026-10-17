@@ -225,7 +225,7 @@ describe('useCanvasChat', () => {
     expect(detail?.parsedJsonText).toContain('"canvasH": 4096');
   });
 
-  it('应用带 canvasW/canvasH 的 Canvas Chat 输出时应同步比例下拉状态', () => {
+  it('模型返回的画布比例与画板不一致时保留画板比例并给出警告', () => {
     const { result } = renderHook(() => useCanvasChat());
 
     const message = {
@@ -260,12 +260,17 @@ describe('useCanvasChat', () => {
     };
 
     act(() => {
-      expect(result.current.applyMessageOutput(message)).toEqual({ ok: true, count: 1, warnings: [] });
+      const outcome = result.current.applyMessageOutput(message);
+      expect(outcome.ok).toBe(true);
+      if (!outcome.ok) return;
+      expect(outcome.count).toBe(1);
+      // 画板是 1:1、模型给的是 4:3 → 保留画板并提示
+      expect(outcome.warnings.join(' ')).toContain('画板');
     });
 
     const state = useEditorStore.getState();
     expect(state.canvasW).toBe(1024);
-    expect(state.canvasH).toBe(768);
-    expect(state.canvasRatio).toBe('4:3');
+    expect(state.canvasH).toBe(1024);
+    expect(state.canvasRatio).toBe('1:1');
   });
 });

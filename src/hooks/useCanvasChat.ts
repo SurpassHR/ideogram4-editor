@@ -9,6 +9,7 @@ import type { SkillExtraction } from '../services/skill-adapters/types';
 import { applyExtractionToStore } from '../services/skill-apply';
 import { getBuiltinSkills } from '../skills/builtin-skills';
 import { resolveActiveSkill } from '../types/skill';
+import { computeTargetCanvasSize, formatAspectRatio, ratiosMatch } from '../utils/canvas-dims';
 import { buildMultimodalMessages } from '../services/llm-chat';
 import { validateLayout } from '../services/layout-validator';
 import { generateMessageId, createUserMessage, createAssistantMessage } from '../types/chat';
@@ -395,7 +396,7 @@ export function useCanvasChat() {
       kind: 'build_context',
       status: 'success',
       label: 'Build canvas context',
-      detail: `${snapshot.boxes.length} boxes, current ${canvasW}x${canvasH}, target ${canvasChatTargetSize}x${canvasChatTargetSize}, ${globalPalette.length} global colors`,
+      detail: `${snapshot.boxes.length} boxes, current ${canvasW}x${canvasH} (${formatAspectRatio(canvasW, canvasH)}), target ${computeTargetCanvasSize(canvasW, canvasH, canvasChatTargetSize).width}x${computeTargetCanvasSize(canvasW, canvasH, canvasChatTargetSize).height}, ${globalPalette.length} global colors`,
     });
     appendCanvasChatRequestStep(requestId, {
       kind: 'provider_ready',
@@ -444,8 +445,13 @@ export function useCanvasChat() {
       const bboxHint = activeSkill.adapter === 'moss-layout'
         ? 'Follow the MOSS-Image draft conventions for any layout output (absolute pixels, xyxy, canvas dimensions as multiples of 16).'
         : 'Keep bbox values in the 0-1000 normalized coordinate system; do not use 1024 as a default canvas size.';
+      // 目标尺寸跟随画板比例（长边 = 用户选的 1K/2K/3K/4K），避免把竖版/横版画板变成 1:1
+      const target = computeTargetCanvasSize(canvasW, canvasH, canvasChatTargetSize);
+      const ratioLabel = formatAspectRatio(canvasW, canvasH);
       const targetHint = [
-        `Target output canvas: ${canvasChatTargetSize} x ${canvasChatTargetSize}`,
+        `Target output canvas: ${target.width} x ${target.height} (aspect ratio ${ratioLabel})`,
+        'The aspect ratio above comes from the user\'s artboard and MUST be respected — never default to 1:1.',
+        `Current artboard size: ${canvasW} x ${canvasH}`,
         bboxHint,
         bgHint,
         `Active skill: ${activeSkill.displayName} (${activeSkill.adapter})`,
@@ -651,22 +657,38 @@ export function useCanvasChat() {
    * 将给定的 skill 输出应用到画布，并基于已落地布局生成质量诊断。
    * 返回落框数量；null 表示该消息无法按当前 skill 的格式解析。
    */
-  const applyExtraction = useCallback((extraction: SkillExtraction, skillId: string): number => {
+  const applyExtraction = useCallback(
+    (extraction: SkillExtraction, skillId: string): { count: number; warnings: string[] } => {
     const store = useEditorStore.getState();
-    setPendingApply({ skillId, adapter: extraction.adapter, extraction });
-    if (extraction.ideogramOutput) setPendingIdeogramOutput(extraction.ideogramOutput);
-
-    const count = applyExtractionToStore(extraction, store);
-    if (count === 0) {
-      store.setPendingQualityReport(null);
-      return 0;
+    let effective = extraction;
+    // 模型返回的画布比例与画板不一致时保留画板比例（画板是用户在工具栏明确设置的）
+    if (
+      extraction.canvas
+      && !ratiosMatch(store.canvasW, store.canvasH, extraction.canvas.width, extraction.canvas.height)
+    ) {
+      effective = {
+        ...extraction,
+        warnings: [
+          ...extraction.warnings,
+          `模型给出的画布尺寸 ${extraction.canvas.width}×${extraction.canvas.height} 与画板比例 ${formatAspectRatio(store.canvasW, store.canvasH)} 不一致，已保留画板尺寸 ${store.canvasW}×${store.canvasH}。如需按模型比例构图，请先在画板工具栏调整比例。`,
+        ],
+      };
     }
 
-    const cw = extraction.canvas?.width ?? store.canvasW;
-    const ch = extraction.canvas?.height ?? store.canvasH;
-    store.setPendingQualityReport(validateLayout(extraction.elements, cw, ch));
-    return count;
-  }, [setPendingApply, setPendingIdeogramOutput]);
+    setPendingApply({ skillId, adapter: effective.adapter, extraction: effective });
+    if (effective.ideogramOutput) setPendingIdeogramOutput(effective.ideogramOutput);
+
+    const count = applyExtractionToStore(effective, store);
+    if (count === 0) {
+      store.setPendingQualityReport(null);
+      return { count: 0, warnings: effective.warnings };
+    }
+
+    store.setPendingQualityReport(validateLayout(effective.elements, store.canvasW, store.canvasH));
+    return { count, warnings: effective.warnings };
+    },
+    [setPendingApply, setPendingIdeogramOutput],
+  );
 
   /**
    * 解析消息内容并按当前 skill 的 adapter 应用到画布。
@@ -679,8 +701,8 @@ export function useCanvasChat() {
     const adapter = getAdapter(skill.adapter);
     const extracted = adapter.extract(message.content, { canvasW: store.canvasW, canvasH: store.canvasH });
     if (isSkillExtractionError(extracted)) return { ok: false, error: extracted.error };
-    const count = applyExtraction(extracted, skill.id);
-    return { ok: true, count, warnings: extracted.warnings };
+    const { count, warnings } = applyExtraction(extracted, skill.id);
+    return { ok: true, count, warnings };
   }, [activeSkill, skills, applyExtraction]);
 
   /** 生成"复制模型 prompt"文本（无法解析时退回原始回复） */

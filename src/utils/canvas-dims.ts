@@ -14,6 +14,57 @@ export const RATIO_BASES: Record<RatioKey, { baseW: number; baseH: number }> = {
 export const roundTo16 = (n: number) => Math.round(n / 16) * 16;
 export const clampDim = (n: number) => Math.max(256, Math.min(4096, roundTo16(n)));
 
+/**
+ * 按画板比例把「目标渲染尺寸」换算成宽高：
+ * 长边等于 longSide，宽高都取 16 的倍数，避免把用户选好的比例变成 1:1。
+ */
+export function computeTargetCanvasSize(
+  canvasW: number,
+  canvasH: number,
+  longSide: number,
+): { width: number; height: number } {
+  const safeLongSide = Math.max(16, roundTo16(longSide));
+  if (!(canvasW > 0) || !(canvasH > 0)) {
+    return { width: safeLongSide, height: safeLongSide };
+  }
+  const factor = safeLongSide / Math.max(canvasW, canvasH);
+  const width = Math.max(16, roundTo16(canvasW * factor));
+  const height = Math.max(16, roundTo16(canvasH * factor));
+  // 保证长边严格等于目标尺寸（roundTo16 可能把长边挪动 8px）
+  if (width >= height && width !== safeLongSide) {
+    return { width: safeLongSide, height: Math.max(16, roundTo16((safeLongSide * canvasH) / canvasW)) };
+  }
+  if (height > width && height !== safeLongSide) {
+    return { width: Math.max(16, roundTo16((safeLongSide * canvasW) / canvasH)), height: safeLongSide };
+  }
+  return { width, height };
+}
+
+/** 两组宽高是否为同一比例（默认 2% 容差，用于判断模型是否遵守了画板比例） */
+export function ratiosMatch(
+  aWidth: number,
+  aHeight: number,
+  bWidth: number,
+  bHeight: number,
+  tolerance = 0.02,
+): boolean {
+  if (!(aWidth > 0) || !(aHeight > 0) || !(bWidth > 0) || !(bHeight > 0)) return false;
+  const ratioA = aWidth / aHeight;
+  const ratioB = bWidth / bHeight;
+  return Math.abs(ratioA - ratioB) / Math.max(ratioA, ratioB) <= tolerance;
+}
+
+/** 输出人类可读的比例标签：512×768 → "2:3"，1920×1080 → "16:9"，复杂比例 → "1.78:1" */
+export function formatAspectRatio(width: number, height: number): string {
+  if (!(width > 0) || !(height > 0)) return '1:1';
+  const round = Math.round;
+  const divisor = gcd(round(width), round(height)) || 1;
+  const w = round(width) / divisor;
+  const h = round(height) / divisor;
+  if (w <= 32 && h <= 32) return `${w}:${h}`;
+  return `${round((width / height) * 100) / 100}:1`;
+}
+
 function gcd(a: number, b: number): number {
   let x = Math.abs(Math.round(a));
   let y = Math.abs(Math.round(b));

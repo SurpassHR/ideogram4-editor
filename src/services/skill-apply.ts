@@ -12,7 +12,6 @@ import type { SkillExtraction } from './skill-adapters/types';
 export interface SkillApplyTarget {
   canvasW: number;
   canvasH: number;
-  setCanvasDimensions: (width: number, height: number) => void;
   clearBoxes: () => void;
   addBox: (box: Omit<Box, 'id'>) => void;
   setGlobalSetting: (key: string, value: string) => void;
@@ -22,18 +21,15 @@ export interface SkillApplyTarget {
 
 /**
  * 应用 extraction：
- * - 有 canvas 尺寸时先同步画布
+ * - 画板尺寸由用户在画板上决定，模型返回的 canvas 尺寸不覆盖它（bbox 本身是 0-1000 归一化值）
  * - elements 为空时不清空画布（例如 MOSS caption 输出）
  * - 返回落框数量
  */
 export function applyExtractionToStore(extraction: SkillExtraction, target: SkillApplyTarget): number {
   if (extraction.elements.length === 0) return 0;
 
-  if (extraction.canvas) {
-    target.setCanvasDimensions(extraction.canvas.width, extraction.canvas.height);
-  }
-  const canvasW = extraction.canvas?.width ?? target.canvasW;
-  const canvasH = extraction.canvas?.height ?? target.canvasH;
+  const canvasW = target.canvasW;
+  const canvasH = target.canvasH;
 
   target.clearBoxes();
   for (const element of extraction.elements) {
