@@ -7,6 +7,7 @@ import { useI18n } from '../../i18n/context';
 import { getBuiltinSkills } from '../../skills/builtin-skills';
 import { fetchSkillFromUrl } from '../../services/skill-import';
 import { getAdapter } from '../../services/skill-adapters';
+import { parseSkillFrontmatter } from '../../services/skill-parse';
 import {
   DEFAULT_SKILL_ID,
   SKILL_ADAPTER_IDS,
@@ -180,7 +181,10 @@ export default function SkillManagerPanel({ embedded, onClose }: Props) {
         <div
           className="skill-markdown"
           dangerouslySetInnerHTML={{
-            __html: renderMarkdown(skill.files.find(f => f.path === 'SKILL.md')?.content ?? ''),
+            __html: renderMarkdown(
+              // frontmatter 已在详情字段中展示，正文预览里去掉避免渲染成普通文本
+              parseSkillFrontmatter(skill.files.find(f => f.path === 'SKILL.md')?.content ?? '').body,
+            ),
           }}
         />
       </div>
@@ -294,7 +298,10 @@ export default function SkillManagerPanel({ embedded, onClose }: Props) {
     </>
   );
 
-  if (embedded) return content;
+  if (embedded) {
+    // 设置页的 .settings-module-content 是 flex row 容器，必须自带纵向滚动容器
+    return <div className="skill-manager-embedded">{content}</div>;
+  }
 
   return (
     <div className="modal-overlay" onClick={onClose}>

@@ -37,6 +37,23 @@ describe('SkillManagerPanel', () => {
       .toBe(DEFAULT_SKILL_ID);
   });
 
+  it('embedded 模式提供独立的纵向滚动容器（设置页外层是 flex row）', () => {
+    const { container } = renderPanel();
+    const wrapper = container.querySelector('.skill-manager-embedded');
+    expect(wrapper).not.toBeNull();
+    expect(wrapper!.querySelector('.skill-import')).not.toBeNull();
+    expect(wrapper!.querySelector('.skill-list')).not.toBeNull();
+  });
+
+  it('SKILL.md 预览不渲染 frontmatter YAML', () => {
+    renderPanel();
+    const markdown = document.querySelector('.skill-markdown');
+    expect(markdown).not.toBeNull();
+    // ideogram4 内置 skill 的 frontmatter 含 name: ideogram4，正文不含
+    expect(markdown!.textContent).not.toContain('name: ideogram4');
+    expect(markdown!.textContent).toContain('Ideogram 4');
+  });
+
   it('切换 reference 勾选会写入 skillPrefs 覆盖', () => {
     renderPanel();
     const checkbox = document.querySelector('.skill-ref-checkbox input') as HTMLInputElement;

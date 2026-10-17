@@ -5825,6 +5825,17 @@ input[type="color"]::-webkit-color-swatch {
 
 /* ─── Skill Manager ──────────────────────────────────────────── */
 
+.skill-manager-embedded {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 14px 16px 18px;
+}
+
 .sp-scope-fixed {
   padding: 6px 10px;
   font-size: 12px;
