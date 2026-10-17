@@ -15,9 +15,6 @@ import { generateMessageId, createUserMessage, createAssistantMessage } from '..
 import type { LlmProvider, ProviderKind } from '../components/llm/types';
 import { DEFAULT_BASE_URLS } from '../components/llm/types';
 import type { ChatMessage, ChatMessageForApi } from '../types/chat';
-import type { IdeogramOutput } from '../types';
-import { MODE_PHOTO, MODE_ARTSTYLE } from '../types';
-import { detectBboxSystem, bboxToPixels } from '../utils/coordinates';
 
 /** Apply 确认弹窗中各部分的选中状态 */
 export interface ApplySelections {

@@ -315,4 +315,11 @@ describe('none adapter', () => {
       warnings: [],
     })).toBe('随便一段文字');
   });
+
+  it('同样注入 SKILL.md、references 与语言提示', () => {
+    const prompt = adapter.buildSystemPrompt(makeSkill({ adapter: 'none' }), { responseLang: 'en' });
+    expect(prompt).toContain('MARKER_SKILL_BODY');
+    expect(prompt).toContain('MARKER_SCHEMA');
+    expect(prompt).toContain('You MUST respond in English.');
+  });
 });

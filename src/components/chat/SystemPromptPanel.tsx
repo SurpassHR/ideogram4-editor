@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useEditorStore } from '../../store';
 import { useI18n } from '../../i18n/context';
-import { CANVAS_CHAT_SYSTEM_PROMPT } from '../../services/llm-canvas-chat';
 import { BOX_CHAT_SYSTEM_PROMPT } from '../../services/llm-chat';
 import { IconClose, IconTrash, IconCopy, IconArrowRight } from '../ui/icons';
 import type { SystemPromptEntry } from '../../types/chat';
@@ -23,7 +22,7 @@ export default function SystemPromptPanel({ embedded, onClose }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<{ name: string; content: string; scope: SystemPromptEntry['scope'] }>(EMPTY_FORM);
   const [toast, setToast] = useState<string | null>(null);
-  const [expandedDefault, setExpandedDefault] = useState<'canvas' | 'box' | null>(null);
+  const [expandedDefault, setExpandedDefault] = useState<'box' | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
@@ -107,7 +106,7 @@ export default function SystemPromptPanel({ embedded, onClose }: Props) {
     }
   };
 
-  const toggleDefault = (which: 'canvas' | 'box') => {
+  const toggleDefault = (which: 'box') => {
     setExpandedDefault(expandedDefault === which ? null : which);
     setExpandedId(null);
   };
@@ -134,21 +133,7 @@ export default function SystemPromptPanel({ embedded, onClose }: Props) {
       </div>
 
       <div className="sysprompt-list">
-        {/* ─── Built-in defaults (read-only) ─── */}
-        <div className="sp-card sp-builtin">
-          <button className="sp-card-expand" onClick={() => toggleDefault('canvas')}>
-            <span className="sp-card-main">
-              <span className="sp-card-name">{t('chat.systemPrompt.defaultBuiltinCanvas')}</span>
-              <span className="sp-card-scope">Canvas</span>
-            </span>
-            <span className="sp-card-badge">{t('chat.systemPrompt.default')}</span>
-            <span className="sp-card-arrow">{expandedDefault === 'canvas' ? '▲' : '▼'}</span>
-          </button>
-          {expandedDefault === 'canvas' && (
-            <pre className="sp-card-preview">{CANVAS_CHAT_SYSTEM_PROMPT.slice(0, 800)}{CANVAS_CHAT_SYSTEM_PROMPT.length > 800 ? '...' : ''}</pre>
-          )}
-        </div>
-
+        {/* ─── Built-in default (read-only)：画布级提示词已由 Skill 接管 ─── */}
         <div className="sp-card sp-builtin">
           <button className="sp-card-expand" onClick={() => toggleDefault('box')}>
             <span className="sp-card-main">

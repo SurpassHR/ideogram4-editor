@@ -40,4 +40,11 @@ describe('SystemPromptPanel（canvas 入口已迁移到 Skill）', () => {
     expect(saved).toHaveLength(1);
     expect(saved[0].scope).toBe('box');
   });
+
+  it('内置卡片只剩 Box 一个（canvas 默认已由 Skill 接管）', () => {
+    renderPanel();
+    const builtins = document.querySelectorAll('.sp-card.sp-builtin');
+    expect(builtins).toHaveLength(1);
+    expect(builtins[0].textContent).toContain('Box');
+  });
 });

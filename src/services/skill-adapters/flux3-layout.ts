@@ -41,11 +41,6 @@ interface Flux3Row {
   text?: unknown;
 }
 
-/** 收集候选 JSON 数组文本：代码块（从后往前）+ 正文中的平衡方括号数组（从后往前） */
-export function collectJsonArrayCandidates(text: string): string[] {
-  return collectJsonCandidates(text, 'array');
-}
-
 function parseBbox(value: unknown): [number, number, number, number] | null {
   if (!Array.isArray(value) || value.length !== 4) return null;
   if (value.some(v => typeof v !== 'number' || !Number.isFinite(v))) return null;
@@ -80,7 +75,7 @@ export const flux3LayoutAdapter: SkillAdapter = {
     const warnings: string[] = [];
     let rows: Flux3Row[] | null = null;
 
-    for (const candidate of collectJsonArrayCandidates(text)) {
+    for (const candidate of collectJsonCandidates(text, 'array')) {
       let parsed: unknown;
       try {
         parsed = JSON.parse(candidate);

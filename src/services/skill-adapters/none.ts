@@ -1,21 +1,17 @@
 /** 纯文本降级 adapter — 不解析 bbox，只展示与复制。 */
 
 import type { CanvasChatStoreSnapshot } from '../llm-canvas-chat';
+import { composeSystemPrompt } from './prompt';
 import type { SkillAdapter, SkillExtraction } from './types';
+
+const NONE_BASE_PROMPT = 'You are an assistant helping the user craft image-generation prompts. No bounding-box output format is configured for this skill, so never invent coordinates.';
 
 export const noneAdapter: SkillAdapter = {
   id: 'none',
   label: 'Plain text',
 
   buildSystemPrompt(skill, opts) {
-    return [
-      'You are an assistant helping the user craft image-generation prompts.',
-      `## Active skill: ${skill.displayName} (${skill.name})`,
-      skill.files.find(f => f.path === 'SKILL.md')?.content ?? '',
-      opts.responseLang === 'zh'
-        ? '你必须用中文回复。'
-        : 'Respond in the same language the user uses.',
-    ].join('\n\n');
+    return composeSystemPrompt(NONE_BASE_PROMPT, skill, opts);
   },
 
   buildCanvasContext(snapshot: CanvasChatStoreSnapshot) {
