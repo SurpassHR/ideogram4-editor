@@ -196,6 +196,11 @@ function buildHttpRequestString(
   return lines.join('\n');
 }
 
+/** Apply 结果：失败时带上真实原因，供 UI 直接展示 */
+export type ApplyOutcome =
+  | { ok: true; count: number; warnings: string[] }
+  | { ok: false; error: string };
+
 export function useCanvasChat() {
   const isCanvasChatOpen = useEditorStore(s => s.isCanvasChatOpen);
   const canvasChatMessages = useEditorStore(s => s.canvasChatMessages);
@@ -663,15 +668,19 @@ export function useCanvasChat() {
     return count;
   }, [setPendingApply, setPendingIdeogramOutput]);
 
-  /** 解析消息内容并按当前 skill 的 adapter 应用到画布 */
-  const applyMessageOutput = useCallback((message: ChatMessage): number | null => {
+  /**
+   * 解析消息内容并按当前 skill 的 adapter 应用到画布。
+   * 失败时返回真实原因（而不是只给 UI 一个 boolean），便于用户排查。
+   */
+  const applyMessageOutput = useCallback((message: ChatMessage): ApplyOutcome => {
     const store = useEditorStore.getState();
     const skillId = message.skillId ?? activeSkill.id;
     const skill = skills.find(s => s.id === skillId) ?? activeSkill;
     const adapter = getAdapter(skill.adapter);
     const extracted = adapter.extract(message.content, { canvasW: store.canvasW, canvasH: store.canvasH });
-    if (isSkillExtractionError(extracted)) return null;
-    return applyExtraction(extracted, skill.id);
+    if (isSkillExtractionError(extracted)) return { ok: false, error: extracted.error };
+    const count = applyExtraction(extracted, skill.id);
+    return { ok: true, count, warnings: extracted.warnings };
   }, [activeSkill, skills, applyExtraction]);
 
   /** 生成"复制模型 prompt"文本（无法解析时退回原始回复） */

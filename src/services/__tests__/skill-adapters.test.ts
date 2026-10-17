@@ -285,6 +285,25 @@ describe('ideogram4 adapter', () => {
     expect('error' in result).toBe(true);
   });
 
+  it('CJK text 元素解析成功并附带警告（不再阻断 Apply）', () => {
+    const json = {
+      high_level_description: '一张中文 UI 稿',
+      style_description: { aesthetics: 'a', lighting: 'l', photo: 'p', medium: 'photograph', color_palette: [] },
+      compositional_deconstruction: {
+        background: 'bg',
+        elements: [
+          { type: 'text', bbox: [16, 110, 58, 330], text: '猫娘领养', desc: '搜索框占位文字' },
+        ],
+      },
+    };
+    const result = adapter.extract(JSON.stringify(json), { canvasW: 1024, canvasH: 1024 });
+    expect('error' in result).toBe(false);
+    if ('error' in result) return;
+    expect(result.elements[0].type).toBe('text');
+    expect(result.elements[0].text).toBe('猫娘领养');
+    expect(result.warnings.join(' ')).toContain('中日韩');
+  });
+
   it('toCopyText 输出单行 JSON', () => {
     const json = {
       high_level_description: 'x',

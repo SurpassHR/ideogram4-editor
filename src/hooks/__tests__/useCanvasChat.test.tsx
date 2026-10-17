@@ -260,7 +260,7 @@ describe('useCanvasChat', () => {
     };
 
     act(() => {
-      expect(result.current.applyMessageOutput(message)).toBe(1);
+      expect(result.current.applyMessageOutput(message)).toEqual({ ok: true, count: 1, warnings: [] });
     });
 
     const state = useEditorStore.getState();

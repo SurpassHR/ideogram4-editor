@@ -635,16 +635,21 @@ export default function CanvasChatPanel() {
   const handleApplyMessage = useCallback((messageId: string) => {
     const msg = messages.find(m => m.id === messageId);
     if (!msg) return;
-    const count = applyMessageOutput(msg);
-    if (count === null) {
-      setErrorToast(t('skills.applyFailed'));
+    const result = applyMessageOutput(msg);
+    if (!result.ok) {
+      // 展示真实的解析失败原因（例如缺少字段、bbox 非法），而不是笼统提示
+      setErrorToast(`${t('skills.applyFailed')} ${result.error}`);
       return;
     }
-    if (count === 0) {
+    if (result.count === 0) {
       setErrorToast(t('skills.noBboxOutput'));
       return;
     }
-    setApplyToast(`Applied ${count} boxes`);
+    setApplyToast(
+      result.warnings.length > 0
+        ? `Applied ${result.count} boxes · ${result.warnings[0]}`
+        : `Applied ${result.count} boxes`,
+    );
     useEditorStore.getState().updateCanvasChatMessage(messageId, { applied: true });
   }, [applyMessageOutput, messages, t]);
 

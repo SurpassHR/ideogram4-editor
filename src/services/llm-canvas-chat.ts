@@ -290,10 +290,13 @@ function extractJSONCandidate(text: string): string | null {
 export function validateIdeogramJSONVerbose(text: string): {
   output: IdeogramOutput | null;
   error: string | null;
+  /** 非致命的提示（例如 CJK text 元素可能渲染为乱码） */
+  warnings: string[];
 } {
+  const warnings: string[] = [];
   const jsonStr = extractJSONCandidate(text);
   if (!jsonStr) {
-    return { output: null, error: '未找到 JSON 代码块或 {…} 结构。AI 回复需包含 ```json 代码块或纯 JSON。' };
+    return { output: null, error: '未找到 JSON 代码块或 {…} 结构。AI 回复需包含 ```json 代码块或纯 JSON。', warnings };
   }
 
   // 2. JSON.parse
@@ -301,7 +304,7 @@ export function validateIdeogramJSONVerbose(text: string): {
   try {
     parsed = JSON.parse(jsonStr);
   } catch {
-    return { output: null, error: 'JSON 解析失败：语法错误，请检查 JSON 格式是否正确。' };
+    return { output: null, error: 'JSON 解析失败：语法错误，请检查 JSON 格式是否正确。', warnings };
   }
 
   // 3. 类型收窄：必须有 compositional_deconstruction.elements
@@ -310,13 +313,13 @@ export function validateIdeogramJSONVerbose(text: string): {
     parsed === null ||
     Array.isArray(parsed)
   ) {
-    return { output: null, error: 'JSON 顶层必须是对象，且包含 compositional_deconstruction 和 style_description 字段。' };
+    return { output: null, error: 'JSON 顶层必须是对象，且包含 compositional_deconstruction 和 style_description 字段。', warnings };
   }
 
   const obj = parsed as Record<string, unknown>;
   const cd = obj.compositional_deconstruction;
   if (typeof cd !== 'object' || cd === null) {
-    return { output: null, error: '缺少 compositional_deconstruction 字段，或该字段不是对象。' };
+    return { output: null, error: '缺少 compositional_deconstruction 字段，或该字段不是对象。', warnings };
   }
 
   const cdObj = cd as Record<string, unknown>;
@@ -326,59 +329,64 @@ export function validateIdeogramJSONVerbose(text: string): {
     const sdObj = sd as Record<string, unknown>;
     const globalPalette = sdObj.color_palette;
     if (Array.isArray(globalPalette) && globalPalette.length > 16) {
-      return { output: null, error: 'style_description.color_palette 最多支持 16 种颜色。' };
+      return { output: null, error: 'style_description.color_palette 最多支持 16 种颜色。', warnings };
     }
   }
   const elements = cdObj.elements;
   if (!Array.isArray(elements) || elements.length === 0) {
-    return { output: null, error: 'compositional_deconstruction.elements 必须是非空数组。' };
+    return { output: null, error: 'compositional_deconstruction.elements 必须是非空数组。', warnings };
   }
 
   // 4. 验证每个 element
+  const cjkTextIndices: number[] = [];
   for (let i = 0; i < elements.length; i++) {
     const el = elements[i];
     if (typeof el !== 'object' || el === null) {
-      return { output: null, error: `elements[${i}] 不是对象。` };
+      return { output: null, error: `elements[${i}] 不是对象。`, warnings };
     }
     const e = el as Record<string, unknown>;
 
     // type: 非空字符串即可（LLM 可能返回自然语义类型如 "person"、"tree"）
     if (typeof e.type !== 'string' || e.type.trim().length === 0) {
-      return { output: null, error: `elements[${i}].type 必须是非空字符串（当前类型: ${typeof e.type}）。` };
+      return { output: null, error: `elements[${i}].type 必须是非空字符串（当前类型: ${typeof e.type}）。`, warnings };
     }
 
     // bbox: 恰好 4 个值，范围 0-1000
     const bbox = e.bbox;
     if (!Array.isArray(bbox) || bbox.length !== 4) {
-      return { output: null, error: `elements[${i}].bbox 必须是包含 4 个数字的数组（当前类型: ${typeof bbox}，长度: ${Array.isArray(bbox) ? bbox.length : 'N/A'}）。` };
+      return { output: null, error: `elements[${i}].bbox 必须是包含 4 个数字的数组（当前类型: ${typeof bbox}，长度: ${Array.isArray(bbox) ? bbox.length : 'N/A'}）。`, warnings };
     }
     for (let j = 0; j < bbox.length; j++) {
       const v = bbox[j];
       if (typeof v !== 'number' || Number.isNaN(v)) {
-        return { output: null, error: `elements[${i}].bbox[${j}] 不是有效数字。` };
+        return { output: null, error: `elements[${i}].bbox[${j}] 不是有效数字。`, warnings };
       }
       if (v < 0) {
-        return { output: null, error: `elements[${i}].bbox[${j}] 不能为负数。` };
+        return { output: null, error: `elements[${i}].bbox[${j}] 不能为负数。`, warnings };
       }
     }
 
     // desc: 非空字符串
     if (typeof e.desc !== 'string' || e.desc.trim().length === 0) {
-      return { output: null, error: `elements[${i}].desc 必须是有效的非空描述字符串。` };
+      return { output: null, error: `elements[${i}].desc 必须是有效的非空描述字符串。`, warnings };
     }
     // ✅ 新增: per-element color_palette ≤ 5
     if (Array.isArray(e.color_palette) && e.color_palette.length > 5) {
-      return { output: null, error: `elements[${i}].color_palette 最多支持 5 种颜色。` };
+      return { output: null, error: `elements[${i}].color_palette 最多支持 5 种颜色。`, warnings };
     }
-    // ✅ 新增: type=text 且 text 含 CJK 字符 → 拒绝
-    if (e.type === 'text' && typeof e.text === 'string') {
-      if (CJK_TEXT_RE.test(e.text)) {
-        return { output: null, error: `elements[${i}].text 含中日韩字符，type=text 不支持。` };
-      }
+    // type=text 且 text 含 CJK 字符 → 仅提示（Ideogram 4 对 CJK 字形支持有限，可能渲染为乱码），不再阻断 Apply
+    if (e.type === 'text' && typeof e.text === 'string' && CJK_TEXT_RE.test(e.text)) {
+      cjkTextIndices.push(i);
     }
   }
 
-  return { output: parsed as IdeogramOutput, error: null };
+  if (cjkTextIndices.length > 0) {
+    warnings.push(
+      `elements[${cjkTextIndices.join('], elements[')}] 的 text 含中日韩字符：Ideogram 4 对 CJK 字形支持有限，可能渲染为乱码。`,
+    );
+  }
+
+  return { output: parsed as IdeogramOutput, error: null, warnings };
 }
 
 /**

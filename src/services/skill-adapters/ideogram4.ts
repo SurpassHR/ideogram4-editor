@@ -34,10 +34,11 @@ export const ideogram4Adapter: SkillAdapter = {
   },
 
   extract(text: string, ctx: SkillExtractContext): SkillExtraction | SkillExtractionError {
-    const { output, error } = validateIdeogramJSONVerbose(text);
+    const { output, error, warnings: validationWarnings } = validateIdeogramJSONVerbose(text);
     if (!output) return { error: error ?? '无法解析 Ideogram JSON 输出。', raw: text };
 
-    return buildIdeogramExtraction(output, text, ctx);
+    const extraction = buildIdeogramExtraction(output, text, ctx);
+    return { ...extraction, warnings: [...validationWarnings, ...extraction.warnings] };
   },
 
   toCopyText(extraction: SkillExtraction) {

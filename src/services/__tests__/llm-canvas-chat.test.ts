@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { extractAndValidateIdeogramJSON, buildCanvasChatContext, CANVAS_CHAT_SYSTEM_PROMPT, buildLayoutFeedbackPrompt } from '../llm-canvas-chat';
+import { extractAndValidateIdeogramJSON, validateIdeogramJSONVerbose, buildCanvasChatContext, CANVAS_CHAT_SYSTEM_PROMPT, buildLayoutFeedbackPrompt } from '../llm-canvas-chat';
 
 // ─── extractAndValidateIdeogramJSON ─────────────────────────────────
 
@@ -445,7 +445,7 @@ Let me know if you'd like any adjustments!`;
     expect(result).toBeNull();
   });
 
-  it('type=text with CJK characters should return null', () => {
+  it('type=text with CJK characters should pass with a warning', () => {
     const cjkText = {
       ...validOutput,
       compositional_deconstruction: {
@@ -460,11 +460,14 @@ Let me know if you'd like any adjustments!`;
         ],
       },
     };
-    const result = extractAndValidateIdeogramJSON(wrap(cjkText));
-    expect(result).toBeNull();
+    const result = validateIdeogramJSONVerbose(wrap(cjkText));
+    expect(result.output).not.toBeNull();
+    expect(result.error).toBeNull();
+    expect(result.warnings.join(' ')).toContain('中日韩');
+    expect(result.warnings.join(' ')).toContain('elements[0]');
   });
 
-  it('type=text with Japanese Hiragana should return null', () => {
+  it('type=text with Japanese Hiragana should pass with a warning', () => {
     const jpHiragana = {
       ...validOutput,
       compositional_deconstruction: {
@@ -479,11 +482,12 @@ Let me know if you'd like any adjustments!`;
         ],
       },
     };
-    const result = extractAndValidateIdeogramJSON(wrap(jpHiragana));
-    expect(result).toBeNull();
+    const result = validateIdeogramJSONVerbose(wrap(jpHiragana));
+    expect(result.output).not.toBeNull();
+    expect(result.warnings.join(' ')).toContain('中日韩');
   });
 
-  it('type=text with Japanese Katakana should return null', () => {
+  it('type=text with Japanese Katakana should pass with a warning', () => {
     const jpKatakana = {
       ...validOutput,
       compositional_deconstruction: {
@@ -498,11 +502,12 @@ Let me know if you'd like any adjustments!`;
         ],
       },
     };
-    const result = extractAndValidateIdeogramJSON(wrap(jpKatakana));
-    expect(result).toBeNull();
+    const result = validateIdeogramJSONVerbose(wrap(jpKatakana));
+    expect(result.output).not.toBeNull();
+    expect(result.warnings.join(' ')).toContain('中日韩');
   });
 
-  it('type=text with Korean Hangul should return null', () => {
+  it('type=text with Korean Hangul should pass with a warning', () => {
     const korHangul = {
       ...validOutput,
       compositional_deconstruction: {
@@ -517,8 +522,9 @@ Let me know if you'd like any adjustments!`;
         ],
       },
     };
-    const result = extractAndValidateIdeogramJSON(wrap(korHangul));
-    expect(result).toBeNull();
+    const result = validateIdeogramJSONVerbose(wrap(korHangul));
+    expect(result.output).not.toBeNull();
+    expect(result.warnings.join(' ')).toContain('中日韩');
   });
 
   it('type=text with English text should pass', () => {
