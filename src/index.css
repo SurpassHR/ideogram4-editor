@@ -6045,6 +6045,9 @@ input[type="color"]::-webkit-color-swatch {
 /* ─── Canvas Chat × Skill ────────────────────────────────────── */
 
 .chat-skill-manage-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-size: 11px;
   padding: 5px 10px;
   background: var(--surface);

@@ -5,7 +5,7 @@ import ChatMessage from '../chat/ChatMessage';
 import SelectMenu from '../chat/SelectMenu';
 import ChatRunControls from '../chat/ChatRunControls';
 import ContextMenu from './ContextMenu';
-import { IconClose, IconMaximize, IconArrowRight, IconStop, IconMoreHorizontal, IconPencil, IconBroom, IconTrash, IconCopy } from '../ui/icons';
+import { IconClose, IconMaximize, IconArrowRight, IconStop, IconMoreHorizontal, IconPencil, IconBroom, IconTrash, IconCopy, IconPackage } from '../ui/icons';
 import { useI18n } from '../../i18n/context';
 import { useEditorStore } from '../../store';
 import { resolveTemplate } from '../../utils/resolveTemplate';
@@ -757,7 +757,7 @@ export default function CanvasChatPanel() {
                   onClick={() => setSkillManagerOpen(true)}
                   title={t('skills.manage')}
                 >
-                  {t('skills.manage')}
+                  <IconPackage size={12} /> {t('skills.manage')}
                 </button>
                 <SelectMenu
                   className="chat-model-select"
@@ -937,7 +937,7 @@ export default function CanvasChatPanel() {
                       onClick={() => setSkillManagerOpen(true)}
                       title={t('skills.manage')}
                     >
-                      {t('skills.manage')}
+                      <IconPackage size={12} /> {t('skills.manage')}
                     </button>
                     <SelectMenu
                       className="chat-model-select"

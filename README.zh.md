@@ -49,6 +49,7 @@ Ideogram4 Editor 是一个基于 Web 的可视化编辑器，专为 [Ideogram 4]
 - ⚙️ **通用设置面板** — Canvas Chat 自动最大化、工作区备份管理
 - 💾 **工作区备份** — GitHub Gist 备份/恢复，支持跨客户端发现
 - ✅ **布局质量校验** — 生成前软校验（面积覆盖率、间距、边距、宽高比）
+- 🧩 **Skill 能力** — 兼容 Agent Skill 的包（`SKILL.md` + `references/`）驱动画布 AI；内置 **Ideogram 4**、**FLUX 3 Klein**、**MOSS-Image** 三个上游快照，并支持从 GitHub 链接、本地文件夹或粘贴 `SKILL.md` 导入。选中的 skill 决定 system prompt、输出校验与 Apply 规则；「复制模型 prompt」可直接把原始产出交给对应工作流
 
 ---
 

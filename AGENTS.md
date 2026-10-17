@@ -87,6 +87,8 @@ src/
 │   │   ├── JsonCodeBlock.tsx         # JSON 代码块：json/预览 iOS 滑块切换，语法高亮
 │   │   ├── PresetManagerPanel.tsx    # 预设管理面板：搜索/标签筛选/CRUD/变量参考
 │   │   └── SelectMenu.tsx            # 可复用 Portal 下拉选择菜单组件
+│   ├── skills/
+│   │   └── SkillManagerPanel.tsx     # Skill 管理：列表/详情/adapter/reference 勾选/导入/删除
 │   ├── shortcuts/
 │   │   ├── ShortcutsModal.tsx        # 快捷键速查模态（createPortal→body）
 │   │   └── shortcuts-data.ts         # 静态分组数据（3 组 11 条，均走 i18n）
@@ -106,10 +108,21 @@ src/
 │   ├── llm-chat.ts                  # sendChatMessage() 多提供商 LLM + 多模态图像支持
 │   ├── llm-stream.ts                # sendChatMessageStream() SSE 流式服务层
 │   ├── llm-canvas-chat.ts           # Canvas Chat system prompt + JSON 提取验证 + 上下文构建
+│   ├── skill-parse.ts               # Skill 包解析：SKILL.md frontmatter / references / adapter 探测
+│   ├── skill-import.ts              # 从 GitHub URL 抓取 skill 包文本
+│   ├── skill-migration.ts           # canvas 作用域 system prompt → skill 的一次性迁移
+│   ├── skill-apply.ts               # extraction → 画布落框（所有 adapter 共用）
+│   ├── skill-adapters/              # 输出适配器：ideogram4 / flux3-layout / moss-layout / none
+│   ├── moss-compile.ts              # MOSS compile_prompt.py 的 TS 重实现（中心原点 yxyx）
 │   ├── layout-validator.ts          # 布局质量软校验（面积/覆盖率/间距/边距/数量/宽高比）
 │   ├── gist-backup.ts               # GitHub Gist CRUD：创建/更新/读取备份
 │   ├── workspace-backup.ts           # 备份包构建/解析/恢复预览生成
 │   └── workspace-persistence.ts      # workspace 状态在 localStorage 中的持久化存取
+├── skills/                           # 内置 skill 文本快照（?raw 内联；来源见 THIRD_PARTY_NOTICES.md）
+│   ├── builtin-skills.ts             # 内置 skill 记录（ideogram4 / flux3-layout / moss-layout）
+│   ├── ideogram4/                    # ruashots/ideogram4-skill（MIT）：SKILL.md + references/schema.md
+│   ├── flux3-layout/                 # AI-KSK/flux3-klein-prompting（Apache-2.0）
+│   └── moss-layout/                  # OpenMOSS/MOSS-Image 官方 skills（Apache-2.0）
 └── workflow/
     ├── comfyui-workflow.ts           # 静态 ComfyUI workflow JSON 模板
     └── workflow-mutator.ts           # 向模板注入 prompt/width/height/seed
