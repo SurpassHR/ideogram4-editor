@@ -1,6 +1,40 @@
 export type Lang = 'en' | 'zh';
 
 export interface Translations {
+  skills: {
+    title: string;
+    moduleDesc: string;
+    info: string;
+    guide: string;
+    importUrl: string;
+    importUrlPlaceholder: string;
+    importPaste: string;
+    importPastePlaceholder: string;
+    importFile: string;
+    importing: string;
+    importSuccess: string;
+    importFailed: string;
+    builtin: string;
+    imported: string;
+    license: string;
+    version: string;
+    adapter: string;
+    adapterHint: string;
+    filesCount: string;
+    references: string;
+    referencesHint: string;
+    skillMd: string;
+    setActive: string;
+    copyJson: string;
+    copied: string;
+    delete: string;
+    deleted: string;
+    status: string;
+    select: string;
+    manage: string;
+    copyModelPrompt: string;
+    nonIdeogramHint: string;
+  };
   header: {
     ratio: string;
     scale: string;
@@ -431,6 +465,40 @@ export interface Translations {
 }
 
 const en: Translations = {
+  skills: {
+    title: 'Skills',
+    moduleDesc: 'Manage Agent Skill packages used by the canvas AI',
+    info: 'Skills are Agent-Skill-compatible packages (SKILL.md + references). The selected skill replaces the canvas chat system prompt and defines how the model output is validated and applied to the canvas.',
+    guide: 'Import from a GitHub URL, a local folder, or pasted SKILL.md text. Skill scripts are never executed; non-text files are ignored.',
+    importUrl: 'Import URL',
+    importUrlPlaceholder: 'https://github.com/owner/repo/tree/main/skills/...',
+    importPaste: 'Import pasted SKILL.md',
+    importPastePlaceholder: '--- name/description frontmatter --- then the skill body',
+    importFile: 'Import files',
+    importing: 'Importing...',
+    importSuccess: 'Skill imported',
+    importFailed: 'Import failed',
+    builtin: 'Built-in',
+    imported: 'Imported',
+    license: 'License',
+    version: 'Version',
+    adapter: 'Output adapter',
+    adapterHint: 'The adapter decides how model output is parsed, validated and applied back to the canvas.',
+    filesCount: '{count} files',
+    references: 'Injected references',
+    referencesHint: 'Checked references are appended to the system prompt (SKILL.md is always included).',
+    skillMd: 'SKILL.md',
+    setActive: 'Use this skill',
+    copyJson: 'Copy skill JSON',
+    copied: 'Copied',
+    delete: 'Delete',
+    deleted: 'Skill deleted',
+    status: '{count} skills · active: {name}',
+    select: 'Skill',
+    manage: 'Manage skills',
+    copyModelPrompt: 'Copy model prompt',
+    nonIdeogramHint: 'This skill outputs its own format: copy the model prompt into the matching workflow. The JSON panel still exports the Ideogram format.',
+  },
   header: {
     ratio: 'Ratio:',
     scale: '×',
@@ -861,6 +929,40 @@ const en: Translations = {
 };
 
 const zh: Translations = {
+  skills: {
+    title: 'Skill 管理',
+    moduleDesc: '管理画布 AI 使用的 Agent Skill 包',
+    info: 'Skill 是兼容 Agent Skill 的包（SKILL.md + references）。选中的 skill 会替换画布对话的 system prompt，并决定模型输出如何校验、如何 Apply 回画布。',
+    guide: '支持从 GitHub 链接、本地文件夹或粘贴 SKILL.md 导入。skill 内的脚本不会被执行，非文本文件会被忽略。',
+    importUrl: '从链接导入',
+    importUrlPlaceholder: 'https://github.com/owner/repo/tree/main/skills/...',
+    importPaste: '导入粘贴的 SKILL.md',
+    importPastePlaceholder: '--- name/description frontmatter --- 然后是 skill 正文',
+    importFile: '导入文件',
+    importing: '导入中…',
+    importSuccess: 'Skill 已导入',
+    importFailed: '导入失败',
+    builtin: '内置',
+    imported: '已导入',
+    license: '许可',
+    version: '版本',
+    adapter: '输出适配器',
+    adapterHint: '适配器决定模型输出如何解析、校验并 Apply 回画布。',
+    filesCount: '{count} 个文件',
+    references: '注入的参考文档',
+    referencesHint: '勾选的参考文档会追加到 system prompt（SKILL.md 始终注入）。',
+    skillMd: 'SKILL.md',
+    setActive: '设为当前',
+    copyJson: '复制 skill JSON',
+    copied: '已复制',
+    delete: '删除',
+    deleted: 'Skill 已删除',
+    status: '{count} 个 skill · 当前：{name}',
+    select: 'Skill',
+    manage: '管理 Skill',
+    copyModelPrompt: '复制模型 prompt',
+    nonIdeogramHint: '该 skill 输出的是自己的格式：请复制模型 prompt 到对应工作流。JSON 面板仍导出 Ideogram 格式。',
+  },
   header: {
     ratio: '比例：',
     scale: '×',

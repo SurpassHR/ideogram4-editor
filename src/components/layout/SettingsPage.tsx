@@ -2,12 +2,15 @@ import { useMemo, useState } from 'react';
 import LlmConfigPanel from '../llm/LlmConfigPanel';
 import PresetManagerPanel from '../chat/PresetManagerPanel';
 import SystemPromptPanel from '../chat/SystemPromptPanel';
+import SkillManagerPanel from '../skills/SkillManagerPanel';
 import { useI18n } from '../../i18n/context';
 import { useEditorStore } from '../../store';
+import { getBuiltinSkills } from '../../skills/builtin-skills';
+import { resolveActiveSkill } from '../../types/skill';
 import WorkspacePanel from './WorkspacePanel';
 import GeneralSettingsPanel from './GeneralSettingsPanel';
 
-type SettingsModuleId = 'llm' | 'presets' | 'sysprompt' | 'workspace' | 'general';
+type SettingsModuleId = 'llm' | 'presets' | 'skills' | 'sysprompt' | 'workspace' | 'general';
 
 export default function SettingsPage() {
   const { t } = useI18n();
@@ -15,7 +18,16 @@ export default function SettingsPage() {
   const favoriteCount = useEditorStore(s => s.canvasFavorites.length);
   const gistId = useEditorStore(s => s.workspaceBackupSettings.gistId);
   const systemPrompts = useEditorStore(s => s.systemPrompts);
+  const importedSkills = useEditorStore(s => s.importedSkills);
+  const skillPrefs = useEditorStore(s => s.skillPrefs);
   const [activeModule, setActiveModule] = useState<SettingsModuleId>('llm');
+
+  const skills = useMemo(
+    () => [...getBuiltinSkills(), ...importedSkills],
+    [importedSkills],
+  );
+  const activeSkill = resolveActiveSkill(skills, skillPrefs);
+  const skillsStatus = t('skills.status', { count: skills.length, name: activeSkill.displayName });
 
   const sysPromptStatus = systemPrompts.length > 0
     ? `${systemPrompts.length} prompts`
@@ -44,6 +56,13 @@ export default function SettingsPage() {
       status: t('settings.modules.presets.status', { count: presetCount }),
     },
     {
+      id: 'skills' as const,
+      marker: 'SK',
+      title: t('skills.title'),
+      description: t('skills.moduleDesc'),
+      status: skillsStatus,
+    },
+    {
       id: 'sysprompt' as const,
       marker: 'SP',
       title: t('chat.systemPrompt.title'),
@@ -59,7 +78,7 @@ export default function SettingsPage() {
         ? t('settings.modules.workspace.statusWithGist', { count: favoriteCount })
         : t('settings.modules.workspace.status', { count: favoriteCount }),
     },
-  ], [favoriteCount, gistId, presetCount, sysPromptStatus, t]);
+  ], [favoriteCount, gistId, presetCount, skillsStatus, sysPromptStatus, t]);
 
   const activeConfig = modules.find(module => module.id === activeModule) ?? modules[0];
 
@@ -69,6 +88,8 @@ export default function SettingsPage() {
         return <GeneralSettingsPanel />;
       case 'presets':
         return <PresetManagerPanel embedded />;
+      case 'skills':
+        return <SkillManagerPanel embedded />;
       case 'sysprompt':
         return <SystemPromptPanel embedded />;
       case 'workspace':

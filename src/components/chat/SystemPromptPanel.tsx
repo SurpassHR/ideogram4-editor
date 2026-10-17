@@ -199,11 +199,7 @@ export default function SystemPromptPanel({ embedded, onClose }: Props) {
                 </div>
                 <div className="input-group">
                   <label>{t('chat.systemPrompt.scope')}</label>
-                  <select value={form.scope} onChange={e => setForm(f => ({ ...f, scope: e.target.value as SystemPromptEntry['scope'] }))}>
-                    <option value="box">Box Chat</option>
-                    <option value="canvas">Canvas Chat</option>
-                    <option value="both">Canvas + Box</option>
-                  </select>
+                  <div className="sp-scope-fixed">Box Chat</div>
                 </div>
                 <div className="input-group">
                   <label>{t('chat.presets.template')}</label>
@@ -233,11 +229,7 @@ export default function SystemPromptPanel({ embedded, onClose }: Props) {
               </div>
               <div className="input-group">
                 <label>{t('chat.systemPrompt.scope')}</label>
-                <select value={form.scope} onChange={e => setForm(f => ({ ...f, scope: e.target.value as SystemPromptEntry['scope'] }))}>
-                  <option value="box">Box Chat</option>
-                  <option value="canvas">Canvas Chat</option>
-                  <option value="both">Canvas + Box</option>
-                </select>
+                <div className="sp-scope-fixed">Box Chat</div>
               </div>
               <div className="input-group">
                 <label>{t('chat.presets.template')}</label>
