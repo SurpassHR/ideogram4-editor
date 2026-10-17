@@ -8,6 +8,7 @@ import { detectBboxSystem } from '../../utils/coordinates';
 import type { CanvasChatStoreSnapshot } from '../llm-canvas-chat';
 import { normalizeBboxTo1000 } from './bbox';
 import { canvasElementsTo1000, canvasGlobalSummary } from './context';
+import { collectJsonCandidates } from './json-candidates';
 import { composeSystemPrompt } from './prompt';
 import type {
   SkillAdapter,
@@ -42,39 +43,7 @@ interface Flux3Row {
 
 /** 收集候选 JSON 数组文本：代码块（从后往前）+ 正文中的平衡方括号数组（从后往前） */
 export function collectJsonArrayCandidates(text: string): string[] {
-  const candidates: string[] = [];
-  const fences = [...text.matchAll(/```[ \t]*[a-zA-Z]*[ \t]*\r?\n([\s\S]*?)```/g)];
-  for (let i = fences.length - 1; i >= 0; i--) {
-    candidates.push(fences[i][1].trim());
-  }
-
-  const arrays: string[] = [];
-  let depth = 0;
-  let start = -1;
-  let inString = false;
-  let escaped = false;
-  for (let i = 0; i < text.length; i++) {
-    const char = text[i];
-    if (escaped) { escaped = false; continue; }
-    if (char === '\\') { escaped = true; continue; }
-    if (inString) {
-      if (char === '"') inString = false;
-      continue;
-    }
-    if (char === '"') { inString = true; continue; }
-    if (char === '[') {
-      if (depth === 0) start = i;
-      depth += 1;
-    } else if (char === ']' && depth > 0) {
-      depth -= 1;
-      if (depth === 0 && start >= 0) {
-        arrays.push(text.slice(start, i + 1));
-        start = -1;
-      }
-    }
-  }
-  candidates.push(...arrays.reverse());
-  return candidates;
+  return collectJsonCandidates(text, 'array');
 }
 
 function parseBbox(value: unknown): [number, number, number, number] | null {

@@ -37,6 +37,8 @@ export interface SkillExtraction {
   warnings: string[];
   /** 仅 ideogram4：完整结构化输出，沿用现有会话持久化与 JSON 预览 */
   ideogramOutput?: IdeogramOutput;
+  /** adapter 解析出的结构化原始产物（例如 MOSS Layout 草稿），供"复制模型 prompt"复用 */
+  payload?: unknown;
 }
 
 export interface SkillExtractionError {
