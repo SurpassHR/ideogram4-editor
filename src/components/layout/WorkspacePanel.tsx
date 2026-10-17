@@ -21,6 +21,7 @@ const RESTORE_MODULES: WorkspaceRestoreModule[] = [
   'canvasChatSessions',
   'canvasFavorites',
   'chatPresets',
+  'skills',
   'llmProviders',
   'uiPreferences',
 ];
@@ -128,6 +129,10 @@ export default function WorkspacePanel({ embedded = false }: WorkspacePanelProps
       const backup = buildWorkspaceBackupPackage(state, {
         chatPresets: state.chatPresets,
         llmProviders,
+        skills: {
+          records: state.importedSkills,
+          prefs: state.skillPrefs,
+        },
         uiPreferences: {
           lang,
           chatModel: state.chatModel,
@@ -229,6 +234,10 @@ export default function WorkspacePanel({ embedded = false }: WorkspacePanelProps
       if (restoreSelections.canvasChatSessions) replaceCanvasChatState(modules.canvasChatSessions);
       if (restoreSelections.canvasFavorites) replaceCanvasFavorites(modules.canvasFavorites);
       if (restoreSelections.chatPresets) replaceChatPresets(modules.chatPresets);
+      if (restoreSelections.skills && modules.skills) {
+        useEditorStore.getState().replaceImportedSkills(modules.skills.records);
+        useEditorStore.getState().replaceSkillPrefs(modules.skills.prefs);
+      }
       if (restoreSelections.llmProviders) await replaceLlmProviders(modules.llmProviders);
       if (restoreSelections.uiPreferences) {
         const prefs = modules.uiPreferences;

@@ -129,4 +129,82 @@ describe('workspace-backup', () => {
     expect(preview.find(item => item.module === 'chatPresets')?.summary).toContain('1');
     expect(preview.find(item => item.module === 'llmProviders')?.defaultSelected).toBe(false);
   });
+
+  const importedSkill = {
+    id: 'skill_x',
+    name: 'krea-skill',
+    displayName: 'Krea Skill',
+    description: 'd',
+    source: 'imported' as const,
+    sourceUrl: 'https://github.com/a/b',
+    license: 'MIT',
+    version: '1.0.0',
+    adapter: 'moss-layout' as const,
+    adapterConfirmed: true,
+    files: [{ path: 'SKILL.md', content: 'body' }],
+    createdAt: 1,
+    updatedAt: 1,
+  };
+
+  const externalModules = {
+    chatPresets: [],
+    llmProviders: [],
+    uiPreferences: {
+      lang: 'en',
+      chatModel: '',
+      chatResponseLang: 'auto',
+      chatStreamEnabled: true,
+      chatThinkingLevel: 'low' as const,
+    },
+  };
+
+  it('组包应包含导入的 skill 与其偏好（内置 skill 不入包）', () => {
+    const backup = buildWorkspaceBackupPackage(storeState, {
+      ...externalModules,
+      skills: {
+        records: [importedSkill],
+        prefs: { activeSkillId: 'skill_x', overrides: { skill_x: { enabledReferencePaths: [] } } },
+      },
+    });
+
+    expect(backup.modules.skills?.records).toHaveLength(1);
+    expect(backup.modules.skills?.prefs.activeSkillId).toBe('skill_x');
+  });
+
+  it('含 skills 的备份在恢复预览中显示数量与 adapter 分布', () => {
+    const backup = buildWorkspaceBackupPackage(storeState, {
+      ...externalModules,
+      skills: {
+        records: [importedSkill, { ...importedSkill, id: 'skill_y', adapter: 'ideogram4' as const }],
+        prefs: { activeSkillId: 'skill_x', overrides: {} },
+      },
+    });
+
+    const item = createRestorePreview(backup).find(entry => entry.module === 'skills');
+    expect(item?.summary).toContain('2');
+    expect(item?.summary).toContain('moss-layout');
+    expect(item?.summary).toContain('ideogram4');
+    expect(item?.defaultSelected).toBe(true);
+  });
+
+  it('不含 skills 字段的旧备份仍可解析，且预览中没有 skills 项', () => {
+    const legacy = {
+      app: 'ideogram4-editor',
+      schemaVersion: 1,
+      exportedAt: 0,
+      modules: {
+        currentCanvas: buildCanvasSnapshotLite(storeState),
+        canvasChatSessions: { schemaVersion: 1, activeSessionId: 's1', sessions: [], savedAt: 0 },
+        canvasFavorites: [],
+        chatPresets: [],
+        llmProviders: [],
+        uiPreferences: externalModules.uiPreferences,
+      },
+    };
+
+    const parsed = parseWorkspaceBackupPackage(JSON.stringify(legacy));
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(createRestorePreview(parsed.package).some(item => item.module === 'skills')).toBe(false);
+  });
 });

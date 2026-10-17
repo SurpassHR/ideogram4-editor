@@ -1,6 +1,7 @@
 import type { Box, PhotoArtStyleMode } from './index';
 import type { CanvasChatSession, ChatThinkingLevel } from './chat';
 import type { PromptPreset } from './presets';
+import type { SkillPrefs, SkillRecord } from './skill';
 import type { LlmProvider } from '../components/llm/types';
 
 export interface PersistedCanvasChatStateV1 {
@@ -68,6 +69,11 @@ export interface WorkspaceBackupPackageV1 {
     chatPresets: PromptPreset[];
     llmProviders: LlmProvider[];
     uiPreferences: WorkspaceUiPreferences;
+    /** 导入的 skill（可选：旧备份没有该模块） */
+    skills?: {
+      records: SkillRecord[];
+      prefs: SkillPrefs;
+    };
   };
 }
 
@@ -76,6 +82,7 @@ export type WorkspaceRestoreModule =
   | 'canvasChatSessions'
   | 'canvasFavorites'
   | 'chatPresets'
+  | 'skills'
   | 'llmProviders'
   | 'uiPreferences';
 

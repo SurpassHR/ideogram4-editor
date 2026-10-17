@@ -2,6 +2,7 @@ import type { Box } from '../types';
 import type { CanvasChatSession } from '../types/chat';
 import type { LlmProvider } from '../components/llm/types';
 import type { PromptPreset } from '../types/presets';
+import { createEmptySkillPrefs, type SkillPrefs, type SkillRecord } from '../types/skill';
 import type {
   CanvasFavorite,
   CanvasSnapshotLite,
@@ -40,6 +41,8 @@ interface WorkspaceExternalModules {
   chatPresets: PromptPreset[];
   llmProviders: LlmProvider[];
   uiPreferences: WorkspaceUiPreferences;
+  /** 只包含用户导入的 skill；缺省时写入空模块 */
+  skills?: { records: SkillRecord[]; prefs: SkillPrefs };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -123,6 +126,7 @@ export function buildWorkspaceBackupPackage(
       chatPresets: externalModules.chatPresets,
       llmProviders: externalModules.llmProviders,
       uiPreferences: externalModules.uiPreferences,
+      skills: externalModules.skills ?? { records: [], prefs: createEmptySkillPrefs() },
     },
   };
 }
@@ -147,6 +151,17 @@ export function parseWorkspaceBackupPackage(raw: string): ParseWorkspaceBackupRe
     ) {
       return { ok: false, error: '备份文件缺少必要模块。' };
     }
+    // skills 为可选模块：存在时做类型校验，缺失时按旧备份处理
+    if (parsed.modules.skills !== undefined) {
+      const skills = parsed.modules.skills;
+      if (
+        !isRecord(skills)
+        || !Array.isArray(skills.records)
+        || !isRecord(skills.prefs)
+      ) {
+        return { ok: false, error: '备份文件缺少必要模块。' };
+      }
+    }
     return { ok: true, package: parsed as unknown as WorkspaceBackupPackageV1 };
   } catch (error) {
     return { ok: false, error: `JSON 解析失败：${error instanceof Error ? error.message : String(error)}` };
@@ -155,7 +170,7 @@ export function parseWorkspaceBackupPackage(raw: string): ParseWorkspaceBackupRe
 
 export function createRestorePreview(pkg: WorkspaceBackupPackageV1): WorkspaceRestorePreviewItem[] {
   const modules = pkg.modules;
-  return [
+  const items: WorkspaceRestorePreviewItem[] = [
     {
       module: 'currentCanvas',
       label: 'Current Canvas',
@@ -187,11 +202,32 @@ export function createRestorePreview(pkg: WorkspaceBackupPackageV1): WorkspaceRe
       defaultSelected: false,
       warning: '包含 API key，确认后会覆盖本机 provider 配置。',
     },
+  ];
+
+  if (modules.skills) {
+    const adapterCounts = new Map<string, number>();
+    for (const skill of modules.skills.records) {
+      adapterCounts.set(skill.adapter, (adapterCounts.get(skill.adapter) ?? 0) + 1);
+    }
+    const distribution = [...adapterCounts.entries()]
+      .map(([adapter, count]) => `${adapter} ×${count}`)
+      .join(', ');
+    items.push({
+      module: 'skills',
+      label: 'Skills',
+      summary: `${modules.skills.records.length} imported skills${distribution ? ` · ${distribution}` : ''}`,
+      defaultSelected: true,
+    });
+  }
+
+  items.push(
     {
       module: 'uiPreferences',
       label: 'UI Preferences',
       summary: `${modules.uiPreferences.lang} · ${modules.uiPreferences.chatModel || 'No model'} · stream ${modules.uiPreferences.chatStreamEnabled ? 'on' : 'off'}`,
       defaultSelected: true,
     },
-  ];
+  );
+
+  return items;
 }

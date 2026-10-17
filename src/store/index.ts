@@ -510,6 +510,7 @@ interface EditorStore {
     patch: { adapter?: SkillAdapterId | null; enabledReferencePaths?: string[] },
   ) => void;
   replaceImportedSkills: (records: SkillRecord[]) => void;
+  replaceSkillPrefs: (prefs: SkillPrefs) => void;
   setPendingApply: (pending: PendingApply | null) => void;
 
   // Image 操作
@@ -1389,6 +1390,11 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   replaceImportedSkills: (records) => {
     saveImportedSkillsToStorage(records);
     set({ importedSkills: records });
+  },
+
+  replaceSkillPrefs: (prefs) => {
+    saveSkillPrefsToStorage(prefs);
+    set({ skillPrefs: prefs });
   },
 
   setPendingApply: (pending) => {

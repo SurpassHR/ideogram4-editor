@@ -140,6 +140,7 @@ export interface Translations {
         canvasChatSessions: string;
         canvasFavorites: string;
         chatPresets: string;
+        skills: string;
         llmProviders: string;
         uiPreferences: string;
       };
@@ -602,6 +603,7 @@ const en: Translations = {
         canvasChatSessions: 'Canvas Chat Sessions',
         canvasFavorites: 'Canvas Favorites',
         chatPresets: 'Prompt Presets',
+        skills: 'Skills (imported)',
         llmProviders: 'LLM Providers',
         uiPreferences: 'UI Preferences',
       },
@@ -1068,6 +1070,7 @@ const zh: Translations = {
         canvasChatSessions: 'Canvas Chat 会话',
         canvasFavorites: '画布收藏',
         chatPresets: '聊天预设',
+        skills: 'Skill（已导入）',
         llmProviders: 'LLM 提供商',
         uiPreferences: 'UI 偏好',
       },
