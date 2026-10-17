@@ -694,6 +694,21 @@ export function useCanvasChat() {
     return adapter.toCopyText(extracted);
   }, [activeSkill, skills]);
 
+  /**
+   * 判断某条 assistant 消息能否 Apply（决定消息上是否显示 Apply 按钮）。
+   * 按消息所属 skill 的 adapter 解析，而不是写死 Ideogram 结构。
+   */
+  const checkMessageOutput = useCallback((message: ChatMessage): { canApply: boolean; error: string | null } => {
+    if (message.role !== 'assistant') return { canApply: false, error: null };
+    const store = useEditorStore.getState();
+    const skillId = message.skillId ?? activeSkill.id;
+    const skill = skills.find(s => s.id === skillId) ?? activeSkill;
+    const adapter = getAdapter(skill.adapter);
+    const extracted = adapter.extract(message.content, { canvasW: store.canvasW, canvasH: store.canvasH });
+    if (isSkillExtractionError(extracted)) return { canApply: false, error: extracted.error };
+    return { canApply: extracted.elements.length > 0, error: null };
+  }, [activeSkill, skills]);
+
   /** 手动折叠 */
   const handleClose = useCallback(() => {
     setCanvasChatOpen(false);
@@ -809,6 +824,7 @@ export function useCanvasChat() {
     editAndSend,
     applyMessageOutput,
     buildCopyText,
+    checkMessageOutput,
     handleClose,
     handleClearHistory,
     handleSelectModel: setChatModel,

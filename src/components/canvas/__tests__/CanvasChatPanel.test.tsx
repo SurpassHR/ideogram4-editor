@@ -60,6 +60,8 @@ describe('CanvasChatPanel', () => {
       chatModel: 'mock:gpt-4',
       chatStreamEnabled: true,
       chatThinkingLevel: 'medium',
+      importedSkills: [],
+      skillPrefs: { activeSkillId: 'builtin:ideogram4', overrides: {} },
     });
     window.location.hash = '#/';
   });
@@ -205,6 +207,84 @@ describe('CanvasChatPanel', () => {
       const toast = document.querySelector('.canvas-chat-toast');
       expect(toast).not.toBeNull();
       expect(toast!.textContent).toContain('Applied 1 boxes');
+    });
+
+    it('MOSS layout 回复也应显示 Apply 并按草稿尺寸落框', async () => {
+      const mossDraft = {
+        width: 2048,
+        height: 2048,
+        bbox_coord_space: 'abs',
+        bbox_format: 'xyxy',
+        summary: { caption: 'A blocky voxel valley at dusk.' },
+        items: [
+          { label: 'object', caption: 'A block mountain range.', bbox: [1264, 96, 2016, 1120] },
+          { label: 'character', caption: 'A voxel girl.', bbox: [800, 320, 1500, 1960] },
+        ],
+      };
+      const message = {
+        id: 'msg_moss_test',
+        role: 'assistant' as const,
+        content: '```json\n' + JSON.stringify(mossDraft, null, 2) + '\n```\n\n渲染尺寸：2048 × 2048。',
+        timestamp: 1000,
+        skillId: 'builtin:moss-layout',
+        skillName: 'MOSS-Image Layout',
+      };
+      useEditorStore.setState({
+        skillPrefs: { activeSkillId: 'builtin:moss-layout', overrides: {} },
+        canvasChatMessages: [message],
+        canvasChatSessions: [{
+          id: 'session_1',
+          title: '会话',
+          createdAt: 1000,
+          updatedAt: 1000,
+          messages: [message],
+          pendingIdeogramOutput: null,
+          pendingQualityReport: null,
+          requestLogs: [],
+        }],
+      });
+
+      const { getByRole } = await renderWithPending();
+
+      const applyPill = getByRole('button', { name: 'Apply this composition to canvas' });
+      expect(applyPill).not.toBeNull();
+
+      fireEvent.click(applyPill);
+
+      const state = useEditorStore.getState();
+      expect(state.boxes).toHaveLength(2);
+      expect(state.canvasW).toBe(2048);
+      expect(state.canvasH).toBe(2048);
+      // y=96/2048 → 96px, x=1264/2048 → 1264px
+      expect(state.boxes[0].y).toBeCloseTo(96, 0);
+      expect(state.boxes[0].x).toBeCloseTo(1264, 0);
+    });
+
+    it('MOSS caption 输出（无 bbox）不显示 Apply', async () => {
+      const message = {
+        id: 'msg_moss_caption',
+        role: 'assistant' as const,
+        content: '```json\n{"caption":"A calm photograph of a ceramic cup."}\n```',
+        timestamp: 1000,
+        skillId: 'builtin:moss-layout',
+      };
+      useEditorStore.setState({
+        skillPrefs: { activeSkillId: 'builtin:moss-layout', overrides: {} },
+        canvasChatMessages: [message],
+        canvasChatSessions: [{
+          id: 'session_1',
+          title: '会话',
+          createdAt: 1000,
+          updatedAt: 1000,
+          messages: [message],
+          pendingIdeogramOutput: null,
+          pendingQualityReport: null,
+          requestLogs: [],
+        }],
+      });
+
+      await renderWithPending();
+      expect(document.querySelector('.chat-msg-card-apply-ghost')).toBeNull();
     });
 
     it('工具条应显示 Stream 开关和 Think 四档滑块，并写入共享设置', async () => {

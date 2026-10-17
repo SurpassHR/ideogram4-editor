@@ -253,6 +253,7 @@ export default function CanvasChatPanel() {
     editAndSend,
     applyMessageOutput,
     buildCopyText,
+    checkMessageOutput,
     handleSelectModel,
     setChatResponseLang,
     canvasChatTargetSize,
@@ -672,6 +673,7 @@ export default function CanvasChatPanel() {
         message={msg}
         dismissed={false}
         onApply={handleApplyMessage}
+        outputCheck={checkMessageOutput}
         onRetry={msg.role === 'assistant' ? handleRetry : undefined}
         onEdit={msg.role === 'user' ? handleEdit : undefined}
         isLoading={isLoading}

@@ -20,6 +20,11 @@ interface ChatMessageProps {
   onEdit?: (messageId: string) => void;
   dismissed?: boolean;
   isLoading?: boolean;
+  /**
+   * 判断回复能否 Apply（决定 Apply 按钮是否出现）。
+   * 缺省用 Ideogram 校验；Canvas Chat 会传入按当前 skill 解析的检查函数。
+   */
+  outputCheck?: (message: ChatMessageType) => { canApply: boolean; error: string | null };
 }
 
 /** 检测纯文本是否为有效 JSON（用于兜底渲染 models 不返回 ```json 的情况） */
@@ -50,7 +55,7 @@ function renderMarkdown(text: string): string {
   });
 }
 
-export default function ChatMessage({ message, onAdopt, onDismiss, onApply, onRetry, onEdit, dismissed, isLoading }: ChatMessageProps) {
+export default function ChatMessage({ message, onAdopt, onDismiss, onApply, onRetry, onEdit, dismissed, isLoading, outputCheck }: ChatMessageProps) {
   const { t, lang } = useI18n();
   const timeLabel = useMemo(() => formatTime(message.timestamp), [message.timestamp]);
 
@@ -61,12 +66,16 @@ export default function ChatMessage({ message, onAdopt, onDismiss, onApply, onRe
   const isChinese = responseLang === 'zh' || (responseLang === 'auto' && lang === 'zh');
 
   const parseResult = useMemo(
-    () => (isUser ? null : validateIdeogramJSONVerbose(message.content)),
-    [isUser, message.content],
+    () => {
+      if (isUser) return null;
+      if (outputCheck) return outputCheck(message);
+      const ideogramResult = validateIdeogramJSONVerbose(message.content);
+      return { canApply: ideogramResult.output !== null, error: ideogramResult.error };
+    },
+    [isUser, message.content, outputCheck],
   );
-  const parsedOutput = parseResult?.output ?? null;
   const parseError = parseResult?.error ?? null;
-  const hasOutput = parsedOutput !== null && !!onApply;
+  const hasOutput = (parseResult?.canApply ?? false) && !!onApply;
   const showApply = hasOutput;
   const applyLabel = message.applied ? 'Re-Apply' : 'Apply';
 
