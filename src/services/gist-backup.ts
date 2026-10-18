@@ -103,8 +103,25 @@ export async function loadBackupGist(token: string, gistId: string): Promise<Gis
     if (!resp.ok) return { ok: false, error: await responseError(resp) };
     const data = await resp.json();
     const file = data?.files?.[BACKUP_FILE_NAME];
-    if (!file || typeof file.content !== 'string') {
+    if (!file) {
       return { ok: false, error: '该 Gist 缺少 ideogram4-workspace-backup.json。' };
+    }
+    /*
+     * GitHub API 对超过 1MB 的 Gist 文件只返回前 1MB（truncated: true），
+     * 直接 JSON.parse 会在截断处报 "unterminated string"。此时改用 raw_url 取完整内容：
+     * gist.githubusercontent.com 允许跨域；secret gist 的 raw 链接无需 token，
+     * 带上 Authorization 反而会触发不必要的 CORS 预检。
+     */
+    if (file.truncated === true || typeof file.content !== 'string') {
+      if (typeof file.raw_url !== 'string' || file.raw_url.length === 0) {
+        return {
+          ok: false,
+          error: '该备份超过 GitHub API 1MB 读取上限，且 Gist 未提供 raw 链接，无法读取完整内容。',
+        };
+      }
+      const rawResp = await fetch(file.raw_url, { method: 'GET' });
+      if (!rawResp.ok) return { ok: false, error: `读取完整备份失败：${await responseError(rawResp)}` };
+      return { ok: true, content: await rawResp.text() };
     }
     return { ok: true, content: file.content };
   } catch (error) {
