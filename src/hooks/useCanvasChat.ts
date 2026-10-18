@@ -9,7 +9,7 @@ import type { SkillExtraction } from '../services/skill-adapters/types';
 import { applyExtractionToStore } from '../services/skill-apply';
 import { getBuiltinSkills } from '../skills/builtin-skills';
 import { resolveActiveSkill } from '../types/skill';
-import { computeTargetCanvasSize, formatAspectRatio, ratiosMatch } from '../utils/canvas-dims';
+import { computeTargetCanvasSize, formatAspectRatio, normalizeCanvasSize } from '../utils/canvas-dims';
 import { buildMultimodalMessages } from '../services/llm-chat';
 import { validateLayout } from '../services/layout-validator';
 import { generateMessageId, createUserMessage, createAssistantMessage } from '../types/chat';
@@ -661,16 +661,16 @@ export function useCanvasChat() {
     (extraction: SkillExtraction, skillId: string): { count: number; warnings: string[] } => {
     const store = useEditorStore.getState();
     let effective = extraction;
-    // 模型返回的画布比例与画板不一致时保留画板比例（画板是用户在工具栏明确设置的）
-    if (
-      extraction.canvas
-      && !ratiosMatch(store.canvasW, store.canvasH, extraction.canvas.width, extraction.canvas.height)
-    ) {
+    // 模型返回的画布尺寸会改写画板；尺寸变化时给一条提示
+    const resized = extraction.canvas
+      ? normalizeCanvasSize(extraction.canvas.width, extraction.canvas.height)
+      : null;
+    if (resized && (resized.width !== store.canvasW || resized.height !== store.canvasH)) {
       effective = {
         ...extraction,
         warnings: [
           ...extraction.warnings,
-          `模型给出的画布尺寸 ${extraction.canvas.width}×${extraction.canvas.height} 与画板比例 ${formatAspectRatio(store.canvasW, store.canvasH)} 不一致，已保留画板尺寸 ${store.canvasW}×${store.canvasH}。如需按模型比例构图，请先在画板工具栏调整比例。`,
+          `已按模型给出的画布尺寸把画板调整为 ${resized.width}×${resized.height}（原 ${store.canvasW}×${store.canvasH}）。`,
         ],
       };
     }
@@ -684,7 +684,9 @@ export function useCanvasChat() {
       return { count: 0, warnings: effective.warnings };
     }
 
-    store.setPendingQualityReport(validateLayout(effective.elements, store.canvasW, store.canvasH));
+    // 画板可能已被 Apply 改尺寸，质量诊断使用最新尺寸
+    const after = useEditorStore.getState();
+    store.setPendingQualityReport(validateLayout(effective.elements, after.canvasW, after.canvasH));
     return { count, warnings: effective.warnings };
     },
     [setPendingApply, setPendingIdeogramOutput],

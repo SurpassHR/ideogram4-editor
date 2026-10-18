@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { computeTargetCanvasSize, ratiosMatch } from '../canvas-dims';
+import { computeTargetCanvasSize, normalizeCanvasSize, ratiosMatch } from '../canvas-dims';
 
 describe('computeTargetCanvasSize', () => {
   it('1:1 画板按目标尺寸直接返回正方', () => {
@@ -26,6 +26,32 @@ describe('computeTargetCanvasSize', () => {
 
   it('非法画板尺寸回落到正方形目标', () => {
     expect(computeTargetCanvasSize(0, 0, 2048)).toEqual({ width: 2048, height: 2048 });
+  });
+});
+
+describe('normalizeCanvasSize', () => {
+  it('范围内的模型尺寸原样采用（已是 16 的倍数）', () => {
+    expect(normalizeCanvasSize(2048, 1152)).toEqual({ width: 2048, height: 1152 });
+    expect(normalizeCanvasSize(1024, 1024)).toEqual({ width: 1024, height: 1024 });
+  });
+
+  it('非 16 倍数取整到最近的 16', () => {
+    expect(normalizeCanvasSize(1000, 1000)).toEqual({ width: 1008, height: 1008 });
+  });
+
+  it('超过 4096 时等比缩放到上限', () => {
+    expect(normalizeCanvasSize(8000, 4500)).toEqual({ width: 4096, height: 2304 });
+  });
+
+  it('小于 256 时等比放大到下限', () => {
+    expect(normalizeCanvasSize(128, 128)).toEqual({ width: 256, height: 256 });
+  });
+
+  it('非法尺寸返回 null', () => {
+    expect(normalizeCanvasSize(0, 1024)).toBeNull();
+    expect(normalizeCanvasSize(-100, 1024)).toBeNull();
+    expect(normalizeCanvasSize(Number.NaN, 1024)).toBeNull();
+    expect(normalizeCanvasSize(1024, Number.POSITIVE_INFINITY)).toBeNull();
   });
 });
 

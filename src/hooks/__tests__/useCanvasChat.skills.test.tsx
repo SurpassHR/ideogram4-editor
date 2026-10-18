@@ -135,7 +135,7 @@ describe('useCanvasChat × skill', () => {
     expect(lastUser.content).not.toContain('Target output canvas: 2048 x 2048');
   });
 
-  it('模型返回的画布比例与画板不一致时保留画板并给出警告', async () => {
+  it('模型返回的画布尺寸与画板不一致时，按模型尺寸调整画板', async () => {
     setupStore(DEFAULT_SKILL_ID);
     useEditorStore.setState({ canvasW: 512, canvasH: 768, canvasChatTargetSize: 2048 });
     const { result } = renderHook(() => useCanvasChat());
@@ -165,10 +165,13 @@ describe('useCanvasChat × skill', () => {
     const outcome = outcomes[0];
     expect(outcome.ok).toBe(true);
     if (!outcome.ok) return;
-    expect(outcome.warnings.join(' ')).toContain('比例');
-    // 画板比例保持不变
-    expect(useEditorStore.getState().canvasW).toBe(512);
-    expect(useEditorStore.getState().canvasH).toBe(768);
-    expect(useEditorStore.getState().boxes).toHaveLength(1);
+    // 画板改为模型给出的尺寸，并同步比例/倍数
+    const state = useEditorStore.getState();
+    expect(state.canvasW).toBe(2048);
+    expect(state.canvasH).toBe(2048);
+    expect(state.canvasRatio).toBe('1:1');
+    expect(state.boxes).toHaveLength(1);
+    expect(state.boxes[0].w).toBeCloseTo(0.8 * 2048, 1);
+    expect(outcome.warnings.join(' ')).toContain('2048');
   });
 });

@@ -41,9 +41,9 @@ Ideogram4 Editor is a web-based visual tool for crafting structured JSON prompts
 - ⚡ **SSE Streaming** — Token-by-token streaming for all LLM interactions
 - ✨ **Interactive Glow Grid** — Dynamic dot-matrix glow background via CSS Masking + JS coordinate mapping
 - ↩️ **Undo/Redo** — Ctrl+Z to undo, Ctrl+Y to redo, snapshot-based history (up to 50 steps)
-- 📋 **Layer Panel** — Floating layer panel to select and manage boxes hidden behind others
+- 📋 **Layer Panel** — Floating list of every box; row numbers match the tag strip above each box, click a row to select that box
 - 🖼️ **Box Image Import** — Drag & drop, upload, or paste images into a box as visual reference and multimodal AI input
-- 💬 **Canvas Chat** — Canvas-level AI composition dialog returning structured IdeogramOutput with Apply/Regenerate workflow
+- 💬 **Canvas Chat** — Canvas-level AI composition dialog returning structured IdeogramOutput with Apply/Regenerate workflow; Apply also adopts the canvas size and aspect ratio given in the JSON
 - ⚙️ **General Settings** — Settings for Canvas Chat auto-maximize and canvas-level preferences
 - 💾 **Workspace Backup** — GitHub Gist-based backup/restore with cross-client discovery
 - ✅ **Layout Quality Validation** — Soft validation (area coverage, spacing, aspect ratios) before image generation
@@ -73,7 +73,7 @@ npm run preview
 2. **Create bounding boxes** — Drag on the canvas to draw rectangles. Each box represents a region in the final image.
 3. **Configure box properties** — Click a box to select it, then use the right panel (Box tab):
    - **Mode**: `obj` (object/photo) or `text` (text/art style)
-   - **Text**: Label displayed inside the box
+   - **Text**: Label shown in the tag strip above the box (with index and type)
    - **Description**: Detailed visual description for this region
    - **Colors**: Assign colors (max 16 per box); same-colored boxes are treated as parts of the same object
 4. **Configure global settings** — Switch to the "Global" tab in the right panel: style mode, description, aesthetics, lighting, medium, and global palette
@@ -84,8 +84,9 @@ npm run preview
 
 | Action | Method |
 |--------|--------|
-| Inline edit box text | Double-click box → type → Enter (save) / Escape (cancel) |
-| AI chat optimization | Select box → click ✨ button → chat with LLM (configure providers in `/#/settings`) |
+| Box tag strip | Each box shows `index + type + text` in a tag above it (text boxes blue, object boxes orange); selecting a box turns both the box and its tag purple. The tag never grows wider than its box and truncates with an ellipsis |
+| Inline edit box text | Double-click box → type in the tag strip above it → Enter (save) / Escape (cancel) |
+| AI chat optimization | Select box → click the ✨ button at the end of the tag strip → chat with LLM (configure providers in `/#/settings`) |
 | Box reference image | Drag & drop or paste an image onto a box as visual reference |
 | Canvas background | Right-click canvas → "Import Background Image" |
 | Box operations | Right-click box → duplicate/cut/copy/delete/layer/image/AI Chat |
@@ -144,7 +145,7 @@ src/
 │   └── useHashRoute.ts                   # Hash-based routing hook
 ├── components/
 │   ├── layout/                           # App shell: Header, MainContent, SettingsPage, BottomBar
-│   ├── canvas/                           # Artboard, CanvasArea, BoundingBox, ContextMenu, etc.
+│   ├── canvas/                           # Artboard, CanvasArea, BoundingBox (tag strip above each box), ContextMenu, etc.
 │   ├── panels/                           # GlobalSettings, BoxProperties, RightPanelContainer
 │   ├── json/                             # JSON generation/loading toolbar
 │   ├── comfyui/                          # Generation controls + image preview

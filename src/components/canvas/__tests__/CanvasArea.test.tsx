@@ -73,6 +73,13 @@ describe('CanvasArea multi-select integration', () => {
     expect(useEditorStore.getState().selectedBoxId).toBe('box_2');
   });
 
+  it('每个框的 tag 条按 boxes 顺序显示序号', () => {
+    renderCanvas();
+
+    const indexes = Array.from(document.querySelectorAll('.bounding-box-tag-index')).map(el => el.textContent);
+    expect(indexes).toEqual(['1', '2', '3']);
+  });
+
   it('框选过程中应渲染 SVG 蚂蚁线 rect', () => {
     renderCanvas();
 

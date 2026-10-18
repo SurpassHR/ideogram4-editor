@@ -5,6 +5,7 @@
 
 import type { Box } from '../types';
 import { denorm } from '../utils/coordinates';
+import { normalizeCanvasSize } from '../utils/canvas-dims';
 import { MODE_ARTSTYLE, MODE_PHOTO } from '../types';
 import type { SkillExtraction } from './skill-adapters/types';
 
@@ -12,6 +13,7 @@ import type { SkillExtraction } from './skill-adapters/types';
 export interface SkillApplyTarget {
   canvasW: number;
   canvasH: number;
+  setCanvasDimensions: (w: number, h: number) => void;
   clearBoxes: () => void;
   addBox: (box: Omit<Box, 'id'>) => void;
   setGlobalSetting: (key: string, value: string) => void;
@@ -21,15 +23,21 @@ export interface SkillApplyTarget {
 
 /**
  * 应用 extraction：
- * - 画板尺寸由用户在画板上决定，模型返回的 canvas 尺寸不覆盖它（bbox 本身是 0-1000 归一化值）
+ * - 模型返回的 canvas 尺寸会应用到画板（先改尺寸，再按新尺寸反归一化 bbox）
+ * - 尺寸非法/缺失（或越界无法等比缩放）时保留当前画板
  * - elements 为空时不清空画布（例如 MOSS caption 输出）
  * - 返回落框数量
  */
 export function applyExtractionToStore(extraction: SkillExtraction, target: SkillApplyTarget): number {
   if (extraction.elements.length === 0) return 0;
 
-  const canvasW = target.canvasW;
-  const canvasH = target.canvasH;
+  const size = extraction.canvas
+    ? normalizeCanvasSize(extraction.canvas.width, extraction.canvas.height)
+    : null;
+  if (size) target.setCanvasDimensions(size.width, size.height);
+
+  const canvasW = size ? size.width : target.canvasW;
+  const canvasH = size ? size.height : target.canvasH;
 
   target.clearBoxes();
   for (const element of extraction.elements) {

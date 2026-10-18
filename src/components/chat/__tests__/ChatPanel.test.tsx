@@ -4,28 +4,31 @@ import ChatPanel from '../ChatPanel';
 import { I18nProvider } from '../../../i18n/context';
 import { useEditorStore } from '../../../store';
 import { useChatPanel } from '../../../hooks/useChatPanel';
+import type { Box } from '../../../types';
 
 vi.mock('../../../hooks/useChatPanel', () => ({
   useChatPanel: vi.fn(),
 }));
 
-function mockChatPanel() {
+const baseBox: Box = {
+  id: 'box_0',
+  x: 0,
+  y: 0,
+  w: 100,
+  h: 100,
+  mode: 'obj',
+  text: '',
+  desc: 'Box',
+  colors: [],
+  imageDataUrl: null,
+  imageRole: 'both',
+};
+
+function mockChatPanel(currentBox: Partial<Box> = {}) {
   vi.mocked(useChatPanel).mockReturnValue({
     isChatOpen: true,
     activeChatBoxId: 'box_0',
-    currentBox: {
-      id: 'box_0',
-      x: 0,
-      y: 0,
-      w: 100,
-      h: 100,
-      mode: 'obj',
-      text: '',
-      desc: 'Box',
-      colors: [],
-      imageDataUrl: null,
-      imageRole: 'both',
-    },
+    currentBox: { ...baseBox, ...currentBox },
     messages: [],
     providers: [],
     modelOptions: [{ value: 'mock:gpt-4', label: 'Mock · gpt-4', provider: {} }],
@@ -76,5 +79,16 @@ describe('ChatPanel', () => {
     expect(thinkingSlider.value).toBe('2');
     fireEvent.change(thinkingSlider, { target: { value: '0' } });
     expect(useEditorStore.getState().chatThinkingLevel).toBe('off');
+  });
+
+  it('无文字与描述的框，头部 badge 显示与 tag 编号一致的序号', () => {
+    mockChatPanel({ id: 'box_1', text: '', desc: '' });
+    useEditorStore.setState({
+      boxes: [baseBox, { ...baseBox, id: 'box_1', y: 200 }],
+    });
+
+    render(<I18nProvider><ChatPanel /></I18nProvider>);
+
+    expect(document.querySelector('.chat-badge')!.textContent).toBe('#2');
   });
 });

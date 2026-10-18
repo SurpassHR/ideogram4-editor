@@ -44,8 +44,8 @@ export default function LayerPanel() {
     return () => document.removeEventListener('keydown', handler);
   }, [isLayerPanelOpen, toggleLayerPanel]);
 
-  // 反转 boxes 以使上层 box 在列表顶部
-  const layerItems = [...boxes].reverse();
+  // 反转 boxes 以使上层 box 在列表顶部；序号与框上方 tag 条一致（1 起始，按 boxes 顺序）
+  const layerItems = boxes.map((box, index) => ({ box, boxNumber: index + 1 })).reverse();
 
   return (
     <div className="layer-panel-wrapper" ref={panelRef}>
@@ -81,16 +81,19 @@ export default function LayerPanel() {
             {layerItems.length === 0 ? (
               <div className="layer-panel-empty">{t('layerPanel.empty')}</div>
             ) : (
-              layerItems.map(box => {
+              layerItems.map(({ box, boxNumber }) => {
                 const isSelected = selectedBoxIds.includes(box.id);
                 const color = box.colors?.[0] || '#666';
-                const label = box.text || box.id;
+                const modeLabel = box.mode === 'text' ? t('boundingBox.textMode') : t('boundingBox.objectMode');
+                const label = box.text || box.desc || modeLabel;
                 return (
                   <div
                     key={box.id}
                     className={`layer-panel-item${isSelected ? ' selected' : ''}`}
                     onClick={() => selectBox(box.id)}
+                    title={label}
                   >
+                    <span className="layer-panel-item-index">{boxNumber}</span>
                     <span
                       className="layer-panel-item-dot"
                       style={{ backgroundColor: color }}

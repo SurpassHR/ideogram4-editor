@@ -435,10 +435,12 @@ export default function CanvasArea({ zoom, panX, panY, screenToCanvas, onFitToAr
             }}
           />
         )}
-        {boxes.map(box => (
+        {boxes.map((box, boxIndex) => (
           <BoundingBox
             key={box.id}
             box={box}
+            index={boxIndex + 1}
+            zoom={zoom}
             isSelected={selectedBoxIds.includes(box.id)}
             boxRef={registerBoxRef(box.id)}
             interactionMode={interactionMode}

@@ -24,6 +24,16 @@
   --box-fill: rgba(255, 82, 82, 0.12);
   --box-selected-border: #7c5cfc;
   --box-selected-fill: rgba(124, 92, 252, 0.12);
+  --box-selected-tag-bg: rgba(124, 92, 252, 0.28);
+  --box-selected-tag-text: #ded3ff;
+  --box-text-border: #4c8dff;
+  --box-text-fill: rgba(76, 141, 255, 0.10);
+  --box-text-tag-bg: rgba(76, 141, 255, 0.22);
+  --box-text-tag-text: #cfe0ff;
+  --box-obj-border: #ff9800;
+  --box-obj-fill: rgba(255, 152, 0, 0.10);
+  --box-obj-tag-bg: rgba(255, 152, 0, 0.20);
+  --box-obj-tag-text: #ffd9a3;
 }
 
 html {
@@ -330,8 +340,43 @@ body {
   border-color: var(--box-selected-border);
 }
 
+/* 悬停时抬升层级，避免 tag 条被相邻框盖住（选中态仍更高） */
+.bounding-box:hover {
+  z-index: 4;
+}
+
 .bounding-box.selected {
   z-index: 10;
+}
+
+.bounding-box.editing {
+  z-index: 12;
+}
+
+/* 模式分色：文字框蓝、对象框橙（未选中时） */
+.bounding-box.mode-text {
+  --box-border: var(--box-text-border);
+  --box-fill: var(--box-text-fill);
+  --box-tag-bg: var(--box-text-tag-bg);
+  --box-tag-text: var(--box-text-tag-text);
+}
+
+.bounding-box.mode-obj {
+  --box-border: var(--box-obj-border);
+  --box-fill: var(--box-obj-fill);
+  --box-tag-bg: var(--box-obj-tag-bg);
+  --box-tag-text: var(--box-obj-tag-text);
+}
+
+/* 选中时框与 tag 条统一为紫色（tag 背景/文字/边框，含 sparkle 按钮） */
+.bounding-box.selected.mode-text,
+.bounding-box.selected.mode-obj {
+  --box-tag-bg: var(--box-selected-tag-bg);
+  --box-tag-text: var(--box-selected-tag-text);
+}
+
+.bounding-box.selected .bounding-box-tag {
+  border-color: var(--box-selected-border);
 }
 
 /* 拖拽创建新 box 时的幽灵框 */
@@ -446,34 +491,86 @@ body {
   color: #fff;
 }
 
-.bounding-box-content {
+/* 框上方 tag 条：序号 + 类型 + 文字 */
+.bounding-box-tag {
+  position: absolute;
+  bottom: calc(100% - 1px / var(--box-zoom, 1));
+  left: 0;
+  z-index: 3;
   display: flex;
-  align-items: flex-start;
-  width: 100%;
-  height: 100%;
-  padding: calc(4px / var(--box-zoom, 1)) calc(8px / var(--box-zoom, 1));
+  align-items: center;
+  gap: calc(5px / var(--box-zoom, 1));
+  min-height: calc(18px / var(--box-zoom, 1));
+  /* 宽度不超过框宽：过长的序号/类型/文字在 tag 右边缘被裁切 */
+  max-width: 100%;
   overflow: hidden;
+  padding: 0 calc(6px / var(--box-zoom, 1));
+  background: var(--box-tag-bg);
+  border-width: calc(1px / var(--box-zoom, 1));
+  border-style: solid;
+  border-color: var(--box-border);
+  border-bottom: none;
+  border-radius: calc(3px / var(--box-zoom, 1)) calc(3px / var(--box-zoom, 1)) 0 0;
+  color: var(--box-tag-text);
+  font-size: calc(11px / var(--box-zoom, 1));
+  line-height: calc(16px / var(--box-zoom, 1));
+  white-space: nowrap;
+  pointer-events: auto;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+/* 框贴近画布顶部：tag 翻到框内，避免溢出画板被裁掉 */
+.bounding-box-tag.inside {
+  bottom: auto;
+  top: 0;
+  border-bottom-width: calc(1px / var(--box-zoom, 1));
+  border-bottom-style: solid;
+  border-radius: 0 0 calc(3px / var(--box-zoom, 1)) calc(3px / var(--box-zoom, 1));
+}
+
+.bounding-box-tag-index {
+  flex: none;
+  font-weight: 700;
+  opacity: 0.92;
+  font-variant-numeric: tabular-nums;
+}
+
+.bounding-box-tag-mode {
+  flex: none;
+  font-weight: 600;
+  opacity: 0.72;
+  letter-spacing: 0.02em;
 }
 
 .bounding-box-label {
-  font-size: calc(13px / var(--box-zoom, 1));
-  color: var(--text);
-  white-space: pre-wrap;
-  word-break: break-word;
-  overflow-y: auto;
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
-  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  color: inherit;
   pointer-events: none;
-  max-height: 100%;
+}
+
+/* 编辑时 tag 在框宽内展开为多行编辑区 */
+.bounding-box-tag.editing {
+  max-width: min(100%, calc(320px / var(--box-zoom, 1)));
+  min-height: 0;
+  padding: calc(2px / var(--box-zoom, 1)) calc(6px / var(--box-zoom, 1));
+  white-space: normal;
+  align-items: flex-start;
 }
 
 .bounding-box-label.editing {
   pointer-events: auto;
   cursor: text;
+  overflow: visible;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
   color: #fff;
   outline: none;
-  align-self: flex-start;
   text-align: left;
   caret-color: #e8e8f0;
 }
@@ -512,6 +609,38 @@ body {
   background: var(--primary-hover);
   transform: scale(1.15);
   box-shadow: 0 4px 12px rgba(124, 92, 252, 0.5);
+}
+
+/* tag 内的 sparkle 按钮：固定在 tag 右端，不参与文字宽度计算 */
+.bounding-box-tag.has-action {
+  padding-right: calc(22px / var(--box-zoom, 1));
+}
+
+.bounding-box-tag .chat-bubble-btn {
+  position: absolute;
+  top: 50%;
+  right: calc(3px / var(--box-zoom, 1));
+  width: calc(16px / var(--box-zoom, 1));
+  height: calc(16px / var(--box-zoom, 1));
+  transform: translateY(-50%);
+  border-width: calc(1px / var(--box-zoom, 1));
+  border-color: var(--box-tag-text);
+  background: transparent;
+  color: var(--box-tag-text);
+  box-shadow: none;
+}
+
+.bounding-box-tag .chat-bubble-btn svg {
+  width: calc(10px / var(--box-zoom, 1));
+  height: calc(10px / var(--box-zoom, 1));
+}
+
+.bounding-box-tag .chat-bubble-btn:hover {
+  background: var(--box-tag-text);
+  color: var(--bg);
+  border-color: var(--box-tag-text);
+  transform: translateY(-50%);
+  box-shadow: none;
 }
 
 
@@ -5805,6 +5934,20 @@ input[type="color"]::-webkit-color-swatch {
 
 .layer-panel-item.selected {
   background: rgba(124, 92, 252, 0.15);
+}
+
+.layer-panel-item-index {
+  min-width: 16px;
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.layer-panel-item.selected .layer-panel-item-index {
+  color: var(--primary);
 }
 
 .layer-panel-item-dot {

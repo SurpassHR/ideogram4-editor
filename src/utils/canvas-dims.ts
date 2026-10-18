@@ -15,6 +15,34 @@ export const roundTo16 = (n: number) => Math.round(n / 16) * 16;
 export const clampDim = (n: number) => Math.max(256, Math.min(4096, roundTo16(n)));
 
 /**
+ * 归一化模型返回的画布尺寸：取整到 16 的倍数并收敛到 256–4096。
+ * 越界时先等比缩放再取整，尽量保持比例；非法值（<=0 / NaN / Infinity）返回 null。
+ */
+export function normalizeCanvasSize(width: number, height: number): { width: number; height: number } | null {
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return null;
+
+  let w = width;
+  let h = height;
+  const maxSide = Math.max(w, h);
+  if (maxSide > 4096) {
+    const factor = 4096 / maxSide;
+    w *= factor;
+    h *= factor;
+  }
+  const minSide = Math.min(w, h);
+  if (minSide < 256) {
+    const factor = 256 / minSide;
+    w *= factor;
+    h *= factor;
+  }
+
+  return {
+    width: Math.min(4096, Math.max(256, roundTo16(w))),
+    height: Math.min(4096, Math.max(256, roundTo16(h))),
+  };
+}
+
+/**
  * 按画板比例把「目标渲染尺寸」换算成宽高：
  * 长边等于 longSide，宽高都取 16 的倍数，避免把用户选好的比例变成 1:1。
  */

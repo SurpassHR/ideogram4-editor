@@ -41,6 +41,9 @@ export default function ChatPanel() {
   } = useChatPanel();
 
   const { t } = useI18n();
+  // 与框上方 tag 条一致的 1 起始序号
+  const boxes = useEditorStore(s => s.boxes);
+  const currentBoxNumber = currentBox ? boxes.findIndex(b => b.id === currentBox.id) + 1 : 0;
   const [inputText, setInputText] = useState('');
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -278,7 +281,7 @@ export default function ChatPanel() {
         <span className="chat-header-title">{t('chat.title')}</span>
         {currentBox && (
           <span className="chat-badge">
-            {currentBox.desc || currentBox.text || currentBox.id}
+            {currentBox.desc || currentBox.text || (currentBoxNumber > 0 ? `#${currentBoxNumber}` : currentBox.id)}
           </span>
         )}
         <span className="chat-header-spacer" />

@@ -225,7 +225,7 @@ describe('useCanvasChat', () => {
     expect(detail?.parsedJsonText).toContain('"canvasH": 4096');
   });
 
-  it('模型返回的画布比例与画板不一致时保留画板比例并给出警告', () => {
+  it('模型返回的画布尺寸与画板不一致时改动画板并给出提示', () => {
     const { result } = renderHook(() => useCanvasChat());
 
     const message = {
@@ -264,13 +264,14 @@ describe('useCanvasChat', () => {
       expect(outcome.ok).toBe(true);
       if (!outcome.ok) return;
       expect(outcome.count).toBe(1);
-      // 画板是 1:1、模型给的是 4:3 → 保留画板并提示
-      expect(outcome.warnings.join(' ')).toContain('画板');
+      // 画板是 1:1、模型给的是 4:3 → 画板改为模型尺寸并提示
+      expect(outcome.warnings.join(' ')).toContain('1024×768');
     });
 
     const state = useEditorStore.getState();
     expect(state.canvasW).toBe(1024);
-    expect(state.canvasH).toBe(1024);
-    expect(state.canvasRatio).toBe('1:1');
+    expect(state.canvasH).toBe(768);
+    expect(state.canvasRatio).toBe('4:3');
+    expect(state.canvasScale).toBe(4);
   });
 });

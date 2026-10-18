@@ -55,7 +55,7 @@ src/
 │   │   ├── Artboard.tsx              # 画板容器：固定视口、滚轮缩放+中键平移、缩放控件
 │   │   ├── ArtboardToolbar.tsx       # 画布上边缘悬浮工具栏：比例/缩放/尺寸/收藏
 │   │   ├── CanvasArea.tsx            # 交互式画布（Pointer Events）+ 右键上下文菜单 + ChatPanel
-│   │   ├── BoundingBox.tsx           # 边界框：文字标签 + inline 编辑 + 背景图像 + resize + 右键菜单
+│   │   ├── BoundingBox.tsx           # 边界框：上方 tag 条（序号/类型/文字）+ inline 编辑 + 背景图 + resize
 │   │   ├── ContextMenu.tsx           # 通用右键上下文菜单（createPortal→body）
 │   │   ├── ChatBubbleButton.tsx      # ✨ 按钮：选中 box 右上角，编辑时在 input 内部右侧
 │   │   ├── CanvasChatPanel.tsx       # 画布级 AI 构图浮动面板：消息/模型/语言/预设/Apply 弹窗
@@ -134,7 +134,7 @@ src/
 
 1. `App.tsx` 使用 `useHashRoute()` 根据 hash 路由到 `CanvasPage`（`#/`）或 `SettingsPage`（`#/settings`）
 2. 用户在画布上拖拽创建 bounding-box（Pointer Events，`usePointerInteraction`）
-3. 单击选中，双击进入文字内联编辑（Enter 保存 / Escape 取消）
+3. 单击选中，双击在框上方 tag 条上进入文字内联编辑（Enter 保存 / Escape 取消）
 4. 点击 ✨ 按钮打开 AI 对话面板
 5. 画布置于 `Artboard` 中，支持滚轮缩放和中键拖拽平移
 6. `ArtboardToolbar` 提供比例选择、缩放滑块、自定义尺寸、收藏
@@ -145,6 +145,7 @@ src/
 11. `generateImage()` 注入 ComfyUI workflow，调用 API 生成图片
 12. LLM 对话支持 SSE 流式 + CoT 可折叠块 + Canvas Chat 画布缩略图
 13. Canvas Chat 返回结构化 `IdeogramOutput`（`high_level_description` + `style_description` + `elements[]`），存入 `pendingIdeogramOutput`；Per-Box Chat 返回自由文本
+14. Apply 时若输出带画布尺寸（Ideogram `canvasW/canvasH` 或 MOSS 草稿 `width/height`），画板尺寸与比例一并应用（归一化到 256–4096、16 的倍数），bbox 按新画板反归一化
 
 ### 关键 Store 字段
 

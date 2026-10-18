@@ -3,17 +3,22 @@ import { IconClose } from '../ui/icons';
 import type { Box } from '../../types';
 import type { InteractionMode } from '../../types';
 import { useEditorStore } from '../../store';
+import { useI18n } from '../../i18n/context';
 import ChatBubbleButton from './ChatBubbleButton';
 
 interface BoundingBoxProps {
   box: Box;
+  /** 1 起始的序号，与 boxes 数组顺序（即生成的 JSON elements 顺序）一致 */
+  index: number;
+  /** 画板缩放，用于判断 tag 是否需要翻到框内 */
+  zoom: number;
   isSelected: boolean;
   boxRef: (el: HTMLDivElement | null) => void;
   interactionMode: InteractionMode;
   onContextMenu?: (e: React.MouseEvent, boxId: string) => void;
 }
 
-export default function BoundingBox({ box, isSelected, boxRef, interactionMode, onContextMenu }: BoundingBoxProps) {
+export default function BoundingBox({ box, index, zoom, isSelected, boxRef, interactionMode, onContextMenu }: BoundingBoxProps) {
   const editingBoxId = useEditorStore(s => s.editingBoxId);
   const setEditingBoxId = useEditorStore(s => s.setEditingBoxId);
   const updateBox = useEditorStore(s => s.updateBox);
@@ -21,6 +26,7 @@ export default function BoundingBox({ box, isSelected, boxRef, interactionMode, 
   const canvasW = useEditorStore(s => s.canvasW);
   const canvasH = useEditorStore(s => s.canvasH);
   const selectedBoxIds = useEditorStore(s => s.selectedBoxIds);
+  const { t } = useI18n();
   const isEditing = editingBoxId === box.id;
   const contentRef = useRef<HTMLDivElement>(null);
   const savedTextRef = useRef('');
@@ -63,6 +69,10 @@ export default function BoundingBox({ box, isSelected, boxRef, interactionMode, 
   }, [handleSave]);
 
   const displayText = box.text || box.desc || '';
+  const modeLabel = box.mode === 'text' ? t('boundingBox.textMode') : t('boundingBox.objectMode');
+
+  // tag 默认在框上方；框贴住画布顶部时翻到框内，避免被画板裁掉
+  const tagInside = box.y < 20 / zoom;
 
   const handleDismissImage = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -93,7 +103,7 @@ export default function BoundingBox({ box, isSelected, boxRef, interactionMode, 
     <div
       id={box.id}
       ref={boxRef}
-      className={`bounding-box ${isSelected ? 'selected' : ''}${selectedBoxIds.length > 0 && !isSelected ? ' dimmed' : ''}`}
+      className={`bounding-box mode-${box.mode}${isSelected ? ' selected' : ''}${selectedBoxIds.length > 0 && !isSelected ? ' dimmed' : ''}${isEditing ? ' editing' : ''}`}
       style={{
         left: box.x,
         top: box.y,
@@ -138,7 +148,14 @@ export default function BoundingBox({ box, isSelected, boxRef, interactionMode, 
           <IconClose size={10} />
         </button>
       )}
-      <div className="bounding-box-content">
+
+      {/* 框上方 tag 条：序号 + 类型 + 文字 */}
+      <div
+        className={`bounding-box-tag${tagInside ? ' inside' : ''}${isEditing ? ' editing' : ''}${isSelected ? ' has-action' : ''}`}
+        title={displayText || undefined}
+      >
+        <span className="bounding-box-tag-index">{index}</span>
+        <span className="bounding-box-tag-mode">{modeLabel}</span>
         <div
           ref={contentRef}
           className={`bounding-box-label${isEditing ? ' editing' : ''}`}
@@ -154,6 +171,7 @@ export default function BoundingBox({ box, isSelected, boxRef, interactionMode, 
           <ChatBubbleButton boxId={box.id} interactionMode={interactionMode} />
         )}
       </div>
+
       <div className="resize-handle" />
     </div>
   );

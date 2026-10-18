@@ -146,6 +146,10 @@ export interface Translations {
       };
     };
   };
+  boundingBox: {
+    textMode: string;
+    objectMode: string;
+  };
   panels: {
     globalSettings: {
       title: string;
@@ -613,6 +617,10 @@ const en: Translations = {
       canvasChatAutoMaximizeDesc: 'Open the canvas composition panel in full-screen mode when clicking the Chat button.',
     },
   },
+  boundingBox: {
+    textMode: 'Text',
+    objectMode: 'Object',
+  },
   panels: {
     globalSettings: {
       title: 'Global Settings',
@@ -1079,6 +1087,10 @@ const zh: Translations = {
       canvasChatAutoMaximize: '点击 Canvas Chat 时自动最大化',
       canvasChatAutoMaximizeDesc: '打开画布构图对话面板时直接进入全屏模式。',
     },
+  },
+  boundingBox: {
+    textMode: '文字',
+    objectMode: '对象',
   },
   panels: {
     globalSettings: {
