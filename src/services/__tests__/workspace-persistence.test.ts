@@ -1,13 +1,16 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   CANVAS_CHAT_STORAGE_KEY,
+  CANVAS_DOCUMENT_STORAGE_KEY,
   CANVAS_FAVORITES_STORAGE_KEY,
   loadCanvasChatState,
+  loadCanvasDocument,
   loadCanvasFavorites,
   saveCanvasChatState,
+  saveCanvasDocument,
   saveCanvasFavorites,
 } from '../workspace-persistence';
-import type { CanvasFavorite, PersistedCanvasChatStateV1 } from '../../types/workspace';
+import type { CanvasFavorite, PersistedCanvasChatStateV1, PersistedCanvasDocumentV1 } from '../../types/workspace';
 
 describe('workspace-persistence', () => {
   beforeEach(() => {
@@ -171,5 +174,90 @@ describe('workspace-persistence', () => {
     expect(saveCanvasFavorites(favorites).ok).toBe(true);
     expect(localStorage.getItem(CANVAS_FAVORITES_STORAGE_KEY)).not.toBeNull();
     expect(loadCanvasFavorites()).toEqual(favorites);
+  });
+
+  describe('当前画布文档', () => {
+    const document: PersistedCanvasDocumentV1 = {
+      schemaVersion: 1,
+      savedAt: 1000,
+      canvasW: 1024,
+      canvasH: 768,
+      canvasRatio: '4:3',
+      canvasScale: 8,
+      canvasCustomW: 16,
+      canvasCustomH: 9,
+      boxes: [
+        {
+          id: 'box_0',
+          x: 10,
+          y: 20,
+          w: 300,
+          h: 200,
+          mode: 'obj',
+          text: '',
+          desc: '主角',
+          colors: ['#FFFFFF'],
+          imageDataUrl: 'data:image/png;base64,AAAA',
+          imageRole: 'both',
+        },
+      ],
+      globalPalette: ['#FF0000'],
+      highLevelDescription: '海报',
+      aesthetics: 'clean',
+      lighting: 'soft',
+      medium: 'photo',
+      artStyle: 'flat',
+      background: 'white',
+      photoArtStyleMode: 1,
+      canvasBackgroundUrl: 'data:image/png;base64,BBBB',
+    };
+
+    it('应保存并还原画布结构、比例、倍数与文案', () => {
+      expect(saveCanvasDocument(document).ok).toBe(true);
+
+      const loaded = loadCanvasDocument();
+
+      expect(loaded).toMatchObject({
+        canvasW: 1024,
+        canvasH: 768,
+        canvasRatio: '4:3',
+        canvasScale: 8,
+        highLevelDescription: '海报',
+        canvasBackgroundUrl: null,
+      });
+      expect(loaded?.boxes).toHaveLength(1);
+      expect(loaded?.boxes[0]).toMatchObject({
+        id: 'box_0',
+        desc: '主角',
+        imageDataUrl: null,
+      });
+    });
+
+    it('图像 Data URL 不应写入 localStorage（改为 IndexedDB 存放）', () => {
+      expect(saveCanvasDocument(document).ok).toBe(true);
+
+      const raw = localStorage.getItem(CANVAS_DOCUMENT_STORAGE_KEY) ?? '';
+
+      expect(raw).not.toContain('data:image');
+      expect(raw).not.toContain('base64');
+    });
+
+    it('应兼容旧存档中的内联图像（供启动时迁移进 IndexedDB）', () => {
+      localStorage.setItem(CANVAS_DOCUMENT_STORAGE_KEY, JSON.stringify(document));
+
+      const loaded = loadCanvasDocument();
+
+      expect(loaded?.boxes[0].imageDataUrl).toBe('data:image/png;base64,AAAA');
+      expect(loaded?.canvasBackgroundUrl).toBe('data:image/png;base64,BBBB');
+    });
+
+    it('损坏或结构不符的文档应回退为 null', () => {
+      localStorage.setItem(CANVAS_DOCUMENT_STORAGE_KEY, '{bad json');
+      expect(loadCanvasDocument()).toBeNull();
+
+      localStorage.setItem(CANVAS_DOCUMENT_STORAGE_KEY, JSON.stringify({ schemaVersion: 1, canvasW: 1024 }));
+      expect(loadCanvasDocument()).toBeNull();
+    });
+
   });
 });

@@ -13,6 +13,12 @@ export default function App() {
   const { hash, navigate } = useHashRoute();
   const isCanvas = hash !== '#/settings';
   const setShortcutsModalOpen = useEditorStore(s => s.setShortcutsModalOpen);
+  const hydrateCanvasImages = useEditorStore(s => s.hydrateCanvasImages);
+
+  // 启动时从 IndexedDB 读回 box 参考图 / 画布背景图（localStorage 只存结构化文档）
+  useEffect(() => {
+    void hydrateCanvasImages();
+  }, [hydrateCanvasImages]);
 
   // 首次进入应用：自动弹出一次快捷键引导（localStorage 标记，一次性）
   useEffect(() => {

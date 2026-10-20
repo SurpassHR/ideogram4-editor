@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type { Box, IdeogramOutput, GenerationStatus, PhotoArtStyleMode } from '../types';
 import type { CanvasChatRequestLogDetail, CanvasChatRequestLogStep, CanvasChatSession, ChatMessage, ChatThinkingLevel, SystemPromptEntry } from '../types/chat';
 import type { PromptPreset } from '../types/presets';
-import type { CanvasFavorite, CanvasSnapshotLite, PersistedCanvasChatStateV1, WorkspaceBackupSettings } from '../types/workspace';
+import type { CanvasFavorite, CanvasSnapshotLite, PersistedCanvasChatStateV1, PersistedCanvasDocumentV1, WorkspaceBackupSettings } from '../types/workspace';
 import type { SkillAdapterId, SkillPrefs, SkillRecord } from '../types/skill';
 import {
   DEFAULT_SKILL_ID,
@@ -22,13 +22,20 @@ import { detectBboxSystem, bboxToPixels } from '../utils/coordinates';
 import type { LayoutQualityReport } from '../services/layout-validator';
 import {
   loadCanvasChatState,
+  loadCanvasDocument,
   loadCanvasFavorites,
   loadWorkspaceBackupSettings,
   saveCanvasChatState,
+  saveCanvasDocument,
   saveCanvasFavorites,
   saveWorkspaceBackupSettings,
 } from '../services/workspace-persistence';
 import { buildCanvasSnapshotLite, buildPersistedCanvasChatState } from '../services/workspace-backup';
+import {
+  loadCanvasImages,
+  saveCanvasImages,
+  type CanvasImageSnapshot,
+} from '../services/canvas-image-store';
 
 // ─── 内部剪贴板（模块级变量，非 OS 剪贴板）──────────────────────────
 let internalClipboard: Box[] = [];
@@ -188,6 +195,139 @@ function canvasStateFromSnapshot(snapshot: CanvasSnapshotLite) {
     background: snapshot.background,
     photoArtStyleMode: snapshot.photoArtStyleMode,
   };
+}
+
+function canvasStateFromDocument(document: PersistedCanvasDocumentV1) {
+  const boxes = document.boxes.map(box => ({ ...box, colors: [...box.colors] }));
+  return {
+    canvasW: document.canvasW,
+    canvasH: document.canvasH,
+    canvasRatio: document.canvasRatio,
+    canvasScale: document.canvasScale,
+    canvasCustomW: document.canvasCustomW,
+    canvasCustomH: document.canvasCustomH,
+    boxes,
+    boxCounter: boxCounterFromBoxes(boxes),
+    selectedBoxId: null,
+    selectedBoxIds: [] as string[],
+    globalPalette: [...document.globalPalette],
+    highLevelDescription: document.highLevelDescription,
+    aesthetics: document.aesthetics,
+    lighting: document.lighting,
+    medium: document.medium,
+    artStyle: document.artStyle,
+    background: document.background,
+    photoArtStyleMode: document.photoArtStyleMode,
+    canvasBackgroundUrl: document.canvasBackgroundUrl,
+  };
+}
+
+const DEFAULT_CANVAS_DOCUMENT: PersistedCanvasDocumentV1 = {
+  schemaVersion: 1,
+  savedAt: 0,
+  canvasW: 1024,
+  canvasH: 1024,
+  canvasRatio: '1:1',
+  canvasScale: 4,
+  canvasCustomW: 16,
+  canvasCustomH: 9,
+  boxes: [],
+  globalPalette: [],
+  highLevelDescription: '',
+  aesthetics: '',
+  lighting: '',
+  medium: '',
+  artStyle: '',
+  background: '',
+  photoArtStyleMode: MODE_ARTSTYLE,
+  canvasBackgroundUrl: null,
+};
+
+/** 上一次会话的画布文档（刷新前自动保存的内容）；首次访问时为默认空画布 */
+const initialCanvasState = canvasStateFromDocument(loadCanvasDocument() ?? DEFAULT_CANVAS_DOCUMENT);
+
+function canvasDocumentFromState(state: EditorStore): PersistedCanvasDocumentV1 {
+  return {
+    schemaVersion: 1,
+    savedAt: Date.now(),
+    canvasW: state.canvasW,
+    canvasH: state.canvasH,
+    canvasRatio: state.canvasRatio,
+    canvasScale: state.canvasScale,
+    canvasCustomW: state.canvasCustomW,
+    canvasCustomH: state.canvasCustomH,
+    // 图像走 IndexedDB，localStorage 只留结构化字段
+    boxes: state.boxes.map(box => ({ ...box, imageDataUrl: null })),
+    globalPalette: state.globalPalette,
+    highLevelDescription: state.highLevelDescription,
+    aesthetics: state.aesthetics,
+    lighting: state.lighting,
+    medium: state.medium,
+    artStyle: state.artStyle,
+    background: state.background,
+    photoArtStyleMode: state.photoArtStyleMode,
+    canvasBackgroundUrl: null,
+  };
+}
+
+function canvasImagesFromState(
+  state: Pick<EditorStore, 'boxes' | 'canvasBackgroundUrl'>,
+): CanvasImageSnapshot {
+  const boxes: Record<string, string> = {};
+  for (const box of state.boxes) {
+    // data: 直接存；blob: 由 canvas-image-store 取回 Blob 后持久化
+    if (box.imageDataUrl?.startsWith('data:') || box.imageDataUrl?.startsWith('blob:')) {
+      boxes[box.id] = box.imageDataUrl;
+    }
+  }
+  const background = state.canvasBackgroundUrl;
+  return {
+    boxes,
+    background: background?.startsWith('data:') || background?.startsWith('blob:') ? background : null,
+  };
+}
+
+function sameCanvasImages(a: CanvasImageSnapshot | null, b: CanvasImageSnapshot): boolean {
+  if (!a || a.background !== b.background) return false;
+  const aKeys = Object.keys(a.boxes);
+  const bKeys = Object.keys(b.boxes);
+  if (aKeys.length !== bKeys.length) return false;
+  return aKeys.every(key => a.boxes[key] === b.boxes[key]);
+}
+
+/** 最近一次已落盘的图像快照：避免每次文字改动都重写 IndexedDB 里的大图 */
+let lastSavedCanvasImages: CanvasImageSnapshot | null = null;
+let canvasImagesHydration: Promise<void> | null = null;
+
+function reportCanvasImageError(error: unknown): void {
+  console.warn('[canvas] 画布图像持久化失败', error);
+}
+
+/** 启动时把 IndexedDB 里的图像合回 store，并把旧存档的内联图像迁移过去 */
+async function hydrateCanvasImagesIntoStore(): Promise<void> {
+  const snapshot = await loadCanvasImages();
+
+  useEditorStore.setState(state => ({
+    boxes: state.boxes.map(box => {
+      if (box.imageDataUrl) return box;
+      const image = snapshot.boxes[box.id];
+      return image ? { ...box, imageDataUrl: image } : box;
+    }),
+    canvasBackgroundUrl: state.canvasBackgroundUrl ?? snapshot.background,
+  }));
+
+  const merged = canvasImagesFromState(useEditorStore.getState());
+  lastSavedCanvasImages = snapshot;
+  if (!sameCanvasImages(snapshot, merged)) {
+    lastSavedCanvasImages = merged;
+    // 旧存档内联图像 / 首屏刚导入的图像：补写一次 IndexedDB
+    void saveCanvasImages(merged).catch(reportCanvasImageError);
+  }
+}
+
+function ensureCanvasImagesHydrated(): Promise<void> {
+  if (!canvasImagesHydration) canvasImagesHydration = hydrateCanvasImagesIntoStore();
+  return canvasImagesHydration;
 }
 
 function canvasChatTitleFromMessage(message: ChatMessage): string {
@@ -377,6 +517,8 @@ interface EditorStore {
   setCanvasRatio: (ratio: string) => void;
   resetCanvas: () => void;
   applyCanvasSnapshot: (snapshot: CanvasSnapshotLite) => void;
+  /** 与 IndexedDB 同步图像：启动时调用一次（幂等） */
+  hydrateCanvasImages: () => Promise<void>;
 
   boxes: Box[];
   selectedBoxId: string | null;
@@ -576,12 +718,7 @@ function takeSnapshot(state: EditorStore): EditorSnapshot {
 }
 
 export const useEditorStore = create<EditorStore>((set, get) => ({
-  canvasW: 1024,
-  canvasH: 1024,
-  canvasRatio: '1:1',
-  canvasScale: 4,
-  canvasCustomW: 16,
-  canvasCustomH: 9,
+  ...initialCanvasState,
 
   setCanvasDimensions: (w, h) => set({
     canvasW: w,
@@ -632,10 +769,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     canvasBackgroundUrl: null,
   }),
 
-  boxes: [],
-  selectedBoxId: null,
-  selectedBoxIds: [],
-  boxCounter: 0,
+  hydrateCanvasImages: () => ensureCanvasImagesHydrated(),
 
   addBox: (box) => {
     const state = get();
@@ -743,15 +877,6 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       redoStack: [],
     });
   },
-
-  globalPalette: [],
-  highLevelDescription: '',
-  aesthetics: '',
-  lighting: '',
-  medium: '',
-  artStyle: '',
-  background: '',
-  photoArtStyleMode: MODE_ARTSTYLE,
 
   setGlobalSetting: (key, value) => set({ [key]: value }),
 
@@ -1462,7 +1587,6 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   },
 
   // ─── 画布背景图 ─────────────────────────────────────────────
-  canvasBackgroundUrl: null,
   setCanvasBackgroundUrl: (url) => set({ canvasBackgroundUrl: url }),
 
   // ─── Workspace 持久化 ───────────────────────────────────────
@@ -1781,3 +1905,53 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     });
   },
 }));
+
+// ─── 当前画布自动保存 ─────────────────────────────────────────
+// 只有影响画布文档的字段变化才写 localStorage（选中态 / 面板开关 / 聊天不持久化）
+const CANVAS_AUTOSAVE_FIELDS = [
+  'canvasW',
+  'canvasH',
+  'canvasRatio',
+  'canvasScale',
+  'canvasCustomW',
+  'canvasCustomH',
+  'boxes',
+  'globalPalette',
+  'highLevelDescription',
+  'aesthetics',
+  'lighting',
+  'medium',
+  'artStyle',
+  'background',
+  'photoArtStyleMode',
+  'canvasBackgroundUrl',
+] as const;
+
+const CANVAS_AUTOSAVE_DELAY_MS = 400;
+let canvasAutosaveTimer: ReturnType<typeof setTimeout> | null = null;
+
+function flushCanvasAutosave(): void {
+  if (canvasAutosaveTimer !== null) {
+    clearTimeout(canvasAutosaveTimer);
+    canvasAutosaveTimer = null;
+  }
+  const state = useEditorStore.getState();
+  saveCanvasDocument(canvasDocumentFromState(state));
+
+  const images = canvasImagesFromState(state);
+  if (!sameCanvasImages(lastSavedCanvasImages, images)) {
+    lastSavedCanvasImages = images;
+    void saveCanvasImages(images).catch(reportCanvasImageError);
+  }
+}
+
+if (typeof window !== 'undefined') {
+  useEditorStore.subscribe((state, prevState) => {
+    const changed = CANVAS_AUTOSAVE_FIELDS.some(key => state[key] !== prevState[key]);
+    if (!changed) return;
+    if (canvasAutosaveTimer !== null) clearTimeout(canvasAutosaveTimer);
+    canvasAutosaveTimer = setTimeout(flushCanvasAutosave, CANVAS_AUTOSAVE_DELAY_MS);
+  });
+  // 刷新 / 关闭标签页：丢弃防抖等待，同步落盘，避免最后 400ms 的编辑丢失
+  window.addEventListener('pagehide', flushCanvasAutosave);
+}

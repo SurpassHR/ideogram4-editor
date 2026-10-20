@@ -115,9 +115,10 @@ src/
 │   ├── skill-adapters/              # 输出适配器：ideogram4 / flux3-layout / moss-layout / none
 │   ├── moss-compile.ts              # MOSS compile_prompt.py 的 TS 重实现（中心原点 yxyx）
 │   ├── layout-validator.ts          # 布局质量软校验（面积/覆盖率/间距/边距/数量/宽高比）
+│   ├── canvas-image-store.ts        # 当前画布图像（box 参考图/背景图）的 IndexedDB 存取
 │   ├── gist-backup.ts               # GitHub Gist CRUD：创建/更新/读取备份
 │   ├── workspace-backup.ts           # 备份包构建/解析/恢复预览生成
-│   └── workspace-persistence.ts      # workspace 状态在 localStorage 中的持久化存取
+│   └── workspace-persistence.ts      # localStorage 持久化：当前画布结构化文档 / 聊天 / 收藏
 ├── skills/                           # 内置 skill 文本快照（?raw 内联；来源见 THIRD_PARTY_NOTICES.md）
 │   ├── builtin-skills.ts             # 内置 skill 记录（ideogram4 / flux3-layout / moss-layout）
 │   ├── ideogram4/                    # ruashots/ideogram4-skill（MIT）：SKILL.md + references/schema.md

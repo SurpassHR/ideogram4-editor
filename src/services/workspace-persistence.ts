@@ -7,16 +7,19 @@ import type {
   ChatMessageForApi,
   ChatThinkingLevel,
 } from '../types/chat';
+import type { Box } from '../types';
 import type {
   CanvasFavorite,
   CanvasSnapshotLite,
   PersistedCanvasChatStateV1,
+  PersistedCanvasDocumentV1,
   StorageResult,
   WorkspaceBackupSettings,
 } from '../types/workspace';
 
 export const CANVAS_CHAT_STORAGE_KEY = 'ideogram4-canvas-chat-sessions:v1';
 export const CANVAS_FAVORITES_STORAGE_KEY = 'ideogram4-canvas-favorites:v1';
+export const CANVAS_DOCUMENT_STORAGE_KEY = 'ideogram4-canvas-document:v1';
 export const WORKSPACE_BACKUP_SETTINGS_STORAGE_KEY = 'ideogram4-workspace-backup-settings:v1';
 
 const DEFAULT_BACKUP_SETTINGS: WorkspaceBackupSettings = {
@@ -267,6 +270,100 @@ function sanitizeSnapshot(value: unknown): CanvasSnapshotLite | null {
     background: safeString(value.background),
     photoArtStyleMode: value.photoArtStyleMode === 0 ? 0 : 1,
   };
+}
+
+function sanitizeDocumentBox(value: unknown): Box | null {
+  if (!isRecord(value) || typeof value.id !== 'string' || !value.id) return null;
+  return {
+    id: value.id,
+    x: safeNumber(value.x),
+    y: safeNumber(value.y),
+    w: safeNumber(value.w),
+    h: safeNumber(value.h),
+    mode: value.mode === 'text' ? 'text' : 'obj',
+    text: safeString(value.text),
+    desc: safeString(value.desc),
+    colors: Array.isArray(value.colors)
+      ? value.colors.filter((color): color is string => typeof color === 'string')
+      : [],
+    imageDataUrl: typeof value.imageDataUrl === 'string' && value.imageDataUrl
+      ? value.imageDataUrl
+      : null,
+    imageRole: value.imageRole === 'background' || value.imageRole === 'reference' || value.imageRole === 'both'
+      ? value.imageRole
+      : 'both',
+  };
+}
+
+/**
+ * 读取当前画布的自动保存文档。
+ * 应用启动时用它初始化 store，所以刷新页面不会再丢失 bbox / 比例 / 倍数。
+ */
+export function loadCanvasDocument(): PersistedCanvasDocumentV1 | null {
+  const storage = getStorage();
+  if (!storage) return null;
+  try {
+    const raw = storage.getItem(CANVAS_DOCUMENT_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!isRecord(parsed) || parsed.schemaVersion !== 1 || !Array.isArray(parsed.boxes)) return null;
+    const boxes = parsed.boxes
+      .map(sanitizeDocumentBox)
+      .filter((box): box is Box => box !== null);
+    const canvasW = safeNumber(parsed.canvasW, 1024);
+    const canvasH = safeNumber(parsed.canvasH, 1024);
+    return {
+      schemaVersion: 1,
+      savedAt: safeNumber(parsed.savedAt, Date.now()),
+      canvasW: canvasW > 0 ? canvasW : 1024,
+      canvasH: canvasH > 0 ? canvasH : 1024,
+      canvasRatio: safeString(parsed.canvasRatio) || '1:1',
+      canvasScale: safeNumber(parsed.canvasScale, 4),
+      canvasCustomW: safeNumber(parsed.canvasCustomW, 16),
+      canvasCustomH: safeNumber(parsed.canvasCustomH, 9),
+      boxes,
+      globalPalette: Array.isArray(parsed.globalPalette)
+        ? parsed.globalPalette.filter((color): color is string => typeof color === 'string')
+        : [],
+      highLevelDescription: safeString(parsed.highLevelDescription),
+      aesthetics: safeString(parsed.aesthetics),
+      lighting: safeString(parsed.lighting),
+      medium: safeString(parsed.medium),
+      artStyle: safeString(parsed.artStyle),
+      background: safeString(parsed.background),
+      photoArtStyleMode: parsed.photoArtStyleMode === 0 ? 0 : 1,
+      canvasBackgroundUrl: typeof parsed.canvasBackgroundUrl === 'string' && parsed.canvasBackgroundUrl
+        ? parsed.canvasBackgroundUrl
+        : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 保存当前画布的结构化文档。
+ * 图像（box 参考图 / 画布背景图）不在这里存，改由 canvas-image-store 写入 IndexedDB，
+ * 避免 Data URL 把 localStorage（~5MB）撑爆。旧存档中的内联图像会在启动时迁移过去。
+ */
+export function saveCanvasDocument(document: PersistedCanvasDocumentV1): StorageResult {
+  const storage = getStorage();
+  if (!storage) return { ok: false, error: 'localStorage 不可用' };
+  try {
+    storage.setItem(
+      CANVAS_DOCUMENT_STORAGE_KEY,
+      JSON.stringify({
+        ...document,
+        schemaVersion: 1,
+        savedAt: Date.now(),
+        boxes: document.boxes.map(box => ({ ...box, imageDataUrl: null })),
+        canvasBackgroundUrl: null,
+      }),
+    );
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
 }
 
 function sanitizeFavorite(value: unknown): CanvasFavorite | null {

@@ -33,6 +33,33 @@ export interface CanvasSnapshotLite {
   photoArtStyleMode: PhotoArtStyleMode;
 }
 
+/**
+ * 当前画布的自动保存文档（localStorage）。
+ * 只存结构化数据：图像（box 参考图 / 画布背景图）由 canvas-image-store 写入 IndexedDB，
+ * 因此这里的 imageDataUrl / canvasBackgroundUrl 在写入时始终为 null；
+ * 读取时仍兼容旧存档里的内联图像（启动时迁移进 IndexedDB）。
+ */
+export interface PersistedCanvasDocumentV1 {
+  schemaVersion: 1;
+  savedAt: number;
+  canvasW: number;
+  canvasH: number;
+  canvasRatio: string;
+  canvasScale: number;
+  canvasCustomW: number;
+  canvasCustomH: number;
+  boxes: Box[];
+  globalPalette: string[];
+  highLevelDescription: string;
+  aesthetics: string;
+  lighting: string;
+  medium: string;
+  artStyle: string;
+  background: string;
+  photoArtStyleMode: PhotoArtStyleMode;
+  canvasBackgroundUrl: string | null;
+}
+
 export interface CanvasFavorite {
   id: string;
   title: string;
