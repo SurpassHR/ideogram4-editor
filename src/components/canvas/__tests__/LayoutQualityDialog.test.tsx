@@ -7,6 +7,12 @@ vi.mock('../../../i18n/context', () => ({
   useI18n: () => ({ t: (key: string) => key }),
 }));
 
+// 默认关闭开发者工具（技术明细不展示）
+vi.mock('../../../store', () => ({
+  useEditorStore: (selector: (s: unknown) => unknown) =>
+    selector({ showDeveloperTools: false }),
+}));
+
 function makeFailedReport(overrides?: Partial<LayoutQualityReport>): LayoutQualityReport {
   return {
     overallPass: false,
@@ -28,6 +34,10 @@ function makeFailedReport(overrides?: Partial<LayoutQualityReport>): LayoutQuali
     ],
     summaryText: '[Layout Feedback]\n- coverage: 8% ...',
     userSummary: '布局需要调整',
+    issues: [
+      { field: 'coverage', severity: 'error', message: 'insufficient coverage (8.0%)' },
+      { field: 'spacing', severity: 'error', message: 'elements too close or overlapping (1.2%)' },
+    ],
     ...overrides,
   };
 }
@@ -38,10 +48,12 @@ describe('LayoutQualityDialog', () => {
     render(<LayoutQualityDialog report={report} onAccept={() => {}} onRegenerate={() => {}} />);
 
     expect(screen.getByText('layoutQuality.title')).toBeTruthy();
-    expect(screen.getByText('layoutQuality.metric.coverage')).toBeTruthy();
-    expect(screen.getByText('insufficient coverage (8.0%)')).toBeTruthy();
-    expect(screen.getByText('layoutQuality.metric.spacing')).toBeTruthy();
-    expect(screen.getByText('elements too close or overlapping (1.2%)')).toBeTruthy();
+    // 人话问题清单：展示 i18n key，而不是英文技术串
+    expect(screen.getByText('layoutQuality.issue.coverage')).toBeTruthy();
+    expect(screen.getByText('layoutQuality.issue.spacing')).toBeTruthy();
+    // 开发者工具关闭时不展示技术指标
+    expect(screen.queryByText('layoutQuality.metric.coverage')).toBeNull();
+    expect(screen.queryByText('insufficient coverage (8.0%)')).toBeNull();
   });
 
   it('renders nothing when report is null', () => {
@@ -64,11 +76,12 @@ describe('LayoutQualityDialog', () => {
         },
       ],
       userSummary: '布局检测通过',
+      issues: [],
     });
     render(<LayoutQualityDialog report={report} onAccept={() => {}} onRegenerate={() => {}} />);
 
     expect(screen.getByText('layoutQuality.passedTitle')).toBeTruthy();
-    expect(screen.getByText('coverage looks balanced (32.0%)')).toBeTruthy();
+    expect(screen.getByText('layoutQuality.pass')).toBeTruthy();
     expect(screen.queryByText('layoutQuality.regenerate')).toBeNull();
   });
 

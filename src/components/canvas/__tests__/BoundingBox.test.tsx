@@ -202,4 +202,21 @@ describe('BoundingBox', () => {
       expect(container.querySelector('.bounding-box-img-dismiss')).toBeNull();
     });
   });
+
+  // ─── Krea 式 4 角缩放手柄 ──────────────────────────────────────
+
+  describe('resize handles', () => {
+    it('选中时渲染 4 个角手柄', () => {
+      const { container } = renderBox({ isSelected: true });
+      const handles = container.querySelectorAll('.resize-handle');
+      expect(handles).toHaveLength(4);
+      const dirs = Array.from(handles).map(h => h.getAttribute('data-handle'));
+      expect(dirs.sort()).toEqual(['ne', 'nw', 'se', 'sw']);
+    });
+
+    it('未选中时不渲染手柄', () => {
+      const { container } = renderBox({ isSelected: false });
+      expect(container.querySelectorAll('.resize-handle')).toHaveLength(0);
+    });
+  });
 });

@@ -142,4 +142,10 @@ export const flux3LayoutAdapter: SkillAdapter = {
   toCopyText(extraction: SkillExtraction) {
     return extraction.raw;
   },
+
+  /** FLUX3 没有 high_level_description，用首个元素描述作为摘要 */
+  summarize(extraction: SkillExtraction) {
+    const first = extraction.elements.find(el => el.desc?.trim());
+    return first?.desc.trim() ?? '';
+  },
 };

@@ -15,6 +15,7 @@ import {
 import { parseSkillPackage, type SkillPackageInput } from '../services/skill-parse';
 import { migrateCanvasSystemPrompts } from '../services/skill-migration';
 import type { PendingApply } from '../services/skill-adapters/types';
+import type { CanvasReplacement } from '../services/skill-apply';
 import { PRESETS_STORAGE_KEY, createBuiltinPresets } from '../types/presets';
 import { MODE_ARTSTYLE, MODE_PHOTO } from '../types';
 import { computeCanvasDims, inferCanvasControlsFromDimensions, type RatioKey } from '../utils/canvas-dims';
@@ -340,8 +341,13 @@ const CHAT_STREAM_ENABLED_STORAGE_KEY = 'ideogram4-chat-stream-enabled';
 const CHAT_THINKING_LEVEL_STORAGE_KEY = 'ideogram4-chat-thinking-level';
 const CHAT_THINKING_LEVELS: ChatThinkingLevel[] = ['off', 'low', 'medium', 'high'];
 const CANVAS_CHAT_TARGET_SIZE_STORAGE_KEY = 'ideogram4-canvas-chat-target-size';
+const SHOW_DEVELOPER_TOOLS_STORAGE_KEY = 'ideogram4-show-developer-tools';
 const CANVAS_CHAT_TARGET_SIZES = [1024, 2048, 4096] as const;
 type CanvasChatTargetSize = typeof CANVAS_CHAT_TARGET_SIZES[number];
+
+function loadShowDeveloperTools(): boolean {
+  return localStorage.getItem(SHOW_DEVELOPER_TOOLS_STORAGE_KEY) === 'true';
+}
 
 function loadChatStreamEnabled(): boolean {
   return localStorage.getItem(CHAT_STREAM_ENABLED_STORAGE_KEY) !== 'false';
@@ -502,6 +508,22 @@ interface EditorSnapshot {
   activeChatBoxId: string | null;
   isChatOpen: boolean;
   chatHistories: Record<string, ChatMessage[]>;
+  /** 画板尺寸与控件状态（撤销时一并还原） */
+  canvasW: number;
+  canvasH: number;
+  canvasRatio: string;
+  canvasScale: number;
+  canvasCustomW: number;
+  canvasCustomH: number;
+  /** 全局风格字段（撤销时一并还原） */
+  globalPalette: string[];
+  highLevelDescription: string;
+  aesthetics: string;
+  lighting: string;
+  medium: string;
+  artStyle: string;
+  background: string;
+  photoArtStyleMode: PhotoArtStyleMode;
 }
 
 interface EditorStore {
@@ -534,6 +556,12 @@ interface EditorStore {
   removeFromSelection: (id: string) => void;
   clearSelection: () => void;
   clearBoxes: () => void;
+  /** 一次性提交整份画布状态（Apply 用；只压一次撤销快照） */
+  applyCanvasReplacement: (replacement: CanvasReplacement) => void;
+  /** 替换单个 box（区域 Apply 用） */
+  replaceBox: (id: string, box: Omit<Box, 'id'>) => void;
+  /** 判断 box 是否存在（区域 Apply 前置检查） */
+  hasBox: (id: string) => boolean;
 
   globalPalette: string[];
   highLevelDescription: string;
@@ -603,6 +631,9 @@ interface EditorStore {
   setCanvasChatLoading: (loading: boolean) => void;
   canvasChatAutoMaximize: boolean;
   setCanvasChatAutoMaximize: (enabled: boolean) => void;
+  /** 显示开发者工具（Terminal 面板 / 技术指标 / 原始输出） */
+  showDeveloperTools: boolean;
+  setShowDeveloperTools: (enabled: boolean) => void;
   updateCanvasChatMessage: (messageId: string, updates: Partial<Omit<ChatMessage, 'id'>>) => void;
   startCanvasChatRequest: (promptPreview: string) => string;
   appendCanvasChatRequestStep: (
@@ -714,6 +745,20 @@ function takeSnapshot(state: EditorStore): EditorSnapshot {
     activeChatBoxId: state.activeChatBoxId,
     isChatOpen: state.isChatOpen,
     chatHistories: JSON.parse(JSON.stringify(state.chatHistories)),
+    canvasW: state.canvasW,
+    canvasH: state.canvasH,
+    canvasRatio: state.canvasRatio,
+    canvasScale: state.canvasScale,
+    canvasCustomW: state.canvasCustomW,
+    canvasCustomH: state.canvasCustomH,
+    globalPalette: [...state.globalPalette],
+    highLevelDescription: state.highLevelDescription,
+    aesthetics: state.aesthetics,
+    lighting: state.lighting,
+    medium: state.medium,
+    artStyle: state.artStyle,
+    background: state.background,
+    photoArtStyleMode: state.photoArtStyleMode,
   };
 }
 
@@ -856,6 +901,49 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     ...selectionState([], state.boxes),
     ...(state.activeChatBoxId ? { isChatOpen: false, activeChatBoxId: null } : {}),
   })),
+
+  // ─── Apply（原子化：整份画布状态一次提交，只压一次撤销快照）────────
+  applyCanvasReplacement: (replacement) => {
+    const state = get();
+    const snap = takeSnapshot(state);
+    // 保留既有 box ID 规则（box_0、box_1…），保证撤销后 ID 稳定
+    const boxes: Box[] = replacement.boxes.map((box, index) => ({
+      ...box,
+      id: `box_${index}`,
+    }));
+    set({
+      ...inferCanvasControlsFromDimensions(replacement.canvasW, replacement.canvasH),
+      canvasW: replacement.canvasW,
+      canvasH: replacement.canvasH,
+      boxes,
+      boxCounter: boxes.length,
+      // 不自动选中：否则下一次聊天会被误判为「针对区域提问」
+      selectedBoxId: null,
+      selectedBoxIds: [],
+      globalPalette: [...replacement.globalPalette],
+      highLevelDescription: replacement.highLevelDescription,
+      aesthetics: replacement.aesthetics,
+      lighting: replacement.lighting,
+      medium: replacement.medium,
+      artStyle: replacement.artStyle,
+      background: replacement.background,
+      photoArtStyleMode: replacement.photoArtStyleMode,
+      undoStack: [...state.undoStack, snap].slice(-MAX_UNDO_DEPTH),
+      redoStack: [],
+    });
+  },
+
+  replaceBox: (id, box) => {
+    const state = get();
+    const snap = takeSnapshot(state);
+    set({
+      boxes: state.boxes.map(b => (b.id === id ? { ...b, ...box } : b)),
+      undoStack: [...state.undoStack, snap].slice(-MAX_UNDO_DEPTH),
+      redoStack: [],
+    });
+  },
+
+  hasBox: (id) => get().boxes.some(b => b.id === id),
 
   clearBoxes: () => {
     const state = get();
@@ -1120,6 +1208,12 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   setCanvasChatMaximized: (maximized) => set({ isCanvasChatMaximized: maximized }),
 
   setCanvasChatAutoMaximize: (enabled) => set({ canvasChatAutoMaximize: enabled }),
+
+  showDeveloperTools: loadShowDeveloperTools(),
+  setShowDeveloperTools: (enabled) => {
+    localStorage.setItem(SHOW_DEVELOPER_TOOLS_STORAGE_KEY, String(enabled));
+    set({ showDeveloperTools: enabled });
+  },
 
   setCanvasChatOpen: (open) => set({ isCanvasChatOpen: open }),
 

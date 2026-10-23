@@ -6,6 +6,17 @@ import type { LayoutQualityReport } from '../services/layout-validator';
 /** Chat 请求的显式思考强度设置 */
 export type ChatThinkingLevel = 'off' | 'low' | 'medium' | 'high';
 
+/**
+ * 区域目标（Canvas Chat 的「针对某个边界框提问」）。
+ * boxId 为目标边界框 ID，index 为其 1 起始序号（与画布 tag 条 / LayerPanel 一致）。
+ */
+export interface RegionTarget {
+  boxId: string;
+  index: number;
+  /** 人类可读的短标签（desc / text / 类型） */
+  label: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
@@ -23,6 +34,12 @@ export interface ChatMessage {
   skillId?: string;
   /** 该 skill 的展示名 */
   skillName?: string;
+  /** 该消息针对的画布区域（仅 Canvas Chat 使用；user 消息标记提问范围，assistant 消息标记结果落点） */
+  regionTarget?: RegionTarget;
+  /** Canvas Chat 的自然语言摘要（assistant 消息，避免把 JSON 暴露给用户） */
+  summary?: string;
+  /** Canvas Chat 解析出的元素数量（assistant 消息；摘要的兜底文案用） */
+  elementCount?: number;
 }
 
 /** Canvas Chat 的单个会话，后续可直接持久化到 localStorage */

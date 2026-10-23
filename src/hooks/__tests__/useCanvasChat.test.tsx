@@ -274,4 +274,124 @@ describe('useCanvasChat', () => {
     expect(state.canvasRatio).toBe('4:3');
     expect(state.canvasScale).toBe(4);
   });
+
+  // ─── 区域化提问（Krea 式：针对选中区域）────────────────────────
+
+  describe('区域化提问', () => {
+    const boxes = [
+      { id: 'box_0', x: 0, y: 0, w: 100, h: 100, mode: 'obj' as const, text: '', desc: '背景', colors: [], imageDataUrl: null, imageRole: 'both' as const },
+      { id: 'box_1', x: 200, y: 200, w: 300, h: 200, mode: 'obj' as const, text: '', desc: '主体', colors: [], imageDataUrl: null, imageRole: 'both' as const },
+    ];
+
+    beforeEach(() => {
+      useEditorStore.setState({
+        boxes,
+        selectedBoxId: 'box_1',
+        selectedBoxIds: ['box_1'],
+      });
+      vi.mocked(sendChatMessageWithOptions).mockImplementation(
+        async (_provider, _model, _messages, _systemPrompt, callbacks) => {
+          callbacks.onDone('```json\n{"compositional_deconstruction":{"elements":[]}}\n```');
+        },
+      );
+    });
+
+    it('选中 box 时 currentRegionTarget 指向该区域（1 起始序号）', () => {
+      const { result } = renderHook(() => useCanvasChat());
+      expect(result.current.currentRegionTarget).toEqual({
+        boxId: 'box_1',
+        index: 2,
+        label: '主体',
+      });
+    });
+
+    it('发送时把区域信息写入 prompt，并要求模型只针对该区域', async () => {
+      const { result } = renderHook(() => useCanvasChat());
+      await waitFor(() => expect(result.current.hasProviders).toBe(true));
+
+      await act(async () => {
+        await result.current.sendMessage('把这个区域换成红色沙发');
+      });
+
+      const [, , apiMessages] = vi.mocked(sendChatMessageWithOptions).mock.calls[0];
+      const lastUserMessage = apiMessages[apiMessages.length - 1];
+      expect(lastUserMessage.content).toContain('Target region: region 2 ("主体")');
+      expect(lastUserMessage.content).toContain('Current region bbox');
+      expect(lastUserMessage.content).toContain('Do NOT return the rest of the scene');
+    });
+
+    it('user 消息记录 regionTarget', async () => {
+      const { result } = renderHook(() => useCanvasChat());
+      await waitFor(() => expect(result.current.hasProviders).toBe(true));
+
+      await act(async () => {
+        await result.current.sendMessage('把这个区域换成红色沙发');
+      });
+
+      const userMsg = useEditorStore.getState().canvasChatMessages.find(m => m.role === 'user');
+      expect(userMsg?.regionTarget).toEqual({ boxId: 'box_1', index: 2, label: '主体' });
+    });
+
+    it('解除区域模式后回落整画布提问', async () => {
+      const { result } = renderHook(() => useCanvasChat());
+      await waitFor(() => expect(result.current.hasProviders).toBe(true));
+
+      act(() => { result.current.dismissRegionTarget(); });
+      expect(result.current.currentRegionTarget).toBeNull();
+
+      await act(async () => {
+        await result.current.sendMessage('重新构图');
+      });
+
+      const [, , apiMessages] = vi.mocked(sendChatMessageWithOptions).mock.calls[0];
+      const lastUserMessage = apiMessages[apiMessages.length - 1];
+      expect(lastUserMessage.content).not.toContain('Target region:');
+    });
+
+    it('区域 Apply 只替换目标 box，画布其余内容保留', () => {
+      const { result } = renderHook(() => useCanvasChat());
+
+      const message = {
+        id: 'msg_region',
+        role: 'assistant' as const,
+        content: `\`\`\`json
+{
+  "high_level_description": "局部",
+  "style_description": {
+    "aesthetics": "a",
+    "lighting": "l",
+    "medium": "m",
+    "art_style": "s",
+    "color_palette": []
+  },
+  "compositional_deconstruction": {
+    "background": "b",
+    "elements": [
+      { "type": "obj", "bbox": [100, 100, 500, 700], "desc": "红色沙发", "color_palette": [] }
+    ]
+  }
+}
+\`\`\``,
+        timestamp: 1000,
+        regionTarget: { boxId: 'box_1', index: 2, label: '主体' },
+      };
+
+      act(() => {
+        const outcome = result.current.applyMessageOutput(message);
+        expect(outcome.ok).toBe(true);
+        if (!outcome.ok) return;
+        expect(outcome.count).toBe(1);
+      });
+
+      const state = useEditorStore.getState();
+      // 两个 box 都在，只替换了目标那个
+      expect(state.boxes).toHaveLength(2);
+      const target = state.boxes.find(b => b.id === 'box_1');
+      expect(target?.desc).toBe('红色沙发');
+      // 其它 box 未被改动
+      expect(state.boxes.find(b => b.id === 'box_0')?.desc).toBe('背景');
+      // 全局设置未被区域 Apply 清空
+      expect(state.highLevelDescription).toBe('');
+    });
+  });
 });

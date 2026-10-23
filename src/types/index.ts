@@ -68,7 +68,12 @@ export interface InteractionState {
   lastClickBoxId: string | null;
   dragBoxIds: string[];
   initialDragBoxes: DragInitialBox[];
+  /** 缩放手柄方向（4 角）；null 表示右下角（既有语义） */
+  resizeHandle: ResizeHandle | null;
 }
+
+/** 边界框缩放手柄方向 */
+export type ResizeHandle = 'nw' | 'ne' | 'sw' | 'se';
 
 export type GenerationStatus = 'idle' | 'generating' | 'polling' | 'done' | 'error';
 

@@ -1,6 +1,6 @@
 import { useCallback, useRef, useEffect, useState } from 'react';
 import type { InteractionMode } from '../types';
-import type { InteractionState } from '../types';
+import type { InteractionState, ResizeHandle } from '../types';
 import { useEditorStore } from '../store';
 
 interface UsePointerInteractionOptions {
@@ -48,6 +48,7 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
     lastClickBoxId: null,
     dragBoxIds: [],
     initialDragBoxes: [],
+    resizeHandle: null,
   });
 
   const boxRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -170,7 +171,8 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
       return;
     }
 
-    if (target.closest('.resize-handle')) {
+    const resizeHandleEl = target.closest('.resize-handle') as HTMLElement | null;
+    if (resizeHandleEl) {
       if (!boxEl) return;
       e.preventDefault();
       e.stopPropagation();
@@ -181,8 +183,15 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
       setInteractionMode('resizing');
       ir.dragStartX = pos.x;
       ir.dragStartY = pos.y;
+      ir.initialBoxX = parseFloat(boxEl.style.left) || 0;
+      ir.initialBoxY = parseFloat(boxEl.style.top) || 0;
       ir.initialBoxW = parseFloat(boxEl.style.width) || 0;
       ir.initialBoxH = parseFloat(boxEl.style.height) || 0;
+      // 记录手柄方向：4 角手柄带 data-handle；旧版无属性的手柄按右下角处理
+      const handleAttr = resizeHandleEl.getAttribute('data-handle');
+      ir.resizeHandle = (handleAttr === 'nw' || handleAttr === 'ne' || handleAttr === 'sw' || handleAttr === 'se')
+        ? handleAttr as ResizeHandle
+        : 'se';
       ir.currentBoxElement = boxEl;
       return;
     }
@@ -315,12 +324,62 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
           setDragPreviewOffset(null);
         }
       } else if (ir.mode === 'resizing') {
-        const newW = Math.max(10, ir.initialBoxW + (x - ir.dragStartX));
-        const newH = Math.max(10, ir.initialBoxH + (y - ir.dragStartY));
+        const dx = x - ir.dragStartX;
+        const dy = y - ir.dragStartY;
+        const handle = ir.resizeHandle ?? 'se';
+        const MIN_SIZE = 10;
+
+        // 4 角手柄：角手柄同时改变位置与尺寸；se 仅改变尺寸（既有语义）
+        let newX = ir.initialBoxX;
+        let newY = ir.initialBoxY;
+        let newW = ir.initialBoxW;
+        let newH = ir.initialBoxH;
+
+        if (handle === 'se') {
+          newW = Math.max(MIN_SIZE, ir.initialBoxW + dx);
+          newH = Math.max(MIN_SIZE, ir.initialBoxH + dy);
+        } else if (handle === 'sw') {
+          newW = Math.max(MIN_SIZE, ir.initialBoxW - dx);
+          newH = Math.max(MIN_SIZE, ir.initialBoxH + dy);
+          newX = ir.initialBoxX + (ir.initialBoxW - newW);
+        } else if (handle === 'ne') {
+          newW = Math.max(MIN_SIZE, ir.initialBoxW + dx);
+          newH = Math.max(MIN_SIZE, ir.initialBoxH - dy);
+          newY = ir.initialBoxY + (ir.initialBoxH - newH);
+        } else {
+          // nw
+          newW = Math.max(MIN_SIZE, ir.initialBoxW - dx);
+          newH = Math.max(MIN_SIZE, ir.initialBoxH - dy);
+          newX = ir.initialBoxX + (ir.initialBoxW - newW);
+          newY = ir.initialBoxY + (ir.initialBoxH - newH);
+        }
+
+        // Shift 约束比例（与 Krea 一致）
+        if (e.shiftKey && ir.initialBoxW > 0 && ir.initialBoxH > 0) {
+          const ratio = ir.initialBoxW / ir.initialBoxH;
+          const byWidth = newW / ratio;
+          const byHeight = newH * ratio;
+          const useWidth = Math.abs(newW - ir.initialBoxW) >= Math.abs(newH - ir.initialBoxH);
+          if (useWidth) {
+            newH = Math.max(MIN_SIZE, byWidth);
+          } else {
+            newW = Math.max(MIN_SIZE, byHeight);
+          }
+          // 比例约束后重新对齐锚点
+          if (handle === 'sw' || handle === 'nw') {
+            newX = ir.initialBoxX + (ir.initialBoxW - newW);
+          }
+          if (handle === 'ne' || handle === 'nw') {
+            newY = ir.initialBoxY + (ir.initialBoxH - newH);
+          }
+        }
+
+        ir.currentBoxElement.style.left = `${newX}px`;
+        ir.currentBoxElement.style.top = `${newY}px`;
         ir.currentBoxElement.style.width = `${newW}px`;
         ir.currentBoxElement.style.height = `${newH}px`;
         // 实时更新 store（不记录历史），使 BoundingBox 的 clip-path 和虚线样式即时响应
-        updateBox(ir.currentBoxElement.id, { w: newW, h: newH }, false);
+        updateBox(ir.currentBoxElement.id, { x: newX, y: newY, w: newW, h: newH }, false);
       }
     };
 
@@ -390,6 +449,8 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
       } else if (ir.mode === 'resizing' && ir.currentBoxElement) {
         const el = ir.currentBoxElement;
         updateBox(el.id, {
+          x: parseFloat(el.style.left) || 0,
+          y: parseFloat(el.style.top) || 0,
           w: parseFloat(el.style.width) || 0,
           h: parseFloat(el.style.height) || 0,
         }, false);
@@ -401,6 +462,7 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
       ir.clickTargetId = null;
       ir.dragBoxIds = [];
       ir.initialDragBoxes = [];
+      ir.resizeHandle = null;
       setDragPreviewOffset(null);
     };
 
