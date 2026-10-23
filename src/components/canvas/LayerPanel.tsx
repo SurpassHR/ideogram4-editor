@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useEditorStore } from '../../store';
 import { useI18n } from '../../i18n/context';
 import { IconClose, IconLayers } from '../ui/icons';
+import { IconBrain } from '../ui/icons';
 
 export default function LayerPanel() {
   const { t } = useI18n();
@@ -12,6 +13,7 @@ export default function LayerPanel() {
   const selectBox = useEditorStore(s => s.selectBox);
   const isLayerPanelOpen = useEditorStore(s => s.isLayerPanelOpen);
   const toggleLayerPanel = useEditorStore(s => s.toggleLayerPanel);
+  const setCanvasChatOpen = useEditorStore(s => s.setCanvasChatOpen);
 
   // 点击面板外部关闭
   const handleClickOutside = useCallback((e: MouseEvent) => {
@@ -99,6 +101,20 @@ export default function LayerPanel() {
                       style={{ backgroundColor: color }}
                     />
                     <span className="layer-panel-item-label">{label}</span>
+                    {/* 针对该区域提问：选中该 box，Canvas Chat 自动跟随 */}
+                    <button
+                      type="button"
+                      className="layer-panel-item-ask"
+                      aria-label={t('layerPanel.askAboutRegion', { index: boxNumber })}
+                      title={t('layerPanel.askAboutRegion', { index: boxNumber })}
+                      onClick={e => {
+                        e.stopPropagation();
+                        selectBox(box.id);
+                        setCanvasChatOpen(true);
+                      }}
+                    >
+                      <IconBrain size={12} />
+                    </button>
                   </div>
                 );
               })

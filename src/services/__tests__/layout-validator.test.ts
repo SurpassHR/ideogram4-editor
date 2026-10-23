@@ -142,4 +142,27 @@ describe('validateLayout', () => {
     const r = validateLayout(elements, W, H, { minCoverage: 5, maxCoverage: 90 });
     expect(r.overallPass).toBe(true);
   });
+
+  it('issues 只包含未通过的指标', () => {
+    // 覆盖率过低 + 元素过小
+    const elements = [el([0, 0, 20, 20])];
+    const r = validateLayout(elements, W, H);
+    expect(r.overallPass).toBe(false);
+    expect(r.issues.length).toBeGreaterThan(0);
+    for (const issue of r.issues) {
+      const metric = r.metrics.find(m => m.field === issue.field);
+      expect(metric?.passed).toBe(false);
+      expect(issue.severity).toBe('error');
+      expect(typeof issue.message).toBe('string');
+    }
+    // 不含通过项
+    expect(r.issues.some(i => i.field === 'element_count' && r.metrics.find(m => m.field === 'element_count')?.passed)).toBe(false);
+  });
+
+  it('全部通过时 issues 为空数组', () => {
+    const elements = [el([20, 20, 480, 480])];
+    const r = validateLayout(elements, W, H);
+    expect(r.overallPass).toBe(true);
+    expect(r.issues).toEqual([]);
+  });
 });

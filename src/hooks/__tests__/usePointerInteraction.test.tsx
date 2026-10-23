@@ -368,4 +368,79 @@ describe('usePointerInteraction - click vs drag', () => {
     expect(useEditorStore.getState().selectedBoxId).toBeNull();
     expect(useEditorStore.getState().boxes).toHaveLength(2);
   });
+
+  describe('4角缩放手柄交互', () => {
+    function TestCanvasWithResizeBox() {
+      const canvasRef = useRef<HTMLDivElement>(null);
+      const screenToCanvas = (sx: number, sy: number) => ({ x: sx, y: sy });
+      const { registerBoxRef, handleCanvasPointerDown } = usePointerInteraction({
+        canvasRef,
+        zoom: 1,
+        panX: 0,
+        panY: 0,
+        screenToCanvas,
+      });
+
+      return (
+        <div ref={canvasRef} id="canvas-wrapper" style={{ width: 500, height: 500, position: 'relative' }} onPointerDown={handleCanvasPointerDown}>
+          <div id="canvas-inner" style={{ position: 'absolute', inset: 0 }}>
+            <div
+              id="box_resize"
+              ref={registerBoxRef('box_resize')}
+              className="bounding-box selected"
+              style={{ left: 100, top: 100, width: 200, height: 150 }}
+            >
+              <div className="resize-handle nw" data-handle="nw" />
+              <div className="resize-handle se" data-handle="se" />
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    it('se 缩放手柄拖拽只改变宽高，不改变左上角坐标', () => {
+      useEditorStore.setState({
+        boxes: [
+          { id: 'box_resize', x: 100, y: 100, w: 200, h: 150, mode: 'obj', text: '', desc: '', colors: [], imageDataUrl: null, imageRole: 'both' },
+        ],
+        selectedBoxIds: ['box_resize'],
+        selectedBoxId: 'box_resize',
+      });
+      render(<TestCanvasWithResizeBox />);
+
+      const seHandle = document.querySelector('.resize-handle.se')!;
+      fireEvent.pointerDown(seHandle, { clientX: 300, clientY: 250, button: 0 });
+      fireEvent.pointerMove(window, { clientX: 340, clientY: 280 });
+      fireEvent.pointerUp(window, { clientX: 340, clientY: 280 });
+
+      const updated = useEditorStore.getState().boxes.find(b => b.id === 'box_resize')!;
+      expect(updated.x).toBe(100);
+      expect(updated.y).toBe(100);
+      expect(updated.w).toBe(240);
+      expect(updated.h).toBe(180);
+    });
+
+    it('nw 缩放手柄拖拽同时改变坐标和宽高', () => {
+      useEditorStore.setState({
+        boxes: [
+          { id: 'box_resize', x: 100, y: 100, w: 200, h: 150, mode: 'obj', text: '', desc: '', colors: [], imageDataUrl: null, imageRole: 'both' },
+        ],
+        selectedBoxIds: ['box_resize'],
+        selectedBoxId: 'box_resize',
+      });
+      render(<TestCanvasWithResizeBox />);
+
+      const nwHandle = document.querySelector('.resize-handle.nw')!;
+      // 从 (100, 100) 往右下拖动 20px (dx=20, dy=20)，意味着左上角缩小
+      fireEvent.pointerDown(nwHandle, { clientX: 100, clientY: 100, button: 0 });
+      fireEvent.pointerMove(window, { clientX: 120, clientY: 130 });
+      fireEvent.pointerUp(window, { clientX: 120, clientY: 130 });
+
+      const updated = useEditorStore.getState().boxes.find(b => b.id === 'box_resize')!;
+      expect(updated.x).toBe(120);
+      expect(updated.y).toBe(130);
+      expect(updated.w).toBe(180);
+      expect(updated.h).toBe(120);
+    });
+  });
 });

@@ -89,6 +89,8 @@ export interface Translations {
     general: {
       canvasChatAutoMaximize: string;
       canvasChatAutoMaximizeDesc: string;
+      showDeveloperTools: string;
+      showDeveloperToolsDesc: string;
     };
     workspace: {
       heading: string;
@@ -333,6 +335,14 @@ export interface Translations {
     previewView: string;
     previewAlt: string;
     previewUnavailable: string;
+    previewClose: string;
+    summaryFallback: string;
+    parseFailedHint: string;
+    showRawOutput: string;
+    regionTarget: string;
+    regionTargetDismiss: string;
+    regionTargetReenable: string;
+    regionApplyHint: string;
     thinkingLevels: {
       off: string;
       low: string;
@@ -416,6 +426,7 @@ export interface Translations {
     toggle: string;
     close: string;
     empty: string;
+    askAboutRegion: string;
   };
   layoutQuality: {
     title: string;
@@ -425,6 +436,14 @@ export interface Translations {
     accept: string;
     regenerate: string;
     metric: {
+      element_area: string;
+      coverage: string;
+      spacing: string;
+      margin: string;
+      element_count: string;
+      aspect_ratio: string;
+    };
+    issue: {
       element_area: string;
       coverage: string;
       spacing: string;
@@ -615,6 +634,8 @@ const en: Translations = {
     general: {
       canvasChatAutoMaximize: 'Auto-maximize Canvas Chat',
       canvasChatAutoMaximizeDesc: 'Open the canvas composition panel in full-screen mode when clicking the Chat button.',
+      showDeveloperTools: 'Show developer tools',
+      showDeveloperToolsDesc: 'Display the Terminal panel, raw AI output, and technical layout metrics. Off by default for a code-free experience.',
     },
   },
   boundingBox: {
@@ -804,6 +825,14 @@ const en: Translations = {
     previewView: 'Preview',
     previewAlt: 'Canvas preview',
     previewUnavailable: 'Preview unavailable',
+    previewClose: 'Close preview',
+    summaryFallback: 'Generated {count} elements',
+    parseFailedHint: 'The AI reply could not be turned into a layout. Try rephrasing your request.',
+    showRawOutput: 'Show raw output',
+    regionTarget: 'Region {index}: {label}',
+    regionTargetDismiss: 'Ask about the whole canvas instead',
+    regionTargetReenable: 'Ask about the selected region',
+    regionApplyHint: 'Applies to this region only',
     thinkingLevels: {
       off: 'Off',
       low: 'Low',
@@ -887,6 +916,7 @@ const en: Translations = {
     toggle: 'Toggle Layer Panel',
     close: 'Close',
     empty: 'No boxes',
+    askAboutRegion: 'Ask AI about region {index}',
   },
   layoutQuality: {
     title: 'Layout Quality Check',
@@ -902,6 +932,14 @@ const en: Translations = {
       margin: 'Canvas Margin',
       element_count: 'Element Count',
       aspect_ratio: 'Aspect Ratio',
+    },
+    issue: {
+      element_area: 'Some elements are very small — try making them bigger.',
+      coverage: 'The elements do not fill the frame well — spread them out or add more.',
+      spacing: 'Some elements are too close together or overlap.',
+      margin: 'Some elements are too close to the edge of the frame.',
+      element_count: 'The number of elements does not fit this composition.',
+      aspect_ratio: 'Some elements are very long and thin.',
     },
   },
   shortcuts: {
@@ -1086,6 +1124,8 @@ const zh: Translations = {
     general: {
       canvasChatAutoMaximize: '点击 Canvas Chat 时自动最大化',
       canvasChatAutoMaximizeDesc: '打开画布构图对话面板时直接进入全屏模式。',
+      showDeveloperTools: '显示开发者工具',
+      showDeveloperToolsDesc: '显示 Terminal 面板、AI 原始输出与布局技术指标。默认关闭，保持零代码体验。',
     },
   },
   boundingBox: {
@@ -1275,6 +1315,14 @@ const zh: Translations = {
     previewView: '预览',
     previewAlt: '画布预览',
     previewUnavailable: '预览不可用',
+    previewClose: '关闭预览',
+    summaryFallback: '生成了 {count} 个元素',
+    parseFailedHint: 'AI 回复没能转换成布局，试着换种说法再问一次。',
+    showRawOutput: '查看原始输出',
+    regionTarget: '区域 {index}：{label}',
+    regionTargetDismiss: '改为针对整张画布提问',
+    regionTargetReenable: '针对选中区域提问',
+    regionApplyHint: '只作用于该区域',
     thinkingLevels: {
       off: '关',
       low: '低',
@@ -1358,6 +1406,7 @@ const zh: Translations = {
     toggle: '图层面板',
     close: '关闭',
     empty: '暂无边界框',
+    askAboutRegion: '针对区域 {index} 提问',
   },
   layoutQuality: {
     title: '布局质量检测',
@@ -1373,6 +1422,14 @@ const zh: Translations = {
       margin: '边缘距离',
       element_count: '元素数量',
       aspect_ratio: '宽高比',
+    },
+    issue: {
+      element_area: '有些元素太小了，试着放大一些。',
+      coverage: '元素没有很好地铺满画面，试着拉开距离或补几个元素。',
+      spacing: '有些元素靠得太近或者重叠了。',
+      margin: '有些元素太贴近画面边缘。',
+      element_count: '元素数量不太适合这个构图。',
+      aspect_ratio: '有些元素过于细长。',
     },
   },
   shortcuts: {

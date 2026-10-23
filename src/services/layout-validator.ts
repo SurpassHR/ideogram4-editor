@@ -25,6 +25,20 @@ export interface LayoutQualityReport {
   metrics: MetricResult[];
   summaryText: string;    // bullet lines like "- coverage: 8% (threshold: 15-60%)" — wrapped by buildLayoutFeedbackPrompt
   userSummary: string;    // Chinese-friendly summary
+  /** 结构化问题列表（供 UI 层做 i18n 渲染；severity: 'error' | 'warning'） */
+  issues: LayoutQualityIssue[];
+}
+
+/** 单条结构化问题 */
+export interface LayoutQualityIssue {
+  /** 对应的 metric field（element_area / coverage / spacing / margin / element_count / aspect_ratio） */
+  field: string;
+  /** 严重程度 */
+  severity: 'error' | 'warning';
+  /** 面向用户的一句话说明（英文；UI 层可按 field 做 i18n 覆盖） */
+  message: string;
+  /** 技术数值明细（仅开发者模式展示） */
+  detail?: string;
 }
 
 export function validateLayout(
@@ -283,5 +297,15 @@ export function validateLayout(
     ? `布局质量良好：${elements.length} 个元素，覆盖 ${((metrics.find(m => m.field === 'coverage')?.actual ?? 0) as number).toFixed(0)}% 画布区域，间距和边距均符合要求`
     : `布局需要调整：${failLines.length} 项指标未通过 (${failLines.join('; ')})`;
 
-  return { overallPass, metrics, summaryText, userSummary };
+  // 结构化问题列表：失败的 metric 即为一条 issue（UI 层做 i18n 渲染）
+  const issues: LayoutQualityIssue[] = metrics
+    .filter(m => !m.passed)
+    .map(m => ({
+      field: m.field,
+      severity: 'error' as const,
+      message: m.message,
+      detail: m.detail,
+    }));
+
+  return { overallPass, metrics, summaryText, userSummary, issues };
 }

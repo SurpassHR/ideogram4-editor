@@ -656,6 +656,7 @@ describe('EditorStore', () => {
           metrics: [],
           summaryText: 'layout feedback',
           userSummary: '布局需要调整',
+          issues: [],
         };
 
         useEditorStore.getState().setPendingIdeogramOutput(output);
@@ -1183,5 +1184,100 @@ describe('layerPanel', () => {
     expect(useEditorStore.getState().isLayerPanelOpen).toBe(true);
     store.toggleLayerPanel();
     expect(useEditorStore.getState().isLayerPanelOpen).toBe(false);
+  });
+});
+
+describe('applyCanvasReplacement（原子 Apply）', () => {
+  beforeEach(() => {
+    useEditorStore.setState({
+      boxes: [makeBox('box_0', 10, 20)],
+      boxCounter: 1,
+      canvasW: 1024,
+      canvasH: 1024,
+      globalPalette: ['#111111'],
+      highLevelDescription: '旧场景',
+      aesthetics: '旧美学',
+      lighting: '旧光照',
+      medium: '旧媒介',
+      artStyle: '旧风格',
+      background: '旧背景',
+      photoArtStyleMode: 0,
+      undoStack: [],
+      redoStack: [],
+      selectedBoxId: null,
+      selectedBoxIds: [],
+    });
+  });
+
+  const replacement = {
+    canvasW: 1536,
+    canvasH: 1024,
+    boxes: [
+      { x: 0, y: 0, w: 100, h: 100, mode: 'obj' as const, text: '', desc: 'a', colors: [], imageDataUrl: null, imageRole: 'both' as const },
+      { x: 200, y: 200, w: 100, h: 100, mode: 'text' as const, text: 'T', desc: 'b', colors: [], imageDataUrl: null, imageRole: 'both' as const },
+    ],
+    globalPalette: ['#FF0000'],
+    highLevelDescription: '新场景',
+    aesthetics: '新美学',
+    lighting: '新光照',
+    medium: '新媒介',
+    artStyle: '新风格',
+    background: '新背景',
+    photoArtStyleMode: 1 as const,
+  };
+
+  it('一次性写入 boxes 与全局设置，只压一次撤销快照', () => {
+    const store = useEditorStore.getState();
+    store.applyCanvasReplacement(replacement);
+
+    const state = useEditorStore.getState();
+    expect(state.boxes).toHaveLength(2);
+    expect(state.boxes[0].id).toBe('box_0');
+    expect(state.highLevelDescription).toBe('新场景');
+    expect(state.globalPalette).toEqual(['#FF0000']);
+    expect(state.canvasW).toBe(1536);
+    expect(state.canvasH).toBe(1024);
+    // 关键：只产生 1 个撤销步骤（此前是 N+1 个）
+    expect(state.undoStack).toHaveLength(1);
+  });
+
+  it('一次撤销即可完整还原 boxes / 全局设置 / 画板尺寸', () => {
+    const store = useEditorStore.getState();
+    store.applyCanvasReplacement(replacement);
+    useEditorStore.getState().undo();
+
+    const state = useEditorStore.getState();
+    expect(state.boxes).toHaveLength(1);
+    expect(state.boxes[0].id).toBe('box_0');
+    expect(state.highLevelDescription).toBe('旧场景');
+    expect(state.aesthetics).toBe('旧美学');
+    expect(state.globalPalette).toEqual(['#111111']);
+    expect(state.canvasW).toBe(1024);
+    expect(state.canvasH).toBe(1024);
+    expect(state.undoStack).toHaveLength(0);
+  });
+
+  it('redo 可恢复 Apply 结果', () => {
+    const store = useEditorStore.getState();
+    store.applyCanvasReplacement(replacement);
+    useEditorStore.getState().undo();
+    useEditorStore.getState().redo();
+
+    const state = useEditorStore.getState();
+    expect(state.boxes).toHaveLength(2);
+    expect(state.highLevelDescription).toBe('新场景');
+    expect(state.canvasW).toBe(1536);
+  });
+
+  it('replaceBox 只替换目标 box 并压一次快照', () => {
+    const store = useEditorStore.getState();
+    store.replaceBox('box_0', {
+      x: 5, y: 5, w: 50, h: 50, mode: 'obj', text: '', desc: 'x', colors: [], imageDataUrl: null, imageRole: 'both',
+    });
+
+    const state = useEditorStore.getState();
+    expect(state.boxes).toHaveLength(1);
+    expect(state.boxes[0].w).toBe(50);
+    expect(state.undoStack).toHaveLength(1);
   });
 });

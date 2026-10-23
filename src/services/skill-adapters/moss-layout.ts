@@ -157,4 +157,19 @@ export const mossLayoutAdapter: SkillAdapter = {
     }
     return extraction.raw;
   },
+
+  /** MOSS 没有 high_level_description：caption 模式下用 caption，layout 模式下用首个元素描述 */
+  summarize(extraction: SkillExtraction) {
+    const payload = extraction.payload;
+    if (isRecord(payload)) {
+      const caption = payload.caption;
+      if (typeof caption === 'string' && caption.trim()) return caption.trim();
+      const summary = payload.summary;
+      if (isRecord(summary) && typeof summary.caption === 'string' && summary.caption.trim()) {
+        return summary.caption.trim();
+      }
+    }
+    const first = extraction.elements.find(el => el.desc?.trim());
+    return first?.desc.trim() ?? '';
+  },
 };

@@ -7,6 +7,8 @@ import { getAdapter } from '../services/skill-adapters';
 import { isSkillExtractionError } from '../services/skill-adapters/types';
 import type { SkillExtraction } from '../services/skill-adapters/types';
 import { applyExtractionToStore } from '../services/skill-apply';
+import { applyRegionExtractionToStore } from '../services/skill-apply';
+import { buildExtractionSummary } from '../utils/summary';
 import { getBuiltinSkills } from '../skills/builtin-skills';
 import { resolveActiveSkill } from '../types/skill';
 import { computeTargetCanvasSize, formatAspectRatio, normalizeCanvasSize } from '../utils/canvas-dims';
@@ -16,6 +18,7 @@ import { generateMessageId, createUserMessage, createAssistantMessage } from '..
 import type { LlmProvider, ProviderKind } from '../components/llm/types';
 import { DEFAULT_BASE_URLS } from '../components/llm/types';
 import type { ChatMessage, ChatMessageForApi } from '../types/chat';
+import type { RegionTarget } from '../types/chat';
 
 /** Apply 确认弹窗中各部分的选中状态 */
 export interface ApplySelections {
@@ -66,6 +69,56 @@ async function takeCanvasSnapshot(): Promise<string | undefined> {
 
 function extractJsonCodeBlock(text: string): string | undefined {
   return text.match(/```json\s*([\s\S]*?)```/)?.[1]?.trim();
+}
+
+/**
+ * 根据当前选中状态解析「区域目标」。
+ *
+ * - 用户主动解除区域模式（regionTargetDismissed）时返回 null
+ * - 未选中任何 box 时返回 null（整画布提问）
+ * - 选中时返回带 1 起始序号的区域描述（序号与画布 tag 条 / LayerPanel 一致）
+ */
+export function resolveRegionTarget(
+  boxes: Array<{ id: string; text: string; desc: string; mode: 'obj' | 'text' }>,
+  selectedBoxId: string | null,
+  dismissed: boolean,
+): RegionTarget | null {
+  if (dismissed || !selectedBoxId) return null;
+  const index = boxes.findIndex(b => b.id === selectedBoxId);
+  if (index < 0) return null;
+  const box = boxes[index];
+  const label = box.text || box.desc || (box.mode === 'text' ? 'Text' : 'Object');
+  return { boxId: box.id, index: index + 1, label };
+}
+
+/** 构造「只针对该区域」的 prompt 提示块 */
+export function buildRegionPromptHint(
+  region: RegionTarget,
+  box: { x: number; y: number; w: number; h: number; desc: string; text: string } | undefined,
+  canvasW: number,
+  canvasH: number,
+): string {
+  if (!box) {
+    return [
+      `## Target region: region ${region.index} ("${region.label}")`,
+      'The user is asking about ONE specific region of the canvas.',
+      'Return ONLY the element(s) that belong to this region. Do not rebuild the whole scene.',
+    ].join('\n');
+  }
+  const x1 = Math.round((box.x / canvasW) * 1000);
+  const y1 = Math.round((box.y / canvasH) * 1000);
+  const x2 = Math.round(((box.x + box.w) / canvasW) * 1000);
+  const y2 = Math.round(((box.y + box.h) / canvasH) * 1000);
+  const desc = box.text || box.desc || '(no description)';
+  return [
+    `## Target region: region ${region.index} ("${region.label}")`,
+    `Current region bbox on the 0-1000 scale: [${y1}, ${x1}, ${y2}, ${x2}]`,
+    `Current region content: ${desc}`,
+    '',
+    'The user is asking to change ONLY this region.',
+    'Return ONLY the element(s) for this region, with bbox values describing where that region should sit.',
+    'Do NOT return the rest of the scene — other regions are handled separately.',
+  ].join('\n');
 }
 
 /** 构建原始 HTTP 请求格式的字符串，用于 Terminal 详情展示 */
@@ -247,6 +300,8 @@ export function useCanvasChat() {
 
   const [providers, setProviders] = useState<LlmProvider[]>([]);
   const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
+  /** 用户主动解除区域模式：本次会话内不再自动跟随选中 box */
+  const [regionTargetDismissed, setRegionTargetDismissed] = useState(false);
   const isLoading = useEditorStore(s => s.isCanvasChatLoading);
   const setIsLoading = useEditorStore(s => s.setCanvasChatLoading);
 
@@ -329,6 +384,14 @@ export function useCanvasChat() {
   const sendMessage = useCallback(async (content: string, retryContext?: { feedback?: string }) => {
     const requestId = startCanvasChatRequest(content.slice(0, 80));
     const userMessage = createUserMessage(content);
+    // 区域化提问：默认跟随画布当前选中的边界框（可被用户解除）
+    const stateAtSend = useEditorStore.getState();
+    const regionTarget = resolveRegionTarget(
+      stateAtSend.boxes,
+      stateAtSend.selectedBoxId,
+      regionTargetDismissed,
+    );
+    userMessage.regionTarget = regionTarget ?? undefined;
     const snapshotUrl = await takeCanvasSnapshot();
     appendCanvasChatRequestStep(requestId, {
       kind: 'snapshot',
@@ -456,7 +519,12 @@ export function useCanvasChat() {
         bgHint,
         `Active skill: ${activeSkill.displayName} (${activeSkill.adapter})`,
       ].join('\n');
+      // 区域化提问：模型只针对该区域返回元素，不重建整张画布
+      const regionHint = regionTarget
+        ? buildRegionPromptHint(regionTarget, snapshot.boxes[regionTarget.index - 1], canvasW, canvasH)
+        : null;
       let enriched = `${targetHint}\n\nCurrent canvas state:\n\`\`\`json\n${contextJson}\n\`\`\`\n\nMy composition request: ${apiMessages[lastUserIdx].content}`;
+      if (regionHint) enriched = `${regionHint}\n\n${enriched}`;
       if (retryContext?.feedback) enriched += buildLayoutFeedbackPrompt(retryContext.feedback);
       apiMessages[lastUserIdx] = { role: 'user', content: enriched };
     }
@@ -580,6 +648,13 @@ export function useCanvasChat() {
           });
           if (!isSkillExtractionError(extraction)) {
             if (extraction.ideogramOutput) setPendingIdeogramOutput(extraction.ideogramOutput);
+            // 摘要写回消息：气泡只展示人话摘要，不展示 JSON
+            const summary = skillAdapter.summarize?.(extraction) || buildExtractionSummary(extraction);
+            useEditorStore.getState().updateCanvasChatMessage(placeholderId, {
+              summary: summary || undefined,
+              elementCount: extraction.elements.length,
+              regionTarget: regionTarget ?? undefined,
+            });
             appendCanvasChatRequestStep(requestId, {
               kind: 'parse_success',
               status: 'success',
@@ -651,6 +726,7 @@ export function useCanvasChat() {
     canvasChatMessages, chatResponseLang, chatStreamEnabled, chatThinkingLevel, canvasChatTargetSize,
     activeSkill, skillAdapter, activeSkillReferencePaths,
     setPendingIdeogramOutput, setPendingQualityReport, canvasBackgroundUrl,
+    regionTargetDismissed,
   ]);
 
   /**
@@ -658,14 +734,15 @@ export function useCanvasChat() {
    * 返回落框数量；null 表示该消息无法按当前 skill 的格式解析。
    */
   const applyExtraction = useCallback(
-    (extraction: SkillExtraction, skillId: string): { count: number; warnings: string[] } => {
+    (extraction: SkillExtraction, skillId: string, regionBoxId?: string): { count: number; warnings: string[] } => {
     const store = useEditorStore.getState();
     let effective = extraction;
-    // 模型返回的画布尺寸会改写画板；尺寸变化时给一条提示
+    // 全量 Apply 时，模型返回的画布尺寸会改写画板；尺寸变化时给一条提示
+    // 区域 Apply 只替换目标 box，不动画板尺寸与全局设置
     const resized = extraction.canvas
       ? normalizeCanvasSize(extraction.canvas.width, extraction.canvas.height)
       : null;
-    if (resized && (resized.width !== store.canvasW || resized.height !== store.canvasH)) {
+    if (!regionBoxId && resized && (resized.width !== store.canvasW || resized.height !== store.canvasH)) {
       effective = {
         ...extraction,
         warnings: [
@@ -678,15 +755,22 @@ export function useCanvasChat() {
     setPendingApply({ skillId, adapter: effective.adapter, extraction: effective });
     if (effective.ideogramOutput) setPendingIdeogramOutput(effective.ideogramOutput);
 
-    const count = applyExtractionToStore(effective, store);
+    const count = regionBoxId
+      ? applyRegionExtractionToStore(effective, store, regionBoxId)
+      : applyExtractionToStore(effective, store);
     if (count === 0) {
       store.setPendingQualityReport(null);
       return { count: 0, warnings: effective.warnings };
     }
 
-    // 画板可能已被 Apply 改尺寸，质量诊断使用最新尺寸
-    const after = useEditorStore.getState();
-    store.setPendingQualityReport(validateLayout(effective.elements, after.canvasW, after.canvasH));
+    if (regionBoxId) {
+      // 区域 Apply：只诊断受影响的这一个元素
+      store.setPendingQualityReport(null);
+    } else {
+      // 画板可能已被 Apply 改尺寸，质量诊断使用最新尺寸
+      const after = useEditorStore.getState();
+      store.setPendingQualityReport(validateLayout(effective.elements, after.canvasW, after.canvasH));
+    }
     return { count, warnings: effective.warnings };
     },
     [setPendingApply, setPendingIdeogramOutput],
@@ -703,7 +787,9 @@ export function useCanvasChat() {
     const adapter = getAdapter(skill.adapter);
     const extracted = adapter.extract(message.content, { canvasW: store.canvasW, canvasH: store.canvasH });
     if (isSkillExtractionError(extracted)) return { ok: false, error: extracted.error };
-    const { count, warnings } = applyExtraction(extracted, skill.id);
+    // 带区域标记的消息：只替换那个 box，画布其余内容保留
+    const regionBoxId = message.regionTarget?.boxId;
+    const { count, warnings } = applyExtraction(extracted, skill.id, regionBoxId);
     return { ok: true, count, warnings };
   }, [activeSkill, skills, applyExtraction]);
 
@@ -833,6 +919,22 @@ export function useCanvasChat() {
     abortActiveRequest();
   }, []);
 
+  /** 解除区域模式（本次会话内不再自动跟随选中 box） */
+  const dismissRegionTarget = useCallback(() => {
+    setRegionTargetDismissed(true);
+  }, []);
+
+  /** 重新启用区域模式 */
+  const enableRegionTarget = useCallback(() => {
+    setRegionTargetDismissed(false);
+  }, []);
+
+  /** 当前生效的区域目标（供输入框上下文条显示） */
+  const currentRegionTarget = useMemo(
+    () => resolveRegionTarget(boxes, selectedBoxId, regionTargetDismissed),
+    [boxes, selectedBoxId, regionTargetDismissed],
+  );
+
   return {
     isCanvasChatOpen,
     messages,
@@ -867,5 +969,10 @@ export function useCanvasChat() {
     refreshProviders,
     hasProviders: modelOptions.length > 0,
     handleRegenerate,
+    // 区域化提问
+    currentRegionTarget,
+    regionTargetDismissed,
+    dismissRegionTarget,
+    enableRegionTarget,
   };
 }

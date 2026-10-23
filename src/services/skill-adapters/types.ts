@@ -39,6 +39,8 @@ export interface SkillExtraction {
   ideogramOutput?: IdeogramOutput;
   /** adapter 解析出的结构化原始产物（例如 MOSS Layout 草稿），供"复制模型 prompt"复用 */
   payload?: unknown;
+  /** 一行自然语言摘要（供 UI 展示，避免把 JSON 暴露给零代码用户） */
+  summary?: string;
 }
 
 export interface SkillExtractionError {
@@ -67,6 +69,11 @@ export interface SkillAdapter {
   buildCanvasContext(snapshot: CanvasChatStoreSnapshot, targetSize: number): string;
   extract(text: string, ctx: SkillExtractContext): SkillExtraction | SkillExtractionError;
   toCopyText(extraction: SkillExtraction): string;
+  /**
+   * 生成自然语言摘要。缺省时由通用实现从 globals.high_level_description 推导；
+   * 没有 high_level_description 的 adapter（如 flux3-layout / moss-layout）可自行实现。
+   */
+  summarize?(extraction: SkillExtraction): string;
 }
 
 export interface SkillPromptPlan {

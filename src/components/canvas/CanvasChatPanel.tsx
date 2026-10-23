@@ -6,6 +6,7 @@ import ChatMessage from '../chat/ChatMessage';
 import SelectMenu from '../chat/SelectMenu';
 import ChatRunControls from '../chat/ChatRunControls';
 import ContextMenu from './ContextMenu';
+import CanvasChatRegionBar from './CanvasChatRegionBar';
 import { IconClose, IconMaximize, IconArrowRight, IconStop, IconMoreHorizontal, IconPencil, IconBroom, IconTrash, IconCopy, IconPackage } from '../ui/icons';
 import { useI18n } from '../../i18n/context';
 import { useEditorStore } from '../../store';
@@ -266,10 +267,15 @@ export default function CanvasChatPanel() {
     handleSelectPreset,
     skills,
     activeSkill,
+    currentRegionTarget,
+    regionTargetDismissed,
+    dismissRegionTarget,
+    enableRegionTarget,
   } = useCanvasChat();
 
   const isCanvasChatOpen = useEditorStore(s => s.isCanvasChatOpen);
   const isCanvasChatMaximized = useEditorStore(s => s.isCanvasChatMaximized);
+  const showDeveloperTools = useEditorStore(s => s.showDeveloperTools);
   const canvasChatSessions = useEditorStore(s => s.canvasChatSessions);
   const activeCanvasChatSessionId = useEditorStore(s => s.activeCanvasChatSessionId);
   const activeCanvasChatRequestId = useEditorStore(s => s.activeCanvasChatRequestId);
@@ -676,6 +682,7 @@ export default function CanvasChatPanel() {
         dismissed={false}
         onApply={handleApplyMessage}
         outputCheck={checkMessageOutput}
+        renderMode="summary"
         onRetry={msg.role === 'assistant' ? handleRetry : undefined}
         onEdit={msg.role === 'user' ? handleEdit : undefined}
         isLoading={isLoading}
@@ -744,6 +751,12 @@ export default function CanvasChatPanel() {
           {/* Input Area */}
           {hasProviders && (
             <div className="canvas-chat-input-area">
+              <CanvasChatRegionBar
+                region={currentRegionTarget}
+                dismissed={regionTargetDismissed}
+                onDismiss={dismissRegionTarget}
+                onEnable={enableRegionTarget}
+              />
               <div className="canvas-chat-toolbar">
                 {chatPresets.length > 0 && (
                   <SelectMenu
@@ -838,7 +851,7 @@ export default function CanvasChatPanel() {
           <>
             <div className="canvas-chat-backdrop" aria-hidden="true" />
             <div
-              className="canvas-chat-workbench"
+              className={`canvas-chat-workbench${showDeveloperTools ? ' with-terminal' : ''}`}
               role="dialog"
               aria-label="Canvas Chat Workbench"
               onWheelCapture={handleWorkbenchWheel}
@@ -916,6 +929,12 @@ export default function CanvasChatPanel() {
               </div>
               {hasProviders && (
                 <div className="canvas-chat-input-area canvas-chat-workbench-input-area">
+                  <CanvasChatRegionBar
+                    region={currentRegionTarget}
+                    dismissed={regionTargetDismissed}
+                    onDismiss={dismissRegionTarget}
+                    onEnable={enableRegionTarget}
+                  />
                   {editingMessageId && (
                     <div className="chat-editing-indicator">
                       {t('chat.editingMessage')}
@@ -1007,31 +1026,34 @@ export default function CanvasChatPanel() {
               )}
             </section>
 
-            <aside className="canvas-chat-terminal-panel">
-              <div className="canvas-chat-workbench-section-title">{t('chat.canvasSessions.terminal')}</div>
-              {activeTerminalLog ? (
-                <div className="canvas-chat-terminal-log">
-                  <button
-                    type="button"
-                    className={`canvas-chat-terminal-request ${activeTerminalLog.status}`}
-                    onClick={() => setDetailLogId(activeTerminalLog.id)}
-                    title="查看请求完整详情"
-                  >
-                    <span className="canvas-chat-terminal-request-title">
-                      {activeTerminalLog.promptPreview}
-                    </span>
-                    <span className="canvas-chat-terminal-request-status">
-                      {activeTerminalLog.status}
-                    </span>
-                  </button>
-                  <div className="canvas-chat-terminal-sections">
-                    {renderTerminalSections(activeTerminalLog, expandedStepId, setExpandedStepId, t, highlightJson, handleCopyDebugText, copiedSection)}
+            {/* Terminal 面板属于开发者工具，默认隐藏（设置里可开启） */}
+            {showDeveloperTools && (
+              <aside className="canvas-chat-terminal-panel">
+                <div className="canvas-chat-workbench-section-title">{t('chat.canvasSessions.terminal')}</div>
+                {activeTerminalLog ? (
+                  <div className="canvas-chat-terminal-log">
+                    <button
+                      type="button"
+                      className={`canvas-chat-terminal-request ${activeTerminalLog.status}`}
+                      onClick={() => setDetailLogId(activeTerminalLog.id)}
+                      title="查看请求完整详情"
+                    >
+                      <span className="canvas-chat-terminal-request-title">
+                        {activeTerminalLog.promptPreview}
+                      </span>
+                      <span className="canvas-chat-terminal-request-status">
+                        {activeTerminalLog.status}
+                      </span>
+                    </button>
+                    <div className="canvas-chat-terminal-sections">
+                      {renderTerminalSections(activeTerminalLog, expandedStepId, setExpandedStepId, t, highlightJson, handleCopyDebugText, copiedSection)}
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <div className="canvas-chat-terminal-empty">{t('chat.canvasSessions.noRequestLogs')}</div>
-              )}
-            </aside>
+                ) : (
+                  <div className="canvas-chat-terminal-empty">{t('chat.canvasSessions.noRequestLogs')}</div>
+                )}
+              </aside>
+            )}
             </div>
           </>
         )}

@@ -388,6 +388,7 @@ describe('CanvasChatPanel', () => {
     });
 
     it('点击最大化按钮应显示三栏工作台', async () => {
+      useEditorStore.setState({ showDeveloperTools: true });
       const { getByRole, getByText } = await renderWithPending();
 
       const maximizeButton = getByRole('button', { name: 'Maximize Canvas Chat' });
@@ -404,6 +405,7 @@ describe('CanvasChatPanel', () => {
       useEditorStore.setState({
         isCanvasChatOpen: true,
         isCanvasChatMaximized: true,
+        showDeveloperTools: true,
         activeCanvasChatRequestId: 'request_1',
         canvasChatSessions: [{
           id: 'session_1',
@@ -474,6 +476,7 @@ describe('CanvasChatPanel', () => {
       useEditorStore.setState({
         isCanvasChatOpen: true,
         isCanvasChatMaximized: true,
+        showDeveloperTools: true,
         activeCanvasChatRequestId: 'request_1',
         canvasChatSessions: [{
           id: 'session_1',
@@ -640,6 +643,7 @@ describe('CanvasChatPanel', () => {
       useEditorStore.setState({
         isCanvasChatOpen: true,
         isCanvasChatMaximized: true,
+        showDeveloperTools: true,
         canvasChatSessions: [{
           id: 'session_1',
           title: '调试会话',

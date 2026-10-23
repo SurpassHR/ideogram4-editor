@@ -172,7 +172,15 @@ export default function BoundingBox({ box, index, zoom, isSelected, boxRef, inte
         )}
       </div>
 
-      <div className="resize-handle" />
+      {/* 4 角缩放手柄（Krea 式）：仅选中时显示；右下角保持既有语义 */}
+      {isSelected && (
+        <>
+          <div className="resize-handle nw" data-handle="nw" />
+          <div className="resize-handle ne" data-handle="ne" />
+          <div className="resize-handle sw" data-handle="sw" />
+          <div className="resize-handle se" data-handle="se" />
+        </>
+      )}
     </div>
   );
 }

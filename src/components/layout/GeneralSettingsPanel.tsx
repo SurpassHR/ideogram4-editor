@@ -4,6 +4,8 @@ import { useI18n } from '../../i18n/context';
 export default function GeneralSettingsPanel() {
   const canvasChatAutoMaximize = useEditorStore(s => s.canvasChatAutoMaximize);
   const setCanvasChatAutoMaximize = useEditorStore(s => s.setCanvasChatAutoMaximize);
+  const showDeveloperTools = useEditorStore(s => s.showDeveloperTools);
+  const setShowDeveloperTools = useEditorStore(s => s.setShowDeveloperTools);
   const { t } = useI18n();
 
   return (
@@ -18,6 +20,21 @@ export default function GeneralSettingsPanel() {
             type="checkbox"
             checked={canvasChatAutoMaximize}
             onChange={e => setCanvasChatAutoMaximize(e.currentTarget.checked)}
+          />
+          <span className="toggle-switch-track" aria-hidden="true" />
+        </label>
+      </div>
+
+      <div className="settings-general-item">
+        <div className="settings-general-info">
+          <span className="settings-general-label">{t('settings.general.showDeveloperTools')}</span>
+          <span className="settings-general-desc">{t('settings.general.showDeveloperToolsDesc')}</span>
+        </div>
+        <label className="toggle-switch">
+          <input
+            type="checkbox"
+            checked={showDeveloperTools}
+            onChange={e => setShowDeveloperTools(e.currentTarget.checked)}
           />
           <span className="toggle-switch-track" aria-hidden="true" />
         </label>

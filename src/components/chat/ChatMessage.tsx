@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import type { ChatMessage as ChatMessageType } from '../../types/chat';
@@ -9,7 +9,11 @@ import { validateIdeogramJSONVerbose } from '../../services/llm-canvas-chat';
 import { parseContentSegments } from '../../utils/code-block-parser';
 import { highlightJson } from '../../utils/json-highlight';
 import JsonCodeBlock from './JsonCodeBlock';
+import ImageLightbox from './ImageLightbox';
 import { IconBrain, IconPencil } from '../ui/icons';
+
+/** 消息正文的渲染方式 */
+export type ChatMessageRenderMode = 'json' | 'summary';
 
 interface ChatMessageProps {
   message: ChatMessageType;
@@ -25,6 +29,12 @@ interface ChatMessageProps {
    * 缺省用 Ideogram 校验；Canvas Chat 会传入按当前 skill 解析的检查函数。
    */
   outputCheck?: (message: ChatMessageType) => { canApply: boolean; error: string | null };
+  /**
+   * 正文渲染方式：
+   * - 'json'（默认）：完整展示模型输出，含 JSON 代码块（per-box Chat 使用）
+   * - 'summary'：只展示一行自然语言摘要 + 画布缩略图，不暴露 JSON（Canvas Chat 使用）
+   */
+  renderMode?: ChatMessageRenderMode;
 }
 
 /** 检测纯文本是否为有效 JSON（用于兜底渲染 models 不返回 ```json 的情况） */
@@ -55,15 +65,18 @@ function renderMarkdown(text: string): string {
   });
 }
 
-export default function ChatMessage({ message, onAdopt, onDismiss, onApply, onRetry, onEdit, dismissed, isLoading, outputCheck }: ChatMessageProps) {
+export default function ChatMessage({ message, onAdopt, onDismiss, onApply, onRetry, onEdit, dismissed, isLoading, outputCheck, renderMode = 'json' }: ChatMessageProps) {
   const { t, lang } = useI18n();
   const timeLabel = useMemo(() => formatTime(message.timestamp), [message.timestamp]);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   const isUser = message.role === 'user';
   const roleLabel = isUser ? t('chat.you') : 'AI';
   const avatarLetter = isUser ? 'U' : 'A';
   const responseLang = useEditorStore(s => s.chatResponseLang);
+  const showDeveloperTools = useEditorStore(s => s.showDeveloperTools);
   const isChinese = responseLang === 'zh' || (responseLang === 'auto' && lang === 'zh');
+  const isSummaryMode = renderMode === 'summary';
 
   const parseResult = useMemo(
     () => {
@@ -78,6 +91,30 @@ export default function ChatMessage({ message, onAdopt, onDismiss, onApply, onRe
   const hasOutput = (parseResult?.canApply ?? false) && !!onApply;
   const showApply = hasOutput;
   const applyLabel = message.applied ? 'Re-Apply' : 'Apply';
+
+  /** summary 模式下的摘要文案：优先消息自带 summary，其次回退到元素数量 */
+  const summaryText = useMemo(() => {
+    if (!isSummaryMode || isUser) return '';
+    if (message.summary?.trim()) return message.summary.trim();
+    if (typeof message.elementCount === 'number') {
+      return t('chat.summaryFallback', { count: message.elementCount });
+    }
+    return '';
+  }, [isSummaryMode, isUser, message.summary, message.elementCount, t]);
+
+  /** summary 模式：剔除 JSON 代码块与纯 JSON 段，只留模型的散文说明 */
+  const proseSegments = useMemo(() => {
+    if (!isSummaryMode || isUser) return [];
+    const out: string[] = [];
+    for (const seg of parseContentSegments(message.content)) {
+      if (seg.type === 'text') {
+        if (!isJsonText(seg.text) && seg.text.trim()) out.push(seg.text);
+      } else if (seg.lang !== 'json' && seg.code.trim()) {
+        out.push('```' + seg.lang + '\n' + seg.code + '\n```');
+      }
+    }
+    return out;
+  }, [isSummaryMode, isUser, message.content]);
 
   const handleCopy = async () => {
     try {
@@ -95,7 +132,7 @@ export default function ChatMessage({ message, onAdopt, onDismiss, onApply, onRe
         <span className="chat-msg-card-role">{roleLabel}</span>
         <span className="chat-msg-card-spacer" />
         <span className="chat-msg-card-time">{timeLabel}</span>
-        {!isUser && parseError && (
+        {!isUser && parseError && !isSummaryMode && (
           <span className="chat-parse-error-icon" title={parseError}>!</span>
         )}
       </div>
@@ -118,6 +155,43 @@ export default function ChatMessage({ message, onAdopt, onDismiss, onApply, onRe
       <div className="chat-msg-card-body">
         {isUser ? (
           message.content
+        ) : isSummaryMode ? (
+          /* summary 模式：一行人话摘要 + 画布缩略图，绝不暴露 JSON */
+          <>
+            {summaryText && (
+              <div className="chat-msg-summary">{summaryText}</div>
+            )}
+            {message.canvasSnapshotUrl && (
+              <button
+                type="button"
+                className="chat-msg-thumbnail"
+                onClick={() => setLightboxOpen(true)}
+                aria-label={t('chat.previewAlt')}
+                title={t('chat.previewAlt')}
+              >
+                <img src={message.canvasSnapshotUrl} alt={t('chat.previewAlt')} draggable={false} />
+              </button>
+            )}
+            {/* 模型没按格式输出时的散文说明仍以 markdown 展示 */}
+            {proseSegments.length > 0 && (
+              <div className="chat-msg-prose">
+                {proseSegments.map((prose, i) => (
+                  <div key={i} dangerouslySetInnerHTML={{ __html: renderMarkdown(prose) }} />
+                ))}
+              </div>
+            )}
+            {parseError && (
+              <div className="chat-msg-parse-hint">{t('chat.parseFailedHint')}</div>
+            )}
+            {showDeveloperTools && (
+              <details className="chat-raw-output-block">
+                <summary>{t('chat.showRawOutput')}</summary>
+                <pre className="chat-raw-output-pre">
+                  <code>{message.content}</code>
+                </pre>
+              </details>
+            )}
+          </>
         ) : (
           parseContentSegments(message.content).map((seg, i) => {
             if (seg.type === 'code' && seg.lang === 'json' && message.canvasSnapshotUrl) {
@@ -230,6 +304,13 @@ export default function ChatMessage({ message, onAdopt, onDismiss, onApply, onRe
             </button>
           )}
         </div>
+      )}
+      {lightboxOpen && message.canvasSnapshotUrl && (
+        <ImageLightbox
+          src={message.canvasSnapshotUrl}
+          alt={t('chat.previewAlt')}
+          onClose={() => setLightboxOpen(false)}
+        />
       )}
     </div>
   );

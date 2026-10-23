@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import ChatMessage from '../ChatMessage';
 
 // Mock i18n
@@ -25,6 +25,7 @@ vi.mock('../../../store', () => ({
     selector({
       chatResponseLang: 'en',
       chatPresets: [],
+      showDeveloperTools: false,
     }),
 }));
 
@@ -104,5 +105,76 @@ describe('ChatMessage', () => {
     const { container } = render(<ChatMessage message={msg as any} />);
     expect(container.querySelector('.chat-msg-thumb-container')).toBeNull();
     expect(container.querySelector('.chat-msg-canvas-thumb')).toBeNull();
+  });
+
+  // ─── summary 模式（Canvas Chat：零代码用户不暴露 JSON）───────────────
+
+  describe('renderMode="summary"', () => {
+    const jsonContent = 'Here you go:\n```json\n{"high_level_description": "A cat"}\n```';
+
+    it('不渲染任何 JSON 代码块', () => {
+      const msg = makeMsg({
+        content: jsonContent,
+        summary: '一张猫的照片',
+        canvasSnapshotUrl: 'data:image/jpeg;base64,abc',
+      });
+      const { container } = render(<ChatMessage message={msg as any} renderMode="summary" />);
+
+      expect(container.querySelector('.language-json')).toBeNull();
+      expect(container.querySelector('pre code')).toBeNull();
+      expect(screen.queryByTestId('json-code-block')).toBeNull();
+    });
+
+    it('渲染自然语言摘要', () => {
+      const msg = makeMsg({
+        content: jsonContent,
+        summary: '一张猫的照片',
+        canvasSnapshotUrl: 'data:image/jpeg;base64,abc',
+      });
+      const { container } = render(<ChatMessage message={msg as any} renderMode="summary" />);
+      expect(container.querySelector('.chat-msg-summary')?.textContent).toBe('一张猫的照片');
+    });
+
+    it('摘要缺失时回退到元素数量文案', () => {
+      const msg = makeMsg({
+        content: jsonContent,
+        elementCount: 3,
+        canvasSnapshotUrl: 'data:image/jpeg;base64,abc',
+      });
+      const { container } = render(<ChatMessage message={msg as any} renderMode="summary" />);
+      // mock 的 t() 不做插值，只回显 key；文案存在即说明走了兜底分支
+      expect(container.querySelector('.chat-msg-summary')?.textContent).toBe('chat.summaryFallback');
+    });
+
+    it('渲染画布缩略图，点击可打开大图', () => {
+      const msg = makeMsg({
+        content: jsonContent,
+        summary: '摘要',
+        canvasSnapshotUrl: 'data:image/jpeg;base64,abc',
+      });
+      const { container } = render(<ChatMessage message={msg as any} renderMode="summary" />);
+
+      const thumb = container.querySelector('.chat-msg-thumbnail') as HTMLButtonElement;
+      expect(thumb).toBeTruthy();
+      expect(container.querySelector('.chat-msg-thumbnail img')).toBeTruthy();
+
+      fireEvent.click(thumb);
+      expect(document.querySelector('.image-lightbox-overlay')).not.toBeNull();
+    });
+
+    it('开发者工具关闭时不展示原始输出', () => {
+      const msg = makeMsg({ content: jsonContent, summary: '摘要' });
+      const { container } = render(<ChatMessage message={msg as any} renderMode="summary" />);
+      expect(container.querySelector('.chat-raw-output-block')).toBeNull();
+    });
+
+    it('json 模式保持原有行为（回归保护）', () => {
+      const msg = makeMsg({
+        content: jsonContent,
+        canvasSnapshotUrl: 'data:image/jpeg;base64,abc',
+      });
+      render(<ChatMessage message={msg as any} />);
+      expect(screen.getByTestId('json-code-block')).toBeTruthy();
+    });
   });
 });
