@@ -452,6 +452,16 @@ export interface Translations {
       aspect_ratio: string;
     };
   };
+  commandBar: {
+    placeholder: string;
+    autoComplete: string;
+    autoCompleteLoading: string;
+    invertImage: string;
+    invertImageLoading: string;
+    scopeGlobal: string;
+    scopeBox: string;
+    clearScope: string;
+  };
   shortcuts: {
     button: string;
     title: string;
@@ -942,6 +952,16 @@ const en: Translations = {
       aspect_ratio: 'Some elements are very long and thin.',
     },
   },
+  commandBar: {
+    placeholder: 'Describe your scene, or draw boxes and click Auto-Complete...',
+    autoComplete: 'Auto-Complete Scene',
+    autoCompleteLoading: 'Completing Scene...',
+    invertImage: 'Extract Objects & Text',
+    invertImageLoading: 'Extracting...',
+    scopeGlobal: 'Full Scene',
+    scopeBox: 'Box #{idx}',
+    clearScope: 'Clear selection',
+  },
   shortcuts: {
     button: 'Shortcuts',
     title: 'Shortcuts',
@@ -1431,6 +1451,16 @@ const zh: Translations = {
       element_count: '元素数量不太适合这个构图。',
       aspect_ratio: '有些元素过于细长。',
     },
+  },
+  commandBar: {
+    placeholder: '描述你的画面，或拉框后点击补全全场...',
+    autoComplete: '补全全场',
+    autoCompleteLoading: '正在构图...',
+    invertImage: '提取物体与文字',
+    invertImageLoading: '提取中...',
+    scopeGlobal: '全场景',
+    scopeBox: '选区 #{idx}',
+    clearScope: '取消选中',
   },
   shortcuts: {
     button: '快捷键',
