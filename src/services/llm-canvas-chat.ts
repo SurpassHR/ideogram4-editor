@@ -399,3 +399,58 @@ export function extractAndValidateIdeogramJSON(text: string): IdeogramOutput | n
   const result = validateIdeogramJSONVerbose(text);
   return result.output;
 }
+
+
+/**
+ * 构建全场景自动补全提示词：
+ * 根据用户在画布上绘制的草稿 box 与关键词，自动丰富完善全局环境与微观细节。
+ */
+export function buildSceneAutoCompletePrompt(
+  boxes: Box[],
+  canvasW: number,
+  canvasH: number,
+  userInput?: string,
+): string {
+  const elementsDesc = boxes
+    .map((b, idx) => {
+      const mode = b.mode === 1 ? 'text' : 'object';
+      const label = b.text ? `"${b.text}"` : '(unlabeled)';
+      const desc = b.desc ? ` - ${b.desc}` : '';
+      return `#${idx + 1} [${mode}] ${label} at (${b.x},${b.y},${b.w},${b.h})${desc}`;
+    })
+    .join('\n');
+
+  return [
+    'You are an expert AI composition artist.',
+    `Canvas dimensions: ${canvasW}x${canvasH}.`,
+    userInput ? `User instruction: "${userInput}"` : '',
+    'Current layout elements:',
+    elementsDesc || '(empty canvas draft)',
+    '',
+    'Task: Generate a complete Ideogram 4 JSON layout output.',
+    '1. Construct a vivid high_level_description describing overall atmosphere, lighting, camera angle, and background environment (including areas outside the boxes).',
+    '2. Enrich each element with refined description (desc) and appropriate color palette (max 5 hex colors).',
+    '3. Output MUST be valid JSON wrapped in a ```json markdown code block containing high_level_description, style_description, and elements array with normalized coordinates (0-1000).'
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
+
+/**
+ * 构建参考背景图反推落框提示词：
+ * 由多模态视觉模型扫描画布背景图，反推识别图中的物体与文字并生成归一化 BBox。
+ */
+export function buildImageInversionPrompt(canvasW: number, canvasH: number): string {
+  return [
+    'You are an expert computer vision and graphic design layout analyzer.',
+    `The background image is on a canvas of ${canvasW}x${canvasH}.`,
+    'Task: Carefully analyze the provided image and extract key objects and typography/text blocks as bounding boxes.',
+    'Rules:',
+    '1. Distinguish between "object" (physical subjects/items) and "text" (typography, headlines, captions).',
+    '2. For each element, provide precise bounding box coordinates normalized to 0-1000 scale: [ymin, xmin, ymax, xmax].',
+    '3. For text elements, accurately transcribe the exact text in the "text" field.',
+    '4. Provide a rich high_level_description describing the overall image composition, style, and lighting.',
+    '5. Output MUST be valid JSON wrapped in a ```json markdown code block adhering to the IdeogramOutput schema.'
+  ].join('\n');
+}
+
