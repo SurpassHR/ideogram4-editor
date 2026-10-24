@@ -77,6 +77,11 @@ export const IconSparkle = createIcon(
 );
 
 /** 大脑 — Canvas Chat/AI 思考 */
+/** 消息/对话 */
+export const IconMessage = createIcon(
+  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+);
+
 export const IconBrain = createIcon(
   <><path d="M12 5a3 3 0 1 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3z" /><path d="M12 11v4" /><path d="M8 17a2 2 0 0 0-2 2" /><path d="M16 17a2 2 0 0 1 2 2" /><path d="M4 12a8 8 0 0 1 8-8" /><path d="M20 12a8 8 0 0 0-8-8" /></>,
 );

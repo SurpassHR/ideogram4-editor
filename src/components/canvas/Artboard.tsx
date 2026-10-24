@@ -6,7 +6,6 @@ import { useI18n } from '../../i18n/context';
 import { useCanvasChat } from '../../hooks/useCanvasChat';
 import CanvasArea from './CanvasArea';
 import LayerPanel from './LayerPanel';
-import CanvasChatPanel from './CanvasChatPanel';
 import LayoutQualityDialog from './LayoutQualityDialog';
 import ArtboardToolbar from './ArtboardToolbar';
 import { IconRefresh, IconTrash } from '../ui/icons';
@@ -78,7 +77,6 @@ export default function Artboard() {
         <CanvasArea zoom={zoom} panX={panX} panY={panY} screenToCanvas={screenToCanvas} onFitToArtboard={fitToArtboard} />
       </div>
       <LayerPanel />
-      <CanvasChatPanel />
       <BottomCommandBar />
 
       {/* 布局质量检测对话框 */}
