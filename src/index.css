@@ -3480,7 +3480,7 @@ input[type="color"]::-webkit-color-swatch {
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 10px;
-  background: linear-gradient(135deg, rgba(22, 22, 48, 0.94), rgba(13, 13, 26, 0.86));
+  background: #141414; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 14px; box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
 }
 
 .settings-module-nav {
@@ -3490,7 +3490,7 @@ input[type="color"]::-webkit-color-swatch {
   min-width: 0;
   padding: 12px;
   border-right: 1px solid var(--border);
-  background: rgba(22, 22, 48, 0.72);
+  background: #111111; border-right: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .settings-module-button {
@@ -3534,14 +3534,14 @@ input[type="color"]::-webkit-color-swatch {
 }
 
 .settings-module-button.active {
-  border-color: rgba(0, 212, 170, 0.32);
-  background: linear-gradient(135deg, rgba(0, 212, 170, 0.12), rgba(255, 255, 255, 0.10));
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.2);
   color: var(--text);
 }
 
 .settings-module-button.active::before {
   background: var(--accent);
-  box-shadow: 0 0 14px rgba(0, 212, 170, 0.55);
+  box-shadow: none;
 }
 
 .settings-module-marker {
