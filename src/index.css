@@ -1032,7 +1032,7 @@ input[type="color"]::-webkit-color-swatch {
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--surface-raised);
-  color: var(--accent);
+  color: #737373;
   cursor: pointer;
   font-size: 16px;
   line-height: 1;
@@ -1676,7 +1676,7 @@ input[type="color"]::-webkit-color-swatch {
   padding: 2px 6px;
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 6px;
-  background: rgba(13, 13, 26, 0.34);
+  background: #141414;
   color: var(--text-secondary);
   font-size: 10px;
   line-height: 1;
@@ -3463,10 +3463,10 @@ input[type="color"]::-webkit-color-swatch {
   max-width: 240px;
   overflow: hidden;
   padding: 6px 10px;
-  border: 1px solid rgba(0, 212, 170, 0.24);
-  border-radius: 8px;
-  background: rgba(0, 212, 170, 0.07);
-  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #fafafa;
   font-size: 12px;
   font-weight: 600;
   text-overflow: ellipsis;
@@ -3540,7 +3540,7 @@ input[type="color"]::-webkit-color-swatch {
 }
 
 .settings-module-button.active::before {
-  background: var(--accent);
+  background: #fafafa;
   box-shadow: none;
 }
 
@@ -3552,7 +3552,7 @@ input[type="color"]::-webkit-color-swatch {
   height: 36px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: rgba(30, 30, 58, 0.78);
+  background: #1c1c1c;
   color: var(--text-muted);
   font-family: 'JetBrains Mono', monospace;
   font-size: 11px;
@@ -3561,9 +3561,9 @@ input[type="color"]::-webkit-color-swatch {
 }
 
 .settings-module-button.active .settings-module-marker {
-  border-color: rgba(0, 212, 170, 0.42);
-  background: rgba(0, 212, 170, 0.12);
-  color: var(--accent);
+  border-color: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fafafa;
 }
 
 .settings-module-copy {
@@ -3612,7 +3612,7 @@ input[type="color"]::-webkit-color-swatch {
   gap: 18px;
   padding: 18px 20px;
   border-bottom: 1px solid var(--border);
-  background: rgba(30, 30, 58, 0.48);
+  background: #181818; border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .settings-module-stage-header h2 {
@@ -3625,10 +3625,10 @@ input[type="color"]::-webkit-color-swatch {
   max-width: 260px;
   overflow-wrap: anywhere;
   padding: 5px 9px;
-  border: 1px solid rgba(0, 212, 170, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 999px;
-  background: rgba(0, 212, 170, 0.06);
-  color: var(--accent);
+  background: rgba(255, 255, 255, 0.05);
+  color: #b3b3b3;
   font-size: 11px;
   line-height: 1.35;
 }
@@ -3641,6 +3641,7 @@ input[type="color"]::-webkit-color-swatch {
   overflow: hidden;
 }
 
+.settings-page-general { background: transparent; }
 .settings-page-general {
   display: flex;
   flex-direction: column;
