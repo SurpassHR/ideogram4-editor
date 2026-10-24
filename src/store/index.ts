@@ -610,6 +610,10 @@ interface EditorStore {
 
   // Canvas Chat 状态（画布级 AI 构图对话）
   isCanvasChatOpen: boolean;
+  isGeneratingScene: boolean;
+  isExtractingImage: boolean;
+  setIsGeneratingScene: (val: boolean) => void;
+  setIsExtractingImage: (val: boolean) => void;
   isCanvasChatMaximized: boolean;
   canvasChatSessions: CanvasChatSession[];
   activeCanvasChatSessionId: string;
@@ -1089,6 +1093,8 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
   // Canvas Chat 状态（画布级 AI 构图对话）
   isCanvasChatOpen: false,
+  isGeneratingScene: false,
+  isExtractingImage: false,
   isCanvasChatMaximized: false,
   canvasChatSessions: initialCanvasChatRuntime.sessions,
   activeCanvasChatSessionId: initialCanvasChatRuntime.activeSessionId,
@@ -1216,6 +1222,8 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   },
 
   setCanvasChatOpen: (open) => set({ isCanvasChatOpen: open }),
+  setIsGeneratingScene: (val) => set({ isGeneratingScene: val }),
+  setIsExtractingImage: (val) => set({ isExtractingImage: val }),
 
   setCanvasChatMessages: (messages) => {
     set(state => ({
