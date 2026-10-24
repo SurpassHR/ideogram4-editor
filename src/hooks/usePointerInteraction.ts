@@ -60,6 +60,7 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
 
   const addBox = useEditorStore(s => s.addBox);
   const selectBox = useEditorStore(s => s.selectBox);
+  const openChat = useEditorStore(s => s.openChat);
   const selectBoxes = useEditorStore(s => s.selectBoxes);
   const toggleBoxSelection = useEditorStore(s => s.toggleBoxSelection);
   const clearSelection = useEditorStore(s => s.clearSelection);
@@ -423,7 +424,8 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
             ir.lastClickTime = 0;
             ir.lastClickBoxId = null;
           } else {
-            // 单击：不打开 Chat，仅记录点击时间用于双击检测
+            // 单击：选中并呼出针对该 box 的对话框
+            openChat(el.id);
             ir.lastClickTime = now;
             ir.lastClickBoxId = el.id;
           }

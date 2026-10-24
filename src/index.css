@@ -3,37 +3,37 @@
 }
 
 :root {
-  --bg: #0d0d1a;
-  --surface: #161630;
-  --surface-raised: #1e1e3a;
-  --border: #2a2a4a;
-  --border-focus: #7c5cfc;
+  --bg: #101010;
+  --surface: #141414;
+  --surface-raised: #1a1a1a;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-focus: rgba(255, 255, 255, 0.25);
   --primary: #7c5cfc;
   --primary-hover: #9575fd;
   --primary-muted: rgba(124, 92, 252, 0.15);
   --accent: #00d4aa;
-  --text: #e8e8f0;
-  --text-secondary: #8888aa;
-  --text-muted: #5a5a7a;
-  --danger: #ff5252;
-  --danger-hover: #ff1744;
-  --orange: #ff9800;
-  --canvas-checker: #2a2a40;
-  --canvas-bg: #1a1a30;
-  --box-border: #ff5252;
-  --box-fill: rgba(255, 82, 82, 0.12);
+  --text: #fafafa;
+  --text-secondary: #b3b3b3;
+  --text-muted: #737373;
+  --danger: #ef4444;
+  --danger-hover: #dc2626;
+  --orange: #f59e0b;
+  --canvas-checker: #181818;
+  --canvas-bg: #121212;
+  --box-border: rgba(255, 255, 255, 0.4);
+  --box-fill: rgba(255, 255, 255, 0.04);
   --box-selected-border: #7c5cfc;
-  --box-selected-fill: rgba(124, 92, 252, 0.12);
-  --box-selected-tag-bg: rgba(124, 92, 252, 0.28);
-  --box-selected-tag-text: #ded3ff;
-  --box-text-border: #4c8dff;
-  --box-text-fill: rgba(76, 141, 255, 0.10);
-  --box-text-tag-bg: rgba(76, 141, 255, 0.22);
-  --box-text-tag-text: #cfe0ff;
-  --box-obj-border: #ff9800;
-  --box-obj-fill: rgba(255, 152, 0, 0.10);
-  --box-obj-tag-bg: rgba(255, 152, 0, 0.20);
-  --box-obj-tag-text: #ffd9a3;
+  --box-selected-fill: rgba(124, 92, 252, 0.08);
+  --box-selected-tag-bg: #222222;
+  --box-selected-tag-text: #fafafa;
+  --box-text-border: #38bdf8;
+  --box-text-fill: rgba(56, 189, 248, 0.06);
+  --box-text-tag-bg: #1e293b;
+  --box-text-tag-text: #f0f9ff;
+  --box-obj-border: #f59e0b;
+  --box-obj-fill: rgba(245, 158, 11, 0.06);
+  --box-obj-tag-bg: #292524;
+  --box-obj-tag-text: #fef3c7;
 }
 
 html {
@@ -996,10 +996,10 @@ input[type="color"]::-webkit-color-swatch {
   flex: 1;
   position: relative;
   overflow: hidden;
-  background: #0a0a14;
-  border: 2px solid var(--border-focus);
-  border-radius: 8px;
-  box-shadow: 0 0 30px rgba(124, 92, 252, 0.08);
+  background: #101010;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
 }
 
 .artboard-toolbar {
@@ -1011,11 +1011,12 @@ input[type="color"]::-webkit-color-swatch {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: rgba(22, 22, 48, 0.9);
-  backdrop-filter: blur(8px);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 6px 14px;
+  background: rgba(20, 20, 20, 0.88);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+  padding: 6px 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
   pointer-events: auto;
 }
 
@@ -1489,22 +1490,22 @@ input[type="color"]::-webkit-color-swatch {
 .chat-panel {
   position: fixed;
   width: min(360px, 30vw);
-  min-width: 300px;
+  min-width: 320px;
   max-width: 420px;
-  max-height: clamp(280px, 50vh, 600px);
-  background: rgba(22, 22, 48, 0.78);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(124, 92, 252, 0.22);
-  border-radius: 12px;
+  max-height: clamp(300px, 52vh, 640px);
+  background: rgba(24, 24, 24, 0.94);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.45),
-    0 0 0 1px rgba(124, 92, 252, 0.08) inset;
+    0 16px 40px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset;
   z-index: 90;
-  animation: chat-panel-in 0.2s ease-out;
+  animation: chat-panel-in 0.18s ease-out;
 }
 
 @keyframes chat-panel-in {
