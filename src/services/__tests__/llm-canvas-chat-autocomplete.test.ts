@@ -10,10 +10,10 @@ describe('Scene Auto-Complete and Inversion Prompt Builders', () => {
       y: 100,
       w: 200,
       h: 200,
-      mode: 0,
+      mode: 'obj',
       text: 'astronaut',
       desc: '',
-      colors: []
+      colors: [], imageDataUrl: '', imageRole: 'reference'
     }];
     const prompt = buildSceneAutoCompletePrompt(boxes, 1024, 1024, 'cyberpunk style');
     expect(prompt).toContain('astronaut');

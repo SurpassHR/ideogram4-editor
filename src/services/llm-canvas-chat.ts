@@ -413,7 +413,7 @@ export function buildSceneAutoCompletePrompt(
 ): string {
   const elementsDesc = boxes
     .map((b, idx) => {
-      const mode = b.mode === 1 ? 'text' : 'object';
+      const mode = (b.mode === 'text' || (b.mode as any) === 1) ? 'text' : 'object';
       const label = b.text ? `"${b.text}"` : '(unlabeled)';
       const desc = b.desc ? ` - ${b.desc}` : '';
       return `#${idx + 1} [${mode}] ${label} at (${b.x},${b.y},${b.w},${b.h})${desc}`;

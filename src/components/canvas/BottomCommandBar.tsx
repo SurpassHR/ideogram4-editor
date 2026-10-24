@@ -1,12 +1,14 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { useEditorStore } from '../../store';
 import { useI18n } from '../../i18n/context';
 import { IconSparkle, IconClose, IconImage, IconLoading } from '../ui/icons';
 import { buildSceneAutoCompletePrompt, buildImageInversionPrompt, extractAndValidateIdeogramJSON } from '../../services/llm-canvas-chat';
 import { sendChatMessageStream } from '../../services/llm-stream';
 import { getLlmProviders } from '../llm/api';
+import { buildIdeogramExtraction } from '../../services/skill-adapters/ideogram4';
 import { applyExtractionToStore } from '../../services/skill-apply';
 import { RATIO_KEYS, RATIO_BASES, computeCanvasDims } from '../../utils/canvas-dims';
+import type { LlmProvider } from '../llm/types';
 
 export const BottomCommandBar: React.FC = () => {
   const { t } = useI18n();
@@ -19,33 +21,34 @@ export const BottomCommandBar: React.FC = () => {
     canvasH,
     canvasBackgroundUrl,
     selectedBoxId,
-    setSelectedBoxId,
+    selectBox,
     setCanvasDimensions,
     chatModel,
     isGeneratingScene,
     isExtractingImage,
     setIsGeneratingScene,
     setIsExtractingImage,
-    recordHistory,
+    snapshot,
   } = useEditorStore();
 
   const selectedBoxIndex = boxes.findIndex((b) => b.id === selectedBoxId);
   const isBusy = isGeneratingScene || isExtractingImage;
 
   // 快捷比例匹配
-  const standardRatios = RATIO_KEYS.filter(k => k !== 'custom');
-  const matchedRatio = standardRatios.find((key) => {
-    const base = RATIO_BASES[key];
-    return Math.abs(base.baseW / base.baseH - canvasW / canvasH) < 0.05;
-  }) || '1:1';
+  const standardRatios = RATIO_KEYS.filter((k) => k !== 'custom');
+  const matchedRatio =
+    standardRatios.find((key) => {
+      const base = RATIO_BASES[key];
+      return Math.abs(base.baseW / base.baseH - canvasW / canvasH) < 0.05;
+    }) || '1:1';
 
   const handleRatioChange = (ratioVal: any) => {
     const dims = computeCanvasDims(ratioVal, 4, 1, 1);
     setCanvasDimensions(dims.w, dims.h);
   };
 
-  const getActiveModelConfig = () => {
-    const providers = getLlmProviders();
+  const getActiveModelConfig = async (): Promise<{ provider: LlmProvider; model: string } | null> => {
+    const providers = await getLlmProviders();
     if (!chatModel) return null;
     const [providerId, ...rest] = chatModel.split(':');
     const modelName = rest.join(':');
@@ -57,14 +60,14 @@ export const BottomCommandBar: React.FC = () => {
   // 一键全场景自动补全
   const handleAutoComplete = async () => {
     if (isBusy) return;
-    const modelConfig = getActiveModelConfig();
+    const modelConfig = await getActiveModelConfig();
     if (!modelConfig) {
       alert('Please configure an LLM model in Settings first.');
       return;
     }
 
     setIsGeneratingScene(true);
-    recordHistory(); // 记录撤销点
+    snapshot(); // 记录撤销点
 
     try {
       const prompt = buildSceneAutoCompletePrompt(boxes, canvasW, canvasH, input.trim() || undefined);
@@ -74,9 +77,13 @@ export const BottomCommandBar: React.FC = () => {
         modelConfig.provider,
         modelConfig.model,
         [{ role: 'user', content: prompt }],
+        'You are an expert AI composition artist.',
         {
-          onToken: (token) => {
-            accumulatedText += token;
+          onChunk: (chunk) => {
+            if (chunk.type === 'content') accumulatedText += chunk.text;
+          },
+          onDone: (fullText) => {
+            accumulatedText = fullText;
           },
           onError: (err) => {
             console.error('Scene Auto-Complete failed:', err);
@@ -86,7 +93,8 @@ export const BottomCommandBar: React.FC = () => {
 
       const parsed = extractAndValidateIdeogramJSON(accumulatedText);
       if (parsed) {
-        applyExtractionToStore(parsed, useEditorStore.getState);
+        const extraction = buildIdeogramExtraction(parsed, accumulatedText, { canvasW, canvasH });
+        applyExtractionToStore(extraction, useEditorStore.getState());
         setInput('');
       } else {
         console.warn('Could not extract valid Ideogram JSON from response');
@@ -101,20 +109,19 @@ export const BottomCommandBar: React.FC = () => {
   // 背景参考图反推落框
   const handleInvertImage = async () => {
     if (isBusy || !canvasBackgroundUrl) return;
-    const modelConfig = getActiveModelConfig();
+    const modelConfig = await getActiveModelConfig();
     if (!modelConfig) {
       alert('Please configure an LLM model in Settings first.');
       return;
     }
 
     setIsExtractingImage(true);
-    recordHistory(); // 记录撤销点
+    snapshot(); // 记录撤销点
 
     try {
       const prompt = buildImageInversionPrompt(canvasW, canvasH);
       let accumulatedText = '';
 
-      // 以带有背景图片的多模态格式发送
       await sendChatMessageStream(
         modelConfig.provider,
         modelConfig.model,
@@ -122,22 +129,27 @@ export const BottomCommandBar: React.FC = () => {
           {
             role: 'user',
             content: prompt,
-            images: [canvasBackgroundUrl],
           },
         ],
+        'You are an expert vision and layout analyzer.',
         {
-          onToken: (token) => {
-            accumulatedText += token;
+          onChunk: (chunk) => {
+            if (chunk.type === 'content') accumulatedText += chunk.text;
+          },
+          onDone: (fullText) => {
+            accumulatedText = fullText;
           },
           onError: (err) => {
             console.error('Image inversion failed:', err);
           },
-        }
+        },
+        canvasBackgroundUrl
       );
 
       const parsed = extractAndValidateIdeogramJSON(accumulatedText);
       if (parsed) {
-        applyExtractionToStore(parsed, useEditorStore.getState);
+        const extraction = buildIdeogramExtraction(parsed, accumulatedText, { canvasW, canvasH });
+        applyExtractionToStore(extraction, useEditorStore.getState());
       }
     } catch (err) {
       console.error('Error during image inversion:', err);
@@ -152,7 +164,7 @@ export const BottomCommandBar: React.FC = () => {
       handleAutoComplete();
     } else if (e.key === 'Escape') {
       if (selectedBoxId) {
-        setSelectedBoxId(null);
+        selectBox(null);
       }
     }
   };
@@ -197,9 +209,9 @@ export const BottomCommandBar: React.FC = () => {
           >
             <span>{t('commandBar.scopeBox', { idx: selectedBoxIndex + 1 })}</span>
             <button
-              onClick={() => setSelectedBoxId(null)}
+              onClick={() => selectBox(null)}
               title={t('commandBar.clearScope')}
-              className="hover:text-white transition-colors"
+              className="hover:text-white transition-colors cursor-pointer"
             >
               <IconClose size={10} />
             </button>
