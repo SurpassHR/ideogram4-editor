@@ -211,7 +211,7 @@ export const BottomCommandBar: React.FC = () => {
   };
 
   return (
-    <div style={{ position: 'relative' }}>
+    <>
       {/* 历史对话悬浮弹出浮窗 */}
       {showHistory && (
         <div
@@ -415,7 +415,7 @@ export const BottomCommandBar: React.FC = () => {
           </button>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 
