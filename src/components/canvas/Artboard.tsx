@@ -1,3 +1,4 @@
+import { BottomCommandBar } from './BottomCommandBar';
 import { useRef, useEffect, useLayoutEffect } from 'react';
 import { useEditorStore } from '../../store';
 import { useArtboardZoom } from '../../hooks/useArtboardZoom';
@@ -78,6 +79,7 @@ export default function Artboard() {
       </div>
       <LayerPanel />
       <CanvasChatPanel />
+      <BottomCommandBar />
 
       {/* 布局质量检测对话框 */}
       <LayoutQualityDialog
