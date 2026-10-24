@@ -170,30 +170,17 @@ export const BottomCommandBar: React.FC = () => {
   };
 
   return (
-    <div
-      data-testid="bottom-command-bar"
-      className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-3 py-1.5 rounded-full shadow-2xl transition-all"
-      style={{
-        background: 'rgba(20, 20, 20, 0.88)',
-        backdropFilter: 'blur(16px)',
-        border: '1px solid rgba(255, 255, 255, 0.12)',
-        minWidth: '540px',
-        maxWidth: '800px',
-        width: '70vw',
-      }}
-    >
+    <div data-testid="bottom-command-bar" className="bottom-command-bar">
       {/* 比例选择器 */}
-      <div className="flex items-center">
+      <div>
         <select
           value={matchedRatio}
           onChange={(e) => handleRatioChange(e.target.value)}
           disabled={isBusy}
           aria-label="Aspect Ratio"
-          className="bg-transparent text-xs text-neutral-400 hover:text-white border border-white/10 rounded-full px-2 py-1 outline-none cursor-pointer transition-colors"
-          style={{ background: '#1c1c1c' }}
         >
           {standardRatios.map((key) => (
-            <option key={key} value={key} className="bg-[#1c1c1c] text-white">
+            <option key={key} value={key}>
               {key}
             </option>
           ))}
@@ -201,33 +188,27 @@ export const BottomCommandBar: React.FC = () => {
       </div>
 
       {/* 焦点范围胶囊指示 */}
-      <div className="flex items-center">
+      <div>
         {selectedBoxId ? (
-          <span
-            className="flex items-center gap-1 text-[11px] font-medium text-purple-300 px-2 py-0.5 rounded-full border border-purple-500/30"
-            style={{ background: 'rgba(168, 85, 247, 0.12)' }}
-          >
+          <span className="bottom-command-bar-scope-pill is-box">
             <span>{t('commandBar.scopeBox', { idx: selectedBoxIndex + 1 })}</span>
             <button
               onClick={() => selectBox(null)}
               title={t('commandBar.clearScope')}
-              className="hover:text-white transition-colors cursor-pointer"
+              style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 0 }}
             >
               <IconClose size={10} />
             </button>
           </span>
         ) : (
-          <span
-            className="text-[11px] font-medium text-neutral-400 px-2 py-0.5 rounded-full border border-white/5"
-            style={{ background: 'rgba(255, 255, 255, 0.05)' }}
-          >
+          <span className="bottom-command-bar-scope-pill is-global">
             {t('commandBar.scopeGlobal')}
           </span>
         )}
       </div>
 
       {/* 中央直达输入框 */}
-      <div className="flex-1 flex items-center mx-1">
+      <div className="bottom-command-bar-input-wrap">
         <input
           ref={inputRef}
           type="text"
@@ -236,12 +217,12 @@ export const BottomCommandBar: React.FC = () => {
           onKeyDown={handleKeyDown}
           disabled={isBusy}
           placeholder={t('commandBar.placeholder')}
-          className="w-full bg-transparent text-xs text-white placeholder:text-neutral-500 outline-none px-1"
+          className="bottom-command-bar-input"
         />
       </div>
 
       {/* 核心动作触发区 */}
-      <div className="flex items-center gap-1.5">
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
         {/* 背景图提取按钮 */}
         {canvasBackgroundUrl && (
           <button
@@ -249,12 +230,11 @@ export const BottomCommandBar: React.FC = () => {
             onClick={handleInvertImage}
             disabled={isBusy}
             title={t('commandBar.invertImage')}
-            className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-emerald-400 hover:text-emerald-300 rounded-full border border-emerald-500/20 hover:border-emerald-500/40 transition-all cursor-pointer disabled:opacity-50"
-            style={{ background: 'rgba(16, 185, 129, 0.08)' }}
+            className="bottom-command-bar-btn-invert"
           >
             {isExtractingImage ? (
               <>
-                <IconLoading size={12} className="animate-spin" />
+                <IconLoading size={12} className="spin-icon" />
                 <span>{t('commandBar.invertImageLoading')}</span>
               </>
             ) : (
@@ -272,14 +252,11 @@ export const BottomCommandBar: React.FC = () => {
           onClick={handleAutoComplete}
           disabled={isBusy}
           title={t('commandBar.autoComplete')}
-          className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold text-white rounded-full transition-all cursor-pointer shadow-lg disabled:opacity-50"
-          style={{
-            background: 'linear-gradient(135deg, #7c5cfc 0%, #6342e8 100%)',
-          }}
+          className="bottom-command-bar-btn-auto"
         >
           {isGeneratingScene ? (
             <>
-              <IconLoading size={13} className="animate-spin" />
+              <IconLoading size={13} className="spin-icon" />
               <span>{t('commandBar.autoCompleteLoading')}</span>
             </>
           ) : (
