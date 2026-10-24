@@ -6591,7 +6591,7 @@ input[type="color"]::-webkit-color-swatch {
 /* Bottom Command Bar */
 .bottom-command-bar {
   position: absolute;
-  bottom: 24px;
+  bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 60;
@@ -6604,9 +6604,7 @@ input[type="color"]::-webkit-color-swatch {
   backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.14);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
-  min-width: 520px;
-  max-width: 800px;
-  width: 65vw;
+  width: min(720px, 80%);
   pointer-events: auto;
 }
 

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useEditorStore } from '../../store';
 import { useI18n } from '../../i18n/context';
-import { IconSparkle, IconClose, IconImage, IconLoading, IconMessage } from '../ui/icons';
+import { IconSparkle, IconClose, IconImage, IconLoading, IconMessage, IconTrash, IconMoreHorizontal } from '../ui/icons';
 import { buildSceneAutoCompletePrompt, buildImageInversionPrompt, extractAndValidateIdeogramJSON } from '../../services/llm-canvas-chat';
 import { sendChatMessageStream } from '../../services/llm-stream';
 import { getLlmProviders } from '../llm/api';
@@ -32,7 +32,12 @@ export const BottomCommandBar: React.FC = () => {
     setIsGeneratingScene,
     setIsExtractingImage,
     snapshot,
-    canvasChatMessages,
+    canvasChatSessions,
+    activeCanvasChatSessionId,
+    selectCanvasChatSession,
+    createCanvasChatSession,
+    deleteCanvasChatSession,
+    clearCanvasChatSession,
   } = useEditorStore();
 
   const {
@@ -43,7 +48,15 @@ export const BottomCommandBar: React.FC = () => {
   const selectedBoxIndex = boxes.findIndex((b) => b.id === selectedBoxId);
   const isBusy = isGeneratingScene || isExtractingImage || isChatStreaming;
 
-  // 点击外部关闭历史弹窗
+  const activeSession =
+    canvasChatSessions.find((s) => s.id === activeCanvasChatSessionId) ??
+    canvasChatSessions[0];
+  const totalMessageCount = canvasChatSessions.reduce(
+    (acc, s) => acc + s.messages.length,
+    0
+  );
+
+  // 点击外部关闭历史浮窗
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (
@@ -84,21 +97,17 @@ export const BottomCommandBar: React.FC = () => {
     return { provider, model: modelName };
   };
 
-  // 发送指令/对话：如果有输入，走多轮构图 Agent 流程（带历史上下文）；如果输入为空，触发一键场景润色
   const handleSubmitOrAutoComplete = async () => {
     if (isBusy) return;
     const text = input.trim();
     if (text) {
-      // 构图对话：调用 Canvas Chat 的多轮消息流，直接在画布上落框/调整
       setInput('');
       await sendMessage(text);
     } else {
-      // 一键全场补全（无输入时的快捷心流）
       await handleAutoCompleteDirect();
     }
   };
 
-  // 纯粹的【✨ 补全全场】主按钮行为
   const handleAutoCompleteDirect = async () => {
     if (isBusy) return;
     const modelConfig = await getActiveModelConfig();
@@ -108,7 +117,7 @@ export const BottomCommandBar: React.FC = () => {
     }
 
     setIsGeneratingScene(true);
-    snapshot(); // 记录撤销点
+    snapshot();
 
     try {
       const prompt = buildSceneAutoCompletePrompt(boxes, canvasW, canvasH, input.trim() || undefined);
@@ -147,7 +156,6 @@ export const BottomCommandBar: React.FC = () => {
     }
   };
 
-  // 背景参考图反推落框
   const handleInvertImage = async () => {
     if (isBusy || !canvasBackgroundUrl) return;
     const modelConfig = await getActiveModelConfig();
@@ -157,7 +165,7 @@ export const BottomCommandBar: React.FC = () => {
     }
 
     setIsExtractingImage(true);
-    snapshot(); // 记录撤销点
+    snapshot();
 
     try {
       const prompt = buildImageInversionPrompt(canvasW, canvasH);
@@ -212,7 +220,7 @@ export const BottomCommandBar: React.FC = () => {
 
   return (
     <>
-      {/* 历史对话悬浮弹出浮窗 */}
+      {/* 完整多会话历史浮窗 */}
       {showHistory && (
         <div
           ref={historyPopupRef}
@@ -221,73 +229,183 @@ export const BottomCommandBar: React.FC = () => {
             bottom: '76px',
             left: '50%',
             transform: 'translateX(-50%)',
-            width: '580px',
-            maxWidth: '85vw',
-            maxHeight: '380px',
+            width: '680px',
+            maxWidth: '88vw',
+            height: '420px',
             background: 'rgba(20, 20, 20, 0.95)',
-            backdropFilter: 'blur(20px)',
+            backdropFilter: 'blur(24px)',
             border: '1px solid rgba(255, 255, 255, 0.14)',
             borderRadius: '16px',
-            boxShadow: '0 16px 40px rgba(0, 0, 0, 0.6)',
+            boxShadow: '0 20px 48px rgba(0, 0, 0, 0.65)',
             display: 'flex',
-            flexDirection: 'column',
             overflow: 'hidden',
             zIndex: 70,
             pointerEvents: 'auto',
           }}
         >
+          {/* 左侧：多会话列表 */}
           <div
             style={{
+              width: '200px',
+              borderRight: '1px solid rgba(255, 255, 255, 0.08)',
+              background: '#141414',
               display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '8px 14px',
-              borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-              background: '#161616',
+              flexDirection: 'column',
             }}
           >
-            <span style={{ fontSize: '12px', fontWeight: 600, color: '#fafafa', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <IconSparkle size={13} />
-              Canvas AI Log & Context ({canvasChatMessages.length})
-            </span>
-            <button
-              onClick={() => setShowHistory(false)}
-              style={{ background: 'none', border: 'none', color: '#737373', cursor: 'pointer', padding: '2px' }}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '10px 12px',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+              }}
             >
-              <IconClose size={13} />
-            </button>
-          </div>
+              <span style={{ fontSize: '11px', fontWeight: 600, color: '#b3b3b3' }}>
+                {t('chat.canvasSessions.sectionTitle')}
+              </span>
+              <button
+                type="button"
+                onClick={() => createCanvasChatSession()}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  borderRadius: '6px',
+                  color: '#fafafa',
+                  fontSize: '11px',
+                  padding: '2px 6px',
+                  cursor: 'pointer',
+                }}
+              >
+                +
+              </button>
+            </div>
 
-          <div style={{ flex: 1, overflowY: 'auto', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {canvasChatMessages.length === 0 ? (
-              <div style={{ textAlign: 'center', color: '#737373', fontSize: '12px', padding: '24px 0' }}>
-                No conversation history yet. Type a command in the bar below.
-              </div>
-            ) : (
-              canvasChatMessages.map((msg) => (
+            <div style={{ flex: 1, overflowY: 'auto', padding: '6px' }}>
+              {canvasChatSessions.map((session) => (
                 <div
-                  key={msg.id}
+                  key={session.id}
+                  onClick={() => selectCanvasChatSession(session.id)}
                   style={{
-                    alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                    maxWidth: '85%',
-                    padding: '8px 12px',
-                    borderRadius: '10px',
-                    fontSize: '12px',
-                    lineHeight: '1.5',
-                    background: msg.role === 'user' ? '#fafafa' : '#222222',
-                    color: msg.role === 'user' ? '#111111' : '#fafafa',
-                    border: msg.role === 'user' ? 'none' : '1px solid rgba(255, 255, 255, 0.08)',
+                    padding: '8px 10px',
+                    borderRadius: '8px',
+                    marginBottom: '4px',
+                    cursor: 'pointer',
+                    background:
+                      session.id === activeSession?.id
+                        ? 'rgba(255, 255, 255, 0.12)'
+                        : 'transparent',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    transition: 'all 0.15s',
                   }}
                 >
-                  {msg.content}
+                  <div style={{ overflow: 'hidden' }}>
+                    <div
+                      style={{
+                        fontSize: '12px',
+                        color: session.id === activeSession?.id ? '#fafafa' : '#888',
+                        fontWeight: session.id === activeSession?.id ? 600 : 400,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
+                      {session.title || '新会话'}
+                    </div>
+                    <div style={{ fontSize: '10px', color: '#666' }}>
+                      {session.messages.length} msgs
+                    </div>
+                  </div>
+                  {canvasChatSessions.length > 1 && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteCanvasChatSession(session.id);
+                      }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#666',
+                        cursor: 'pointer',
+                        padding: '2px',
+                      }}
+                      title="Delete"
+                    >
+                      <IconTrash size={11} />
+                    </button>
+                  )}
                 </div>
-              ))
-            )}
+              ))}
+            </div>
+          </div>
+
+          {/* 右侧：当前会话消息列表 */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#181818' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '10px 14px',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+              }}
+            >
+              <span style={{ fontSize: '12px', fontWeight: 600, color: '#fafafa', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <IconSparkle size={13} />
+                {activeSession?.title || 'Canvas Chat'}
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {activeSession && activeSession.messages.length > 0 && (
+                  <button
+                    onClick={() => clearCanvasChatSession(activeSession.id)}
+                    style={{ background: 'none', border: 'none', color: '#737373', fontSize: '11px', cursor: 'pointer' }}
+                  >
+                    Clear
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowHistory(false)}
+                  style={{ background: 'none', border: 'none', color: '#737373', cursor: 'pointer', padding: '2px' }}
+                >
+                  <IconClose size={13} />
+                </button>
+              </div>
+            </div>
+
+            <div style={{ flex: 1, overflowY: 'auto', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {!activeSession || activeSession.messages.length === 0 ? (
+                <div style={{ textAlign: 'center', color: '#737373', fontSize: '12px', padding: '36px 0' }}>
+                  No messages in this session. Type in the command bar below to chat.
+                </div>
+              ) : (
+                activeSession.messages.map((msg) => (
+                  <div
+                    key={msg.id}
+                    style={{
+                      alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                      maxWidth: '85%',
+                      padding: '8px 12px',
+                      borderRadius: '10px',
+                      fontSize: '12px',
+                      lineHeight: '1.5',
+                      background: msg.role === 'user' ? '#fafafa' : '#242424',
+                      color: msg.role === 'user' ? '#111111' : '#fafafa',
+                      border: msg.role === 'user' ? 'none' : '1px solid rgba(255, 255, 255, 0.08)',
+                    }}
+                  >
+                    {msg.content}
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       )}
 
-      {/* 常驻指令岛核心 */}
+      {/* 常驻指令岛核心：固定吸底居中 */}
       <div data-testid="bottom-command-bar" className="bottom-command-bar">
         {/* 比例选择器 */}
         <div>
@@ -343,34 +461,31 @@ export const BottomCommandBar: React.FC = () => {
           />
         </div>
 
-        {/* 历史对话展开开关按钮 */}
-        {canvasChatMessages.length > 0 && (
-          <button
-            type="button"
-            onClick={() => setShowHistory(!showHistory)}
-            title="View AI Chat History"
-            style={{
-              background: showHistory ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.06)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              borderRadius: '9999px',
-              padding: '4px 8px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              color: '#fafafa',
-              fontSize: '11px',
-              cursor: 'pointer',
-              transition: 'all 0.15s',
-            }}
-          >
-            <IconMessage size={12} />
-            <span>{canvasChatMessages.length}</span>
-          </button>
-        )}
+        {/* 多会话历史浮窗触发按钮 */}
+        <button
+          type="button"
+          onClick={() => setShowHistory(!showHistory)}
+          title="View Canvas Chat Sessions & History"
+          style={{
+            background: showHistory ? 'rgba(255, 255, 255, 0.16)' : 'rgba(255, 255, 255, 0.06)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '9999px',
+            padding: '4px 8px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            color: '#fafafa',
+            fontSize: '11px',
+            cursor: 'pointer',
+            transition: 'all 0.15s',
+          }}
+        >
+          <IconMessage size={12} />
+          <span>{totalMessageCount}</span>
+        </button>
 
         {/* 核心动作触发区 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          {/* 背景图提取按钮 */}
           {canvasBackgroundUrl && (
             <button
               data-testid="btn-invert-image"
@@ -393,7 +508,6 @@ export const BottomCommandBar: React.FC = () => {
             </button>
           )}
 
-          {/* 构图速写一键补全主按钮 */}
           <button
             data-testid="btn-autocomplete-scene"
             onClick={handleSubmitOrAutoComplete}
