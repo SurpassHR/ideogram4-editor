@@ -7,7 +7,7 @@ import SelectMenu from '../chat/SelectMenu';
 import ChatRunControls from '../chat/ChatRunControls';
 import ContextMenu from './ContextMenu';
 import CanvasChatRegionBar from './CanvasChatRegionBar';
-import { IconClose, IconMaximize, IconArrowRight, IconStop, IconMoreHorizontal, IconPencil, IconBroom, IconTrash, IconCopy, IconPackage } from '../ui/icons';
+import { IconSparkle, IconClose, IconMaximize, IconArrowRight, IconStop, IconMoreHorizontal, IconPencil, IconBroom, IconTrash, IconCopy, IconPackage } from '../ui/icons';
 import { useI18n } from '../../i18n/context';
 import { useEditorStore } from '../../store';
 import { resolveTemplate } from '../../utils/resolveTemplate';
@@ -699,7 +699,7 @@ export default function CanvasChatPanel() {
         <div className="canvas-chat-panel">
           {/* Header */}
           <div className="canvas-chat-header">
-            <span className="canvas-chat-header-title">🤖 Canvas AI Compose</span>
+            <span className="canvas-chat-header-title flex items-center gap-1.5"><IconSparkle size={13} /> Canvas AI Compose</span>
             <span className="chat-header-spacer" />
             <button
               type="button"
@@ -709,6 +709,15 @@ export default function CanvasChatPanel() {
               onClick={handleMaximize}
             >
               <IconMaximize size={14} />
+            </button>
+            <button
+              type="button"
+              className="canvas-chat-icon-btn"
+              aria-label="Close"
+              title="Close"
+              onClick={() => setCanvasChatOpen(false)}
+            >
+              <IconClose size={14} />
             </button>
           </div>
 
