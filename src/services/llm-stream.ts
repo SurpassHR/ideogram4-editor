@@ -107,6 +107,42 @@ export async function sendChatMessageStream(
   const apiMessages = safeImageUrl
     ? buildMultimodalMessages(messages, safeImageUrl, provider.kind)
     : messages;
+  // 测试打桩模式 (Mock Test Mode) 拦截
+  if (provider.id === 'mock_test_provider' || provider.api_key === 'mock-key' || (typeof localStorage !== 'undefined' && localStorage.getItem('ideogram4-mock-test-mode') === 'true' && provider.name.includes('Mock'))) {
+    await new Promise(r => setTimeout(r, 400));
+    callbacks.onResponse?.(200, { 'content-type': 'text/event-stream' });
+    const thinkingText = 'Analyzing the prompt and craft an ideal composition with balanced bounding boxes and vivid descriptions...';
+    callbacks.onChunk({ type: 'thinking', text: thinkingText });
+    await new Promise(r => setTimeout(r, 600));
+    const mockJson = '```json\n' + JSON.stringify({
+      high_level_description: 'A cinematic, high-detail composition with dramatic lighting and balanced spatial depth.',
+      style_description: 'Hyper-detailed photographic render with natural rim lighting and subtle atmospheric haze.',
+      canvasW: 1024,
+      canvasH: 576,
+      compositional_deconstruction: {
+        background: 'Expansive moody atmospheric backdrop with rich gradients and soft environmental reflections.',
+        elements: [
+          {
+            type: 'object',
+            description: 'Main hero subject positioned with clear visual hierarchy and sharp focus.',
+            bbox: [120, 80, 880, 520],
+            color_palette: ['#fafafa', '#38bdf8', '#1e293b']
+          },
+          {
+            type: 'text',
+            text: 'MOCK STUDIO',
+            description: 'Bold modern sans-serif headline in upper region with subtle glow.',
+            bbox: [160, 560, 360, 920],
+            color_palette: ['#ffffff', '#00d4aa']
+          }
+        ]
+      }
+    }, null, 2) + '\n```';
+    callbacks.onChunk({ type: 'content', text: mockJson });
+    callbacks.onDone(mockJson);
+    return;
+  }
+
   const baseUrl = provider.base_url || DEFAULT_BASE_URLS[provider.kind];
 
   const controller = new AbortController();

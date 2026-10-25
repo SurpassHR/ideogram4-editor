@@ -345,6 +345,13 @@ const SHOW_DEVELOPER_TOOLS_STORAGE_KEY = 'ideogram4-show-developer-tools';
 const CANVAS_CHAT_TARGET_SIZES = [1024, 2048, 4096] as const;
 type CanvasChatTargetSize = typeof CANVAS_CHAT_TARGET_SIZES[number];
 
+function loadMockTestMode(): boolean {
+  try {
+    return localStorage.getItem('ideogram4-mock-test-mode') === 'true';
+  } catch {
+    return false;
+  }
+}
 function loadShowDeveloperTools(): boolean {
   return localStorage.getItem(SHOW_DEVELOPER_TOOLS_STORAGE_KEY) === 'true';
 }
@@ -637,6 +644,8 @@ interface EditorStore {
   setCanvasChatAutoMaximize: (enabled: boolean) => void;
   /** 显示开发者工具（Terminal 面板 / 技术指标 / 原始输出） */
   showDeveloperTools: boolean;
+  mockTestMode: boolean;
+  setMockTestMode: (enabled: boolean) => void;
   setShowDeveloperTools: (enabled: boolean) => void;
   updateCanvasChatMessage: (messageId: string, updates: Partial<Omit<ChatMessage, 'id'>>) => void;
   startCanvasChatRequest: (promptPreview: string) => string;
@@ -1216,6 +1225,10 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   setCanvasChatAutoMaximize: (enabled) => set({ canvasChatAutoMaximize: enabled }),
 
   showDeveloperTools: loadShowDeveloperTools(),
+  mockTestMode: loadMockTestMode(),
+  setMockTestMode: (enabled: boolean) => {
+    try { localStorage.setItem("ideogram4-mock-test-mode", String(enabled)); } catch {} ; set({ mockTestMode: enabled });
+  },
   setShowDeveloperTools: (enabled) => {
     localStorage.setItem(SHOW_DEVELOPER_TOOLS_STORAGE_KEY, String(enabled));
     set({ showDeveloperTools: enabled });

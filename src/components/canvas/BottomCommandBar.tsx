@@ -4,6 +4,8 @@ import { useI18n } from '../../i18n/context';
 import {
   IconSparkle,
   IconClose,
+  IconMaximize,
+  IconMinimize,
   IconImage,
   IconLoading,
   IconMessage,
@@ -37,6 +39,7 @@ export const BottomCommandBar: React.FC = () => {
   const [input, setInput] = useState('');
   const [showHistory, setShowHistory] = useState(false);
   const [showConfig, setShowConfig] = useState(false);
+  const [isMaximized, setIsMaximized] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const historyPopupRef = useRef<HTMLDivElement>(null);
   const configPopupRef = useRef<HTMLDivElement>(null);
@@ -388,24 +391,43 @@ export const BottomCommandBar: React.FC = () => {
       {showHistory && (
         <div
           ref={historyPopupRef}
-          style={{
-            position: 'absolute',
-            bottom: '100px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            width: '680px',
-            maxWidth: '88vw',
-            height: '420px',
-            background: 'rgba(20, 20, 20, 0.95)',
-            backdropFilter: 'blur(24px)',
-            border: '1px solid rgba(255, 255, 255, 0.14)',
-            borderRadius: '16px',
-            boxShadow: '0 20px 48px rgba(0, 0, 0, 0.65)',
-            display: 'flex',
-            overflow: 'hidden',
-            zIndex: 70,
-            pointerEvents: 'auto',
-          }}
+          style={
+            isMaximized
+              ? {
+                  position: 'fixed',
+                  inset: '48px 24px 84px 24px',
+                  background: 'rgba(18, 18, 22, 0.96)',
+                  backdropFilter: 'blur(28px)',
+                  WebkitBackdropFilter: 'blur(28px)',
+                  border: '1px solid rgba(255, 255, 255, 0.16)',
+                  borderRadius: '20px',
+                  boxShadow: '0 24px 64px rgba(0, 0, 0, 0.8)',
+                  display: 'flex',
+                  overflow: 'hidden',
+                  zIndex: 100,
+                  pointerEvents: 'auto',
+                }
+              : {
+                  position: 'absolute',
+                  bottom: '100px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  width: '780px',
+                  maxWidth: '92vw',
+                  height: '520px',
+                  maxHeight: '68vh',
+                  background: 'rgba(20, 20, 20, 0.95)',
+                  backdropFilter: 'blur(24px)',
+                  WebkitBackdropFilter: 'blur(24px)',
+                  border: '1px solid rgba(255, 255, 255, 0.14)',
+                  borderRadius: '16px',
+                  boxShadow: '0 20px 48px rgba(0, 0, 0, 0.65)',
+                  display: 'flex',
+                  overflow: 'hidden',
+                  zIndex: 70,
+                  pointerEvents: 'auto',
+                }
+          }
         >
           {/* 左侧：多会话列表 */}
           <div
@@ -531,8 +553,16 @@ export const BottomCommandBar: React.FC = () => {
                   </button>
                 )}
                 <button
+                  type="button"
+                  onClick={() => setIsMaximized(!isMaximized)}
+                  style={{ background: 'none', border: 'none', color: '#737373', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}
+                  title={isMaximized ? 'Restore down' : 'Maximize workbench'}
+                >
+                  {isMaximized ? <IconMinimize size={13} /> : <IconMaximize size={13} />}
+                </button>
+                <button
                   onClick={() => setShowHistory(false)}
-                  style={{ background: 'none', border: 'none', color: '#737373', cursor: 'pointer', padding: '2px' }}
+                  style={{ background: 'none', border: 'none', color: '#737373', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}
                 >
                   <IconClose size={13} />
                 </button>
@@ -554,7 +584,7 @@ export const BottomCommandBar: React.FC = () => {
                       if (targetMsg) applyMessageOutput(targetMsg);
                     }}
                     outputCheck={checkMessageOutput}
-                    renderMode="json"
+                    renderMode="summary"
                   />
                 ))
               )}

@@ -16,8 +16,23 @@ function save(providers: LlmProvider[]): void {
   localStorage.setItem(LLM_PROVIDERS_STORAGE_KEY, JSON.stringify(providers));
 }
 
+export const MOCK_TEST_PROVIDER: LlmProvider = {
+  id: 'mock_test_provider',
+  name: 'Mock Test Provider',
+  kind: 'openai',
+  api_key: 'mock-key',
+  base_url: 'https://api.mock.test/v1',
+  models: ['mock-gpt-4o', 'mock-claude-3-7-thinking'],
+};
+
 export async function getLlmProviders(): Promise<LlmProvider[]> {
-  return load();
+  const providers = load();
+  try {
+    if (localStorage.getItem("ideogram4-mock-test-mode") === "true") {
+      return [MOCK_TEST_PROVIDER, ...providers];
+    }
+  } catch {}
+  return providers;
 }
 
 export async function saveLlmProvider(provider: LlmProvider): Promise<void> {
