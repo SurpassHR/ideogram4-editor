@@ -9,6 +9,9 @@ import {
   IconMessage,
   IconTrash,
   IconGear,
+  IconArrowUp,
+  IconStop,
+  IconBox,
 } from '../ui/icons';
 import {
   buildSceneAutoCompletePrompt,
@@ -63,11 +66,12 @@ export const BottomCommandBar: React.FC = () => {
 
   const {
     sendMessage,
+    stopGeneration,
     modelOptions,
     isLoading: isChatStreaming,
   } = useCanvasChat();
 
-  const registerAutoGrowTextarea = useAutoGrowTextarea(input, 160);
+  const registerAutoGrowTextarea = useAutoGrowTextarea(input, 180);
   const selectedBoxIndex = boxes.findIndex((b) => b.id === selectedBoxId);
   const isBusy = isGeneratingScene || isExtractingImage || isChatStreaming;
 
@@ -79,13 +83,20 @@ export const BottomCommandBar: React.FC = () => {
     0
   );
 
+  // 点击外部关闭历史/配置浮窗
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as Node;
-      if (historyPopupRef.current && !historyPopupRef.current.contains(target)) {
+      if (
+        historyPopupRef.current &&
+        !historyPopupRef.current.contains(target)
+      ) {
         setShowHistory(false);
       }
-      if (configPopupRef.current && !configPopupRef.current.contains(target)) {
+      if (
+        configPopupRef.current &&
+        !configPopupRef.current.contains(target)
+      ) {
         setShowConfig(false);
       }
     };
@@ -97,6 +108,7 @@ export const BottomCommandBar: React.FC = () => {
     };
   }, [showHistory, showConfig]);
 
+  // 快捷比例匹配
   const standardRatios = RATIO_KEYS.filter((k) => k !== 'custom');
   const matchedRatio =
     standardRatios.find((key) => {
@@ -137,11 +149,14 @@ export const BottomCommandBar: React.FC = () => {
       alert('Please configure an LLM model in Settings first.');
       return;
     }
+
     setIsGeneratingScene(true);
     snapshot();
+
     try {
       const prompt = buildSceneAutoCompletePrompt(boxes, canvasW, canvasH, input.trim() || undefined);
       let accumulatedText = '';
+
       await sendChatMessageStream(
         modelConfig.provider,
         modelConfig.model,
@@ -159,6 +174,7 @@ export const BottomCommandBar: React.FC = () => {
           },
         }
       );
+
       const parsed = extractAndValidateIdeogramJSON(accumulatedText);
       if (parsed) {
         const extraction = buildIdeogramExtraction(parsed, accumulatedText, { canvasW, canvasH });
@@ -181,15 +197,23 @@ export const BottomCommandBar: React.FC = () => {
       alert('Please configure an LLM model in Settings first.');
       return;
     }
+
     setIsExtractingImage(true);
     snapshot();
+
     try {
       const prompt = buildImageInversionPrompt(canvasW, canvasH);
       let accumulatedText = '';
+
       await sendChatMessageStream(
         modelConfig.provider,
         modelConfig.model,
-        [{ role: 'user', content: prompt }],
+        [
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
         'You are an expert vision and layout analyzer.',
         {
           onChunk: (chunk) => {
@@ -204,6 +228,7 @@ export const BottomCommandBar: React.FC = () => {
         },
         canvasBackgroundUrl
       );
+
       const parsed = extractAndValidateIdeogramJSON(accumulatedText);
       if (parsed) {
         const extraction = buildIdeogramExtraction(parsed, accumulatedText, { canvasW, canvasH });
@@ -241,12 +266,13 @@ export const BottomCommandBar: React.FC = () => {
 
   return (
     <>
+      {/* 预设与模型配置浮窗 */}
       {showConfig && (
         <div
           ref={configPopupRef}
           style={{
             position: 'absolute',
-            bottom: '76px',
+            bottom: '100px',
             left: '50%',
             transform: 'translateX(-50%)',
             width: '460px',
@@ -354,12 +380,14 @@ export const BottomCommandBar: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* 完整多会话历史浮窗 */}
       {showHistory && (
         <div
           ref={historyPopupRef}
           style={{
             position: 'absolute',
-            bottom: '76px',
+            bottom: '100px',
             left: '50%',
             transform: 'translateX(-50%)',
             width: '680px',
@@ -376,6 +404,7 @@ export const BottomCommandBar: React.FC = () => {
             pointerEvents: 'auto',
           }}
         >
+          {/* 左侧：多会话列表 */}
           <div
             style={{
               width: '200px',
@@ -413,6 +442,7 @@ export const BottomCommandBar: React.FC = () => {
                 +
               </button>
             </div>
+
             <div style={{ flex: 1, overflowY: 'auto', padding: '6px' }}>
               {canvasChatSessions.map((session) => (
                 <div
@@ -472,6 +502,8 @@ export const BottomCommandBar: React.FC = () => {
               ))}
             </div>
           </div>
+
+          {/* 右侧：当前会话消息列表 */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#181818' }}>
             <div
               style={{
@@ -503,6 +535,7 @@ export const BottomCommandBar: React.FC = () => {
                 </button>
               </div>
             </div>
+
             <div style={{ flex: 1, overflowY: 'auto', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {!activeSession || activeSession.messages.length === 0 ? (
                 <div style={{ textAlign: 'center', color: '#737373', fontSize: '12px', padding: '36px 0' }}>
@@ -532,40 +565,11 @@ export const BottomCommandBar: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* 常驻指令岛核心：Codex 式多行两层结构 */}
       <div data-testid="bottom-command-bar" className="bottom-command-bar">
-        <div>
-          <select
-            value={matchedRatio}
-            onChange={(e) => handleRatioChange(e.target.value)}
-            disabled={isBusy}
-            aria-label="Aspect Ratio"
-          >
-            {standardRatios.map((key) => (
-              <option key={key} value={key}>
-                {key}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          {selectedBoxId ? (
-            <span className="bottom-command-bar-scope-pill is-box">
-              <span>{t('commandBar.scopeBox', { idx: selectedBoxIndex + 1 })}</span>
-              <button
-                onClick={() => selectBox(null)}
-                title={t('commandBar.clearScope')}
-                style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 0 }}
-              >
-                <IconClose size={10} />
-              </button>
-            </span>
-          ) : (
-            <span className="bottom-command-bar-scope-pill is-global">
-              {t('commandBar.scopeGlobal')}
-            </span>
-          )}
-        </div>
-        <div className="bottom-command-bar-input-wrap">
+        {/* 上层：多行自动撑高输入区域 */}
+        <div className="bottom-command-bar-input-row">
           <textarea
             ref={(el) => {
               (inputRef as any).current = el;
@@ -577,106 +581,130 @@ export const BottomCommandBar: React.FC = () => {
             onKeyDown={handleKeyDown}
             disabled={isBusy}
             placeholder={
-              input
-                ? 'Press Enter to send (Shift+Enter for newline)...'
+              selectedBoxId
+                ? t('commandBar.scopeBox', { idx: selectedBoxIndex + 1 }) + ' selected. Type to instruct...'
                 : t('commandBar.placeholder')
             }
             className="bottom-command-bar-input"
           />
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            setShowConfig(!showConfig);
-            setShowHistory(false);
-          }}
-          title={`Active Model: ${currentModelLabel}`}
-          style={{
-            background: showConfig ? 'rgba(255, 255, 255, 0.16)' : 'rgba(255, 255, 255, 0.06)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            borderRadius: '9999px',
-            padding: '4px 10px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '5px',
-            color: '#fafafa',
-            fontSize: '11px',
-            cursor: 'pointer',
-            maxWidth: '130px',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            transition: 'all 0.15s',
-          }}
-        >
-          <IconGear size={12} />
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{currentModelLabel}</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setShowHistory(!showHistory);
-            setShowConfig(false);
-          }}
-          title="View Canvas Chat Sessions & History"
-          style={{
-            background: showHistory ? 'rgba(255, 255, 255, 0.16)' : 'rgba(255, 255, 255, 0.06)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            borderRadius: '9999px',
-            padding: '4px 8px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            color: '#fafafa',
-            fontSize: '11px',
-            cursor: 'pointer',
-            transition: 'all 0.15s',
-          }}
-        >
-          <IconMessage size={12} />
-          <span>{totalMessageCount}</span>
-        </button>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          {canvasBackgroundUrl && (
-            <button
-              data-testid="btn-invert-image"
-              onClick={handleInvertImage}
+
+        {/* 下层：工具栏操作行（左右排列，按钮各司其职） */}
+        <div className="bottom-command-bar-footer">
+          {/* 左侧控制区：比例 + 选区 */}
+          <div className="bottom-command-bar-footer-left">
+            <select
+              value={matchedRatio}
+              onChange={(e) => handleRatioChange(e.target.value)}
               disabled={isBusy}
-              title={t('commandBar.invertImage')}
-              className="bottom-command-bar-btn-invert"
+              aria-label="Aspect Ratio"
+              className="cmd-pill-btn"
+              style={{ outline: 'none' }}
             >
-              {isExtractingImage ? (
-                <>
-                  <IconLoading size={12} className="spin-icon" />
-                  <span>{t('commandBar.invertImageLoading')}</span>
-                </>
-              ) : (
-                <>
-                  <IconImage size={12} />
-                  <span>{t('commandBar.invertImage')}</span>
-                </>
-              )}
-            </button>
-          )}
-          <button
-            data-testid="btn-autocomplete-scene"
-            onClick={handleSubmitOrAutoComplete}
-            disabled={isBusy}
-            title={input.trim() ? 'Send instruction' : t('commandBar.autoComplete')}
-            className="bottom-command-bar-btn-auto"
-          >
-            {isGeneratingScene || isChatStreaming ? (
-              <>
-                <IconLoading size={13} className="spin-icon" />
-                <span>{input.trim() ? 'Composing...' : t('commandBar.autoCompleteLoading')}</span>
-              </>
+              {standardRatios.map((key) => (
+                <option key={key} value={key}>
+                  {key}
+                </option>
+              ))}
+            </select>
+
+            {selectedBoxId ? (
+              <span className="bottom-command-bar-scope-pill is-box">
+                <IconBox size={11} />
+                <span>{t('commandBar.scopeBox', { idx: selectedBoxIndex + 1 })}</span>
+                <button
+                  onClick={() => selectBox(null)}
+                  title={t('commandBar.clearScope')}
+                  style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 0 }}
+                >
+                  <IconClose size={10} />
+                </button>
+              </span>
             ) : (
-              <>
-                <IconSparkle size={13} />
-                <span>{input.trim() ? 'Send Command' : t('commandBar.autoComplete')}</span>
-              </>
+              <span className="bottom-command-bar-scope-pill is-global">
+                {t('commandBar.scopeGlobal')}
+              </span>
             )}
-          </button>
+          </div>
+
+          {/* 右侧控制区：模型选择 + 历史 + 读图反推 + 发送按钮 */}
+          <div className="bottom-command-bar-footer-right">
+            {/* 模型/预设切换器：文本超长时自适应截断 */}
+            <button
+              type="button"
+              onClick={() => {
+                setShowConfig(!showConfig);
+                setShowHistory(false);
+              }}
+              className="cmd-pill-btn"
+              title={`Active Model: ${currentModelLabel}`}
+            >
+              <IconGear size={12} />
+              <span className="cmd-text-label" style={{ maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {currentModelLabel}
+              </span>
+            </button>
+
+            {/* 历史消息条数 */}
+            <button
+              type="button"
+              onClick={() => {
+                setShowHistory(!showHistory);
+                setShowConfig(false);
+              }}
+              className="cmd-pill-btn"
+              title="View Canvas Chat Sessions & History"
+            >
+              <IconMessage size={12} />
+              <span className="cmd-text-label">{totalMessageCount}</span>
+            </button>
+
+            {/* 参考背景图反推落框按钮 */}
+            {canvasBackgroundUrl && (
+              <button
+                data-testid="btn-invert-image"
+                onClick={handleInvertImage}
+                disabled={isBusy}
+                className="cmd-pill-btn"
+                style={{ color: '#34d399', borderColor: 'rgba(52, 211, 153, 0.25)', background: 'rgba(16, 185, 129, 0.1)' }}
+                title={t('commandBar.invertImage')}
+              >
+                {isExtractingImage ? (
+                  <IconLoading size={12} className="spin-icon" />
+                ) : (
+                  <IconImage size={12} />
+                )}
+                <span className="cmd-text-label">{t('commandBar.invertImage')}</span>
+              </button>
+            )}
+
+            {/* Codex 式实心圆形主发送/补全/停止按钮 */}
+            {isBusy ? (
+              <button
+                type="button"
+                onClick={stopGeneration}
+                title="Stop generating"
+                className="cmd-send-circle-btn"
+                style={{ background: '#ef4444', color: '#fff' }}
+              >
+                <IconStop size={14} />
+              </button>
+            ) : (
+              <button
+                data-testid="btn-autocomplete-scene"
+                type="button"
+                onClick={handleSubmitOrAutoComplete}
+                title={input.trim() ? 'Send Command (Enter)' : t('commandBar.autoComplete')}
+                className="cmd-send-circle-btn"
+              >
+                {input.trim() ? (
+                  <IconArrowUp size={15} />
+                ) : (
+                  <IconSparkle size={15} />
+                )}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </>

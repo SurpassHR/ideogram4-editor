@@ -953,7 +953,7 @@ const en: Translations = {
     },
   },
   commandBar: {
-    placeholder: 'Describe your scene, or draw boxes and click Auto-Complete...',
+    placeholder: 'Describe scene or ask AI...',
     autoComplete: 'Auto-Complete Scene',
     autoCompleteLoading: 'Completing Scene...',
     invertImage: 'Extract Objects & Text',
@@ -1453,7 +1453,7 @@ const zh: Translations = {
     },
   },
   commandBar: {
-    placeholder: '描述你的画面，或拉框后点击补全全场...',
+    placeholder: '描述画面或向 AI 提问...',
     autoComplete: '补全全场',
     autoCompleteLoading: '正在构图...',
     invertImage: '提取物体与文字',

@@ -10,9 +10,14 @@ export function useAutoGrowTextarea(value: string, maxHeight = 160) {
   const nodes = useRef(new Set<HTMLTextAreaElement>());
 
   const resize = useCallback((el: HTMLTextAreaElement) => {
+    if (!el.value) {
+      el.style.height = '28px';
+      el.style.overflowY = 'hidden';
+      return;
+    }
     el.style.height = 'auto';
-    const next = Math.min(el.scrollHeight, maxHeight);
-    el.style.height = `${next}px`;
+    const next = Math.max(28, Math.min(el.scrollHeight, maxHeight));
+    el.style.height = next + 'px';
     // 内容超出上限后允许内部滚动，避免把面板顶出屏幕
     el.style.overflowY = el.scrollHeight > maxHeight ? 'auto' : 'hidden';
   }, [maxHeight]);
@@ -35,3 +40,4 @@ export function useAutoGrowTextarea(value: string, maxHeight = 160) {
 
   return register;
 }
+

@@ -2263,7 +2263,7 @@ input[type="color"]::-webkit-color-swatch {
   border-top: 1px solid rgba(255, 255, 255, 0.18);
   background: rgba(26, 26, 26, 0.4);
   flex-shrink: 0;
-  align-items: flex-end;
+  align-items: center;
 }
 
 /* 当 toolbar 存在时（input 上方有 toolbar），避免与 toolbar 的 border-top 重复 */
@@ -3421,7 +3421,7 @@ input[type="color"]::-webkit-color-swatch {
 
 .settings-page-header {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: 18px;
   padding: 2px 2px 0;
@@ -5322,7 +5322,7 @@ input[type="color"]::-webkit-color-swatch {
   display: flex;
   gap: 6px;
   padding: 8px 10px;
-  align-items: flex-end;
+  align-items: center;
 }
 
 .canvas-chat-input-area .chat-input {
@@ -6593,22 +6593,130 @@ input[type="color"]::-webkit-color-swatch {
 /* Bottom Command Bar */
 .bottom-command-bar {
   position: absolute;
-  bottom: 20px;
+  bottom: 24px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 60;
   display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  padding: 6px 12px;
-  border-radius: 24px;
-  background: rgba(20, 20, 20, 0.94);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
-  width: min(760px, 85%);
+  flex-direction: column;
+  background: rgba(24, 24, 27, 0.95);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65);
+  width: min(720px, 88vw);
+  padding: 12px 14px 10px 14px;
+  gap: 10px;
   pointer-events: auto;
-  transition: border-radius 0.15s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.bottom-command-bar:focus-within {
+  border-color: rgba(255, 255, 255, 0.25);
+  background: rgba(28, 28, 32, 0.98);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.75);
+}
+
+.bottom-command-bar-input-row {
+  width: 100%;
+  display: flex;
+  min-height: 28px;
+}
+
+.bottom-command-bar-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #fafafa;
+  font-size: 14px;
+  line-height: 1.5;
+  font-family: inherit;
+  resize: none;
+  padding: 0;
+  margin: 0;
+  min-height: 28px;
+  max-height: 180px;
+  overflow-y: hidden;
+  display: block;
+}
+
+.bottom-command-bar-input::placeholder {
+  color: #71717a;
+}
+
+.bottom-command-bar-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding-top: 4px;
+}
+
+.bottom-command-bar-footer-left,
+.bottom-command-bar-footer-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 紧凑/响应式按钮样式 */
+.cmd-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #a1a1aa;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.cmd-pill-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #fafafa;
+}
+
+/* 圆形主发送按钮 (Codex 式圆形实心钮) */
+.cmd-send-circle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #fafafa;
+  color: #18181b;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.25);
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  flex-shrink: 0;
+}
+
+.cmd-send-circle-btn:hover:not(:disabled) {
+  background: #ffffff;
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(255, 255, 255, 0.4);
+}
+
+.cmd-send-circle-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* 响应式收缩规则：当宽度较窄时隐藏文字标签，只保留图标 */
+@media (max-width: 600px) {
+  .cmd-text-label {
+    display: none;
+  }
 }
 
 .bottom-command-bar select {
@@ -6666,14 +6774,15 @@ input[type="color"]::-webkit-color-swatch {
   outline: none;
   color: var(--text);
   font-size: 13px;
-  line-height: 1.45;
+  line-height: 20px;
+  height: 20px;
   font-family: inherit;
   resize: none;
-  padding: 4px 0;
+  padding: 0;
   margin: 0;
-  min-height: 24px;
   max-height: 160px;
   overflow-y: hidden;
+  display: block;
 }
 
 .bottom-command-bar-input::placeholder {

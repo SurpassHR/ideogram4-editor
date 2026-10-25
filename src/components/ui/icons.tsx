@@ -102,6 +102,11 @@ export const IconBroom = createIcon(
 );
 
 /** 箭头右 — 发送/前进 */
+/** 向上箭头（发送按钮） */
+export const IconArrowUp = createIcon(
+  <path d="M12 19V5M5 12l7-7 7 7" />
+);
+
 export const IconArrowRight = createIcon(
   <><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></>,
 );
