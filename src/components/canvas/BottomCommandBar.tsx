@@ -25,6 +25,7 @@ import {
   computeCanvasDims,
 } from '../../utils/canvas-dims';
 import { useCanvasChat } from '../../hooks/useCanvasChat';
+import { useAutoGrowTextarea } from '../../hooks/useAutoGrowTextarea';
 import type { LlmProvider } from '../llm/types';
 
 export const BottomCommandBar: React.FC = () => {
@@ -32,7 +33,7 @@ export const BottomCommandBar: React.FC = () => {
   const [input, setInput] = useState('');
   const [showHistory, setShowHistory] = useState(false);
   const [showConfig, setShowConfig] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const historyPopupRef = useRef<HTMLDivElement>(null);
   const configPopupRef = useRef<HTMLDivElement>(null);
 
@@ -66,6 +67,7 @@ export const BottomCommandBar: React.FC = () => {
     isLoading: isChatStreaming,
   } = useCanvasChat();
 
+  const registerAutoGrowTextarea = useAutoGrowTextarea(input, 160);
   const selectedBoxIndex = boxes.findIndex((b) => b.id === selectedBoxId);
   const isBusy = isGeneratingScene || isExtractingImage || isChatStreaming;
 
@@ -222,7 +224,7 @@ export const BottomCommandBar: React.FC = () => {
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmitOrAutoComplete();
@@ -564,16 +566,19 @@ export const BottomCommandBar: React.FC = () => {
           )}
         </div>
         <div className="bottom-command-bar-input-wrap">
-          <input
-            ref={inputRef}
-            type="text"
+          <textarea
+            ref={(el) => {
+              (inputRef as any).current = el;
+              registerAutoGrowTextarea(el);
+            }}
+            rows={1}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             disabled={isBusy}
             placeholder={
               input
-                ? 'Press Enter to command the canvas...'
+                ? 'Press Enter to send (Shift+Enter for newline)...'
                 : t('commandBar.placeholder')
             }
             className="bottom-command-bar-input"

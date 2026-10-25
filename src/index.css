@@ -6598,16 +6598,17 @@ input[type="color"]::-webkit-color-swatch {
   transform: translateX(-50%);
   z-index: 60;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 8px;
   padding: 6px 12px;
-  border-radius: 9999px;
-  background: rgba(20, 20, 20, 0.92);
-  backdrop-filter: blur(16px);
+  border-radius: 24px;
+  background: rgba(20, 20, 20, 0.94);
+  backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.14);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
-  width: min(720px, 80%);
+  width: min(760px, 85%);
   pointer-events: auto;
+  transition: border-radius 0.15s ease;
 }
 
 .bottom-command-bar select {
@@ -6655,6 +6656,7 @@ input[type="color"]::-webkit-color-swatch {
   display: flex;
   align-items: center;
   margin: 0 4px;
+  min-height: 28px;
 }
 
 .bottom-command-bar-input {
@@ -6663,7 +6665,15 @@ input[type="color"]::-webkit-color-swatch {
   border: none;
   outline: none;
   color: var(--text);
-  font-size: 12px;
+  font-size: 13px;
+  line-height: 1.45;
+  font-family: inherit;
+  resize: none;
+  padding: 4px 0;
+  margin: 0;
+  min-height: 24px;
+  max-height: 160px;
+  overflow-y: hidden;
 }
 
 .bottom-command-bar-input::placeholder {
