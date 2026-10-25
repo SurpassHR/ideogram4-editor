@@ -6605,7 +6605,9 @@ input[type="color"]::-webkit-color-swatch {
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 20px;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65);
-  width: min(720px, 88vw);
+  width: calc(100% - 32px);
+  max-width: 680px;
+  box-sizing: border-box;
   padding: 12px 14px 10px 14px;
   gap: 10px;
   pointer-events: auto;
@@ -6652,6 +6654,8 @@ input[type="color"]::-webkit-color-swatch {
   justify-content: space-between;
   width: 100%;
   padding-top: 4px;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .bottom-command-bar-footer-left,
@@ -6712,10 +6716,10 @@ input[type="color"]::-webkit-color-swatch {
   transform: none;
 }
 
-/* 响应式收缩规则：当宽度较窄时隐藏文字标签，只保留图标 */
-@media (max-width: 600px) {
+/* 响应式收缩规则：在视口宽度 <= 900px 时折叠文本标签，仅保留高识别度纯图标 */
+@media (max-width: 900px) {
   .cmd-text-label {
-    display: none;
+    display: none !important;
   }
 }
 
