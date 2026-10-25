@@ -276,6 +276,8 @@ export const BottomCommandBar: React.FC = () => {
       {showConfig && (
         <div
           ref={configPopupRef}
+          data-floating-panel="true"
+          onWheel={(e) => e.stopPropagation()}
           style={{
             position: 'absolute',
             bottom: '100px',
@@ -391,6 +393,8 @@ export const BottomCommandBar: React.FC = () => {
       {showHistory && (
         <div
           ref={historyPopupRef}
+          data-floating-panel="true"
+          onWheel={(e) => e.stopPropagation()}
           style={
             isMaximized
               ? {

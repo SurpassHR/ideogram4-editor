@@ -51,24 +51,23 @@ export function useArtboardZoom(
 
   const handleWheel = useCallback(
     (e: WheelEvent) => {
-      // 检查事件是否来自可滚动容器，若是则让浏览器原生处理滚动
+      // 检查事件是否来自悬浮层、对话面板或可滚动容器，若是则禁止画布缩放
       const target = e.target as HTMLElement | null;
       const artboard = artboardRef.current;
       if (target && artboard) {
+        // 如果事件发生在浮动弹窗、指令岛、工作台或设置内，直接阻止画布缩放
+        if (target.closest('.bottom-command-bar, .canvas-chat-panel, .layer-panel, [data-floating-panel="true"], [data-testid="bottom-command-bar"]')) {
+          return;
+        }
+
         let el: HTMLElement | null = target;
         while (el && el !== artboard) {
-          const overflowY = getComputedStyle(el).overflowY;
-          if (
-            (overflowY === 'auto' || overflowY === 'scroll') &&
-            el.scrollHeight > el.clientHeight
-          ) {
-            // 不在滚动边界时让原生滚动，在边界时继续冒泡给画布缩放
-            const atTop = el.scrollTop === 0 && e.deltaY < 0;
-            const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight && e.deltaY > 0;
-            if (!atTop && !atBottom) {
-              return;
-            }
-            break;
+          const style = getComputedStyle(el);
+          const overflowY = style.overflowY;
+          const overflowX = style.overflowX;
+          const isScrollable = (overflowY === 'auto' || overflowY === 'scroll' || overflowX === 'auto' || overflowX === 'scroll');
+          if (isScrollable) {
+            return;
           }
           el = el.parentElement;
         }
