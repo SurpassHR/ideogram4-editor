@@ -661,14 +661,25 @@ export function useCanvasChat() {
               label: `Parse ${skillAdapter.label} output`,
               detail: `${extraction.elements.length} elements`,
             });
+            // 自动落框：生成完成后直接把 JSON 对应的 bboxes 添加到画布
+            if (extraction.elements.length > 0) {
+              const currentStore = useEditorStore.getState();
+              currentStore.snapshot();
+              if (regionTarget?.boxId) {
+                applyRegionExtractionToStore(extraction, currentStore, regionTarget.boxId);
+              } else {
+                applyExtractionToStore(extraction, currentStore);
+              }
+            }
+
             setPendingQualityReport(null);
             appendCanvasChatRequestStep(requestId, {
               kind: 'done',
               status: 'success',
-              label: 'Ready to apply',
+              label: 'Applied to canvas',
               detail: extraction.elements.length > 0
-                ? 'Output is valid. Layout quality will be diagnosed after Apply.'
-                : 'No bounding boxes in this output — copy the model prompt instead.',
+                ? (extraction.elements.length + ' bounding boxes automatically applied to canvas.')
+                : 'No bounding boxes in this output.',
             });
             finishCanvasChatRequest(requestId, 'success');
           } else {
