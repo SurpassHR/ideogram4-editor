@@ -1493,23 +1493,23 @@ input[type="color"]::-webkit-color-swatch {
 
 .chat-panel {
   position: fixed;
-  width: min(360px, 30vw);
+  width: min(380px, 34vw);
   min-width: 320px;
-  max-width: 420px;
-  max-height: clamp(300px, 52vh, 640px);
-  background: rgba(24, 24, 24, 0.94);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 16px;
+  max-width: 440px;
+  max-height: clamp(320px, 55vh, 680px);
+  background: rgba(20, 20, 24, 0.82);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 18px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   box-shadow:
-    0 16px 40px rgba(0, 0, 0, 0.6),
-    0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+    0 20px 48px rgba(0, 0, 0, 0.7),
+    0 0 0 1px rgba(255, 255, 255, 0.06) inset;
   z-index: 90;
-  animation: chat-panel-in 0.18s ease-out;
+  animation: chat-panel-in 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes chat-panel-in {
@@ -1536,10 +1536,10 @@ input[type="color"]::-webkit-color-swatch {
 .chat-header {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.18);
-  background: rgba(26, 26, 26, 0.6);
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
   flex-shrink: 0;
 }
 
@@ -2490,11 +2490,13 @@ input[type="color"]::-webkit-color-swatch {
 .select-menu-dropdown {
   position: fixed;
   z-index: 200;
-  background: var(--surface-raised);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-  padding: 4px;
+  background: rgba(20, 20, 24, 0.88);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65);
+  padding: 5px;
   max-height: 220px;
   overflow-y: auto;
   animation: select-menu-in 0.1s ease-out;
@@ -4573,11 +4575,13 @@ input[type="color"]::-webkit-color-swatch {
   position: fixed;
   z-index: 200;
   min-width: 180px;
-  background: var(--surface-raised);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-  padding: 4px;
+  background: rgba(20, 20, 24, 0.85);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65);
+  padding: 5px;
   animation: context-menu-in 0.12s ease-out;
 }
 
