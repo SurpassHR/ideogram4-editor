@@ -183,12 +183,19 @@ export interface Translations {
   };
   json: {
     panel: string;
+    scheme: string;
+    schemeHints: {
+      ideogram4: string;
+      flux3: string;
+      moss: string;
+    };
     generatePrompt: string;
     loadFromPasted: string;
     jsonMode: string;
     previewMode: string;
     placeholder: string;
     invalidJson: string;
+    noElements: string;
     naturalLanguageMode: string;
     convertToNatural: string;
     nlScene: string;
@@ -683,12 +690,19 @@ const en: Translations = {
   },
   json: {
     panel: 'JSON',
+    scheme: 'Scheme',
+    schemeHints: {
+      ideogram4: 'Ideogram 4 structured caption · bbox [y, x, y, x] on a 0–1000 grid',
+      flux3: 'FLUX 3 layout rows · bbox [top, left, bottom, right] on a 0–1000 grid',
+      moss: 'MOSS-Image layout draft · absolute pixel xyxy with canvas size',
+    },
     generatePrompt: 'Generate JSON Prompt',
     loadFromPasted: 'Load From Pasted JSON',
     jsonMode: 'JSON',
     previewMode: 'Preview',
     placeholder: 'JSON output will appear here...',
     invalidJson: 'Invalid JSON: {error}',
+    noElements: 'No elements were found in this JSON.',
     naturalLanguageMode: 'Natural Language',
     convertToNatural: 'Convert to Natural Language',
     nlScene: 'Scene',
@@ -1183,12 +1197,19 @@ const zh: Translations = {
   },
   json: {
     panel: 'JSON',
+    scheme: '方案',
+    schemeHints: {
+      ideogram4: 'Ideogram 4 结构化 caption · bbox [y, x, y, x]，0–1000',
+      flux3: 'FLUX 3 布局行 · bbox [top, left, bottom, right]，0–1000',
+      moss: 'MOSS-Image 布局草稿 · 绝对像素 xyxy + 画布尺寸',
+    },
     generatePrompt: '生成 JSON Prompt',
     loadFromPasted: '从粘贴的 JSON 加载',
     jsonMode: 'JSON',
     previewMode: '预览',
     placeholder: 'JSON 输出将显示在此处...',
     invalidJson: '无效的 JSON：{error}',
+    noElements: '该 JSON 中没有可加载的元素。',
     naturalLanguageMode: '自然语言',
     convertToNatural: '转换为自然语言',
     nlScene: '整体场景',

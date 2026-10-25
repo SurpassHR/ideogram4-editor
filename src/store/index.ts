@@ -20,6 +20,7 @@ import { PRESETS_STORAGE_KEY, createBuiltinPresets } from '../types/presets';
 import { MODE_ARTSTYLE, MODE_PHOTO } from '../types';
 import { computeCanvasDims, inferCanvasControlsFromDimensions, type RatioKey } from '../utils/canvas-dims';
 import { detectBboxSystem, bboxToPixels } from '../utils/coordinates';
+import { generateJSON as serializeIdeogramJSON } from '../utils/json-serializer';
 import type { LayoutQualityReport } from '../services/layout-validator';
 import {
   loadCanvasChatState,
@@ -1928,50 +1929,19 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
   generateJSON: () => {
     const state = get();
-    const { canvasW, canvasH, boxes, globalPalette, highLevelDescription, aesthetics, lighting, medium, artStyle, background, photoArtStyleMode } = state;
-
-    const norm = (val: number, max: number) => Math.min(1000, Math.max(0, Math.round((val / max) * 1000)));
-
-    const elements = boxes.map(box => {
-      const x1 = norm(box.x, canvasW);
-      const y1 = norm(box.y, canvasH);
-      const x2 = norm(box.x + box.w, canvasW);
-      const y2 = norm(box.y + box.h, canvasH);
-
-      const el: Record<string, unknown> = {
-        type: box.mode,
-        bbox: [y1, x1, y2, x2],
-      };
-
-      if (box.mode === 'text') el.text = box.text;
-      el.desc = box.desc;
-      if (box.colors && box.colors.length > 0) el.color_palette = box.colors;
-
-      return el;
-    });
-
-    const styleDescription: Record<string, unknown> = {
-      aesthetics,
-      lighting,
-      color_palette: globalPalette,
-    };
-
-    if (photoArtStyleMode === MODE_PHOTO) {
-      styleDescription.photo = artStyle;
-      styleDescription.medium = medium;
-    } else {
-      styleDescription.medium = medium;
-      styleDescription.art_style = artStyle;
-    }
-
-    return {
-      high_level_description: highLevelDescription,
-      style_description: styleDescription as IdeogramOutput['style_description'],
-      compositional_deconstruction: {
-        background,
-        elements: elements as unknown as IdeogramOutput['compositional_deconstruction']['elements'],
-      },
-    };
+    return serializeIdeogramJSON(
+      state.boxes,
+      state.canvasW,
+      state.canvasH,
+      state.globalPalette,
+      state.highLevelDescription,
+      state.aesthetics,
+      state.lighting,
+      state.medium,
+      state.artStyle,
+      state.background,
+      state.photoArtStyleMode,
+    );
   },
 
   loadFromJSON: (json) => {

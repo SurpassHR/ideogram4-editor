@@ -723,6 +723,28 @@ body {
   gap: 10px;
 }
 
+.json-scheme-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.json-scheme-label {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.json-scheme-hint {
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1.45;
+  margin-top: -3px;
+}
+
 .json-toolbar-actions {
   display: flex;
   flex-wrap: wrap;

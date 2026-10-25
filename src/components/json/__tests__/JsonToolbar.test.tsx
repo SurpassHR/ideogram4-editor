@@ -12,6 +12,7 @@ describe('JsonToolbar', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     localStorage.setItem('ideogram4-lang', 'en');
+    localStorage.removeItem('ideogram4-json-scheme');
     vi.spyOn(window, 'alert').mockImplementation(() => {});
     useEditorStore.setState({
       canvasW: 1024,
@@ -100,6 +101,80 @@ describe('JsonToolbar', () => {
 
     expect(textarea.value).toContain('Updated hero');
     expect(textarea.value).toContain('New scene');
+  });
+
+  it('切换 JSON scheme 后立即生成对应模型的 JSON 结构', () => {
+    renderToolbar();
+
+    const textarea = screen.getByPlaceholderText('JSON output will appear here...') as HTMLTextAreaElement;
+    expect(JSON.parse(textarea.value).compositional_deconstruction).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('radio', { name: 'FLUX 3' }));
+    const flux3 = JSON.parse(textarea.value) as Array<Record<string, unknown>>;
+    expect(Array.isArray(flux3)).toBe(true);
+    expect(flux3[0]).toMatchObject({ id: 'obj_1', bbox: [125, 125, 375, 375] });
+    expect(localStorage.getItem('ideogram4-json-scheme')).toBe('flux3-layout');
+
+    fireEvent.click(screen.getByRole('radio', { name: 'MOSS-Image' }));
+    const moss = JSON.parse(textarea.value) as Record<string, unknown>;
+    expect(moss).toMatchObject({
+      width: 1024,
+      height: 1024,
+      bbox_coord_space: 'abs',
+      bbox_format: 'xyxy',
+    });
+    expect(Array.isArray(moss.items)).toBe(true);
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Ideogram 4' }));
+    expect(JSON.parse(textarea.value).compositional_deconstruction).toBeTruthy();
+  });
+
+  it('Preview 跟随所选 scheme 解析对应结构', () => {
+    renderToolbar();
+
+    fireEvent.click(screen.getByRole('radio', { name: 'FLUX 3' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Preview' }));
+
+    expect(screen.getByText('Hero object')).toBeInTheDocument();
+    expect(document.querySelector('.json-preview-canvas')).not.toBeNull();
+  });
+
+  it('FLUX 3 scheme 可从粘贴的布局行加载画布', () => {
+    renderToolbar();
+    fireEvent.click(screen.getByRole('radio', { name: 'FLUX 3' }));
+
+    const textarea = screen.getByPlaceholderText('JSON output will appear here...');
+    fireEvent.focus(textarea);
+    fireEvent.change(textarea, {
+      target: {
+        value: JSON.stringify([
+          { id: 'obj_1', bbox: [0, 0, 500, 500], desc: 'Loaded from FLUX 3' },
+        ]),
+      },
+    });
+    fireEvent.blur(textarea);
+    fireEvent.click(screen.getByRole('button', { name: 'Load From Pasted JSON' }));
+
+    const state = useEditorStore.getState();
+    expect(state.boxes).toHaveLength(1);
+    expect(state.boxes[0].desc).toBe('Loaded from FLUX 3');
+    expect(state.boxes[0].w).toBe(512);
+    expect(state.boxes[0].h).toBe(512);
+  });
+
+  it('MOSS-Image caption 草稿加载时只更新场景描述', () => {
+    renderToolbar();
+    const before = useEditorStore.getState().boxes;
+    fireEvent.click(screen.getByRole('radio', { name: 'MOSS-Image' }));
+
+    const textarea = screen.getByPlaceholderText('JSON output will appear here...');
+    fireEvent.focus(textarea);
+    fireEvent.change(textarea, { target: { value: '{"caption":"Loaded MOSS scene"}' } });
+    fireEvent.blur(textarea);
+    fireEvent.click(screen.getByRole('button', { name: 'Load From Pasted JSON' }));
+
+    expect(useEditorStore.getState().highLevelDescription).toBe('Loaded MOSS scene');
+    expect(useEditorStore.getState().boxes).toEqual(before);
   });
 
   it('用户编辑 textarea 时自动同步暂停', () => {
