@@ -28,6 +28,7 @@ import {
   computeCanvasDims,
 } from '../../utils/canvas-dims';
 import { useCanvasChat } from '../../hooks/useCanvasChat';
+import ChatMessage from '../chat/ChatMessage';
 import { useAutoGrowTextarea } from '../../hooks/useAutoGrowTextarea';
 import type { LlmProvider } from '../llm/types';
 
@@ -67,6 +68,8 @@ export const BottomCommandBar: React.FC = () => {
   const {
     sendMessage,
     stopGeneration,
+    applyMessageOutput,
+    checkMessageOutput,
     modelOptions,
     isLoading: isChatStreaming,
   } = useCanvasChat();
@@ -536,29 +539,23 @@ export const BottomCommandBar: React.FC = () => {
               </div>
             </div>
 
-            <div style={{ flex: 1, overflowY: 'auto', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }} className="chat-messages">
               {!activeSession || activeSession.messages.length === 0 ? (
                 <div style={{ textAlign: 'center', color: '#737373', fontSize: '12px', padding: '36px 0' }}>
                   No messages in this session. Type in the command bar below to chat.
                 </div>
               ) : (
                 activeSession.messages.map((msg) => (
-                  <div
+                  <ChatMessage
                     key={msg.id}
-                    style={{
-                      alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                      maxWidth: '85%',
-                      padding: '8px 12px',
-                      borderRadius: '10px',
-                      fontSize: '12px',
-                      lineHeight: '1.5',
-                      background: msg.role === 'user' ? '#fafafa' : '#242424',
-                      color: msg.role === 'user' ? '#111111' : '#fafafa',
-                      border: msg.role === 'user' ? 'none' : '1px solid rgba(255, 255, 255, 0.08)',
+                    message={msg}
+                    onApply={(msgId) => {
+                      const targetMsg = activeSession.messages.find(m => m.id === msgId);
+                      if (targetMsg) applyMessageOutput(targetMsg);
                     }}
-                  >
-                    {msg.content}
-                  </div>
+                    outputCheck={checkMessageOutput}
+                    renderMode="json"
+                  />
                 ))
               )}
             </div>
