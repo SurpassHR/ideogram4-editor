@@ -19,9 +19,9 @@ export default function GlowGrid({
   style,
   gridSize = 24,
   dotSize = 1.5,
-  glowColor = '#7c5cfc',
+  glowColor = 'rgba(255, 255, 255, 0.15)',
   glowRadius = 140,
-  baseDotColor = 'rgba(255, 255, 255, 0.06)',
+  baseDotColor = 'rgba(255, 255, 255, 0.03)',
 }: GlowGridProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const layerRef = useRef<HTMLDivElement>(null);
