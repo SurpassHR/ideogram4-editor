@@ -2,6 +2,11 @@ import { useState, useMemo } from 'react';
 import type { PromptPreset } from '../../types/presets';
 import { useEditorStore } from '../../store';
 import { useI18n } from '../../i18n/context';
+import {
+  getPresetDescription,
+  getPresetName,
+  getPresetTags,
+} from '../../utils/preset-display';
 import { IconClose } from '../ui/icons';
 
 interface Props {
@@ -16,6 +21,10 @@ const EMPTY_FORM = {
   promptTemplate: '',
   tags: [] as string[],
 };
+
+function sameTags(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((tag, index) => tag === b[index]);
+}
 
 export default function PresetManagerPanel({ onClose, embedded }: Props) {
   const chatPresets = useEditorStore(s => s.chatPresets);
@@ -39,35 +48,39 @@ export default function PresetManagerPanel({ onClose, embedded }: Props) {
   // 提取所有标签
   const allTags = useMemo(() => {
     const tagSet = new Set<string>();
-    chatPresets.forEach(p => p.tags.forEach(t => tagSet.add(t)));
+    chatPresets.forEach(p => getPresetTags(p, t).forEach(tag => tagSet.add(tag)));
     return Array.from(tagSet).sort();
-  }, [chatPresets]);
+  }, [chatPresets, t]);
 
   // 搜索和标签过滤
   const filteredPresets = useMemo(() => {
     let list = chatPresets;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      list = list.filter(p =>
-        p.name.toLowerCase().includes(q) ||
-        p.description.toLowerCase().includes(q) ||
-        p.tags.some(t => t.toLowerCase().includes(q)),
-      );
+      list = list.filter(p => {
+        const name = getPresetName(p, t).toLowerCase();
+        const description = getPresetDescription(p, t).toLowerCase();
+        return (
+          name.includes(q) ||
+          description.includes(q) ||
+          getPresetTags(p, t).some(tag => tag.toLowerCase().includes(q))
+        );
+      });
     }
     if (selectedTag) {
-      list = list.filter(p => p.tags.includes(selectedTag));
+      list = list.filter(p => getPresetTags(p, t).includes(selectedTag));
     }
     return list;
-  }, [chatPresets, searchQuery, selectedTag]);
+  }, [chatPresets, searchQuery, selectedTag, t]);
 
   // 开始编辑预设
   const startEdit = (preset: PromptPreset) => {
     setEditingId(preset.id);
     setForm({
-      name: preset.name,
-      description: preset.description,
+      name: getPresetName(preset, t),
+      description: getPresetDescription(preset, t),
       promptTemplate: preset.promptTemplate,
-      tags: [...preset.tags],
+      tags: [...getPresetTags(preset, t)],
     });
   };
 
@@ -110,12 +123,22 @@ export default function PresetManagerPanel({ onClose, embedded }: Props) {
         tags: form.tags,
       });
     } else if (editingId) {
-      updatePreset(editingId, {
-        name: form.name.trim(),
-        description: form.description.trim(),
-        promptTemplate: form.promptTemplate,
-        tags: form.tags,
-      });
+      const original = chatPresets.find(p => p.id === editingId);
+      const copyUnchanged = original?.builtinKey
+        && form.name.trim() === getPresetName(original, t)
+        && form.description.trim() === getPresetDescription(original, t)
+        && sameTags(form.tags, getPresetTags(original, t));
+      if (original?.builtinKey && copyUnchanged) {
+        // 仅修改模板时保留内置预设的本地化文案
+        updatePreset(editingId, { promptTemplate: form.promptTemplate });
+      } else {
+        updatePreset(editingId, {
+          name: form.name.trim(),
+          description: form.description.trim(),
+          promptTemplate: form.promptTemplate,
+          tags: form.tags,
+        });
+      }
     }
 
     setEditingId(null);
@@ -131,10 +154,10 @@ export default function PresetManagerPanel({ onClose, embedded }: Props) {
   // 复制预设
   const handleDuplicate = (preset: PromptPreset) => {
     addPreset({
-      name: `${preset.name} (Copy)`,
-      description: preset.description,
+      name: `${getPresetName(preset, t)} (Copy)`,
+      description: getPresetDescription(preset, t),
       promptTemplate: preset.promptTemplate,
-      tags: [...preset.tags],
+      tags: [...getPresetTags(preset, t)],
     });
   };
 
@@ -199,14 +222,14 @@ export default function PresetManagerPanel({ onClose, embedded }: Props) {
                 onClick={() => startEdit(preset)}
               >
                 <div className="preset-card-header">
-                  <span className="preset-card-name">{preset.name}</span>
+                  <span className="preset-card-name">{getPresetName(preset, t)}</span>
                   <span className="preset-card-date">
                     {new Date(preset.updatedAt).toLocaleDateString()}
                   </span>
                 </div>
-                <div className="preset-card-desc">{preset.description}</div>
+                <div className="preset-card-desc">{getPresetDescription(preset, t)}</div>
                 <div className="preset-card-tags">
-                  {preset.tags.map(tag => (
+                  {getPresetTags(preset, t).map(tag => (
                     <span key={tag} className="preset-tag">{tag}</span>
                   ))}
                 </div>

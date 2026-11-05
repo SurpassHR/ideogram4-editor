@@ -32,6 +32,7 @@ import {
 import { useCanvasChat } from '../../hooks/useCanvasChat';
 import ChatMessage from '../chat/ChatMessage';
 import { useAutoGrowTextarea } from '../../hooks/useAutoGrowTextarea';
+import { getPresetDescription, getPresetName } from '../../utils/preset-display';
 import type { LlmProvider } from '../llm/types';
 
 export const BottomCommandBar: React.FC = () => {
@@ -272,7 +273,7 @@ export const BottomCommandBar: React.FC = () => {
 
   return (
     <>
-      {/* 预设与模型配置浮窗 */}
+      {/* 模型配置浮窗 */}
       {showConfig && (
         <div
           ref={configPopupRef}
@@ -309,7 +310,7 @@ export const BottomCommandBar: React.FC = () => {
           >
             <span style={{ fontSize: '12px', fontWeight: 600, color: '#fafafa', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <IconGear size={13} />
-              AI Model & Presets
+              {t('commandBar.aiModel')}
             </span>
             <button
               onClick={() => setShowConfig(false)}
@@ -321,7 +322,7 @@ export const BottomCommandBar: React.FC = () => {
           <div style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div>
               <div style={{ fontSize: '11px', fontWeight: 600, color: '#b3b3b3', marginBottom: '6px' }}>
-                Active LLM Model
+                {t('commandBar.activeModel')}
               </div>
               {modelOptions.length > 0 ? (
                 <select
@@ -350,40 +351,6 @@ export const BottomCommandBar: React.FC = () => {
                   No models available. Please add an API key in Settings.
                 </div>
               )}
-            </div>
-            <div>
-              <div style={{ fontSize: '11px', fontWeight: 600, color: '#b3b3b3', marginBottom: '6px' }}>
-                Quick Prompt Presets
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', maxHeight: '140px', overflowY: 'auto' }}>
-                {chatPresets.length > 0 ? (
-                  chatPresets.map((preset) => (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      onClick={() => handleApplyPreset(preset.promptTemplate)}
-                      style={{
-                        background: 'rgba(255, 255, 255, 0.06)',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                        borderRadius: '6px',
-                        padding: '4px 8px',
-                        color: '#fafafa',
-                        fontSize: '11px',
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                        transition: 'all 0.15s',
-                      }}
-                      title={preset.promptTemplate}
-                    >
-                      {preset.name}
-                    </button>
-                  ))
-                ) : (
-                  <div style={{ fontSize: '11px', color: '#737373' }}>
-                    No presets configured. Add templates in Settings.
-                  </div>
-                )}
-              </div>
             </div>
           </div>
         </div>
@@ -599,6 +566,28 @@ export const BottomCommandBar: React.FC = () => {
 
       {/* 常驻指令岛核心：Codex 式多行两层结构 */}
       <div data-testid="bottom-command-bar" className="bottom-command-bar">
+        {chatPresets.length > 0 && (
+          <div
+            className="bottom-command-bar-presets"
+            role="toolbar"
+            aria-label={t('commandBar.quickPresets')}
+          >
+            {chatPresets.map((preset) => (
+              <button
+                key={preset.id}
+                type="button"
+                className="cmd-preset-chip"
+                onClick={() => handleApplyPreset(preset.promptTemplate)}
+                disabled={isBusy}
+                title={getPresetDescription(preset, t) || preset.promptTemplate}
+              >
+                <IconSparkle size={10} />
+                <span className="cmd-preset-chip-label">{getPresetName(preset, t)}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* 上层：多行自动撑高输入区域 */}
         <div className="bottom-command-bar-input-row">
           <textarea

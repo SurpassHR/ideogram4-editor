@@ -9,6 +9,7 @@ import ChatRunControls from './ChatRunControls';
 import LlmConfigPanel from '../llm/LlmConfigPanel';
 import { computeChatPanelPosition } from '../../utils/panelPosition';
 import { resolveTemplate } from '../../utils/resolveTemplate';
+import { getPresetName } from '../../utils/preset-display';
 import { IconClose, IconGlobe, IconTrash, IconArrowRight, IconStop } from '../ui/icons';
 
 export default function ChatPanel() {
@@ -329,7 +330,7 @@ export default function ChatPanel() {
           {chatPresets.length > 0 && (
             <SelectMenu
               className="chat-preset-select"
-              options={chatPresets.map(p => ({ value: p.id, label: p.name }))}
+              options={chatPresets.map(p => ({ value: p.id, label: getPresetName(p, t) }))}
               value={selectedPreset?.id || ''}
               onChange={handlePresetChange}
               placeholder={t('chat.presets.selectPreset')}

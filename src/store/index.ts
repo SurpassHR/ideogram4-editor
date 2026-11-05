@@ -16,7 +16,7 @@ import { parseSkillPackage, type SkillPackageInput } from '../services/skill-par
 import { migrateCanvasSystemPrompts } from '../services/skill-migration';
 import type { PendingApply } from '../services/skill-adapters/types';
 import type { CanvasReplacement } from '../services/skill-apply';
-import { PRESETS_STORAGE_KEY, createBuiltinPresets } from '../types/presets';
+import { BUILTIN_PRESETS, PRESETS_STORAGE_KEY, createBuiltinPresets } from '../types/presets';
 import { MODE_ARTSTYLE, MODE_PHOTO } from '../types';
 import { computeCanvasDims, inferCanvasControlsFromDimensions, type RatioKey } from '../utils/canvas-dims';
 import { detectBboxSystem, bboxToPixels } from '../utils/coordinates';
@@ -415,7 +415,13 @@ function loadPresetsFromStorage(): PromptPreset[] {
     const raw = localStorage.getItem(PRESETS_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const migrated = attachBuiltinPresetKeys(parsed);
+        if (migrated.some((preset, index) => preset !== parsed[index])) {
+          localStorage.setItem(PRESETS_STORAGE_KEY, JSON.stringify(migrated));
+        }
+        return migrated;
+      }
     }
   } catch {
     // ignore corrupt data
@@ -424,6 +430,28 @@ function loadPresetsFromStorage(): PromptPreset[] {
   const builtins = createBuiltinPresets();
   localStorage.setItem(PRESETS_STORAGE_KEY, JSON.stringify(builtins));
   return builtins;
+}
+
+/** 老版本持久化的内置预设没有 builtinKey，按稳定 id + 原始文案补齐 */
+function attachBuiltinPresetKeys(presets: PromptPreset[]): PromptPreset[] {
+  return presets.map((preset) => {
+    if (preset.builtinKey) return preset;
+    const match = /^preset_builtin_(\d+)$/.exec(preset.id);
+    if (!match) return preset;
+    const builtin = BUILTIN_PRESETS[Number(match[1])];
+    if (!builtin?.builtinKey) return preset;
+    const sameTags =
+      preset.tags.length === builtin.tags.length &&
+      preset.tags.every((tag, index) => tag === builtin.tags[index]);
+    if (
+      preset.name !== builtin.name ||
+      preset.description !== builtin.description ||
+      !sameTags
+    ) {
+      return preset;
+    }
+    return { ...preset, builtinKey: builtin.builtinKey };
+  });
 }
 
 /** 将预设持久化到 localStorage */
@@ -1683,9 +1711,18 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
   updatePreset: (id, updates) => {
     const state = get();
-    const newPresets = state.chatPresets.map(p =>
-      p.id === id ? { ...p, ...updates, updatedAt: Math.max(Date.now(), p.updatedAt + 1) } : p,
-    );
+    const detachesBuiltinKey =
+      'name' in updates || 'description' in updates || 'tags' in updates;
+    const newPresets = state.chatPresets.map(p => {
+      if (p.id !== id) return p;
+      const next: PromptPreset = {
+        ...p,
+        ...updates,
+        updatedAt: Math.max(Date.now(), p.updatedAt + 1),
+      };
+      if (detachesBuiltinKey) delete next.builtinKey;
+      return next;
+    });
     savePresetsToStorage(newPresets);
     set({ chatPresets: newPresets });
   },
@@ -1698,8 +1735,9 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   },
 
   replaceChatPresets: (presets) => {
-    savePresetsToStorage(presets);
-    set({ chatPresets: presets });
+    const migrated = attachBuiltinPresetKeys(presets);
+    savePresetsToStorage(migrated);
+    set({ chatPresets: migrated });
   },
 
   // ─── 画布背景图 ─────────────────────────────────────────────

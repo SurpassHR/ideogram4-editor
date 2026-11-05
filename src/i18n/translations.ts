@@ -403,6 +403,33 @@ export interface Translations {
       delete: string;
       duplicate: string;
     };
+    builtinPresets: {
+      detailEnhancer: {
+        name: string;
+        description: string;
+      };
+      chinesePrompt: {
+        name: string;
+        description: string;
+      };
+      sceneAtmosphere: {
+        name: string;
+        description: string;
+      };
+      characterDetail: {
+        name: string;
+        description: string;
+      };
+      tags: {
+        detail: string;
+        english: string;
+        chinese: string;
+        general: string;
+        scene: string;
+        atmosphere: string;
+        character: string;
+      };
+    };
     systemPrompt: {
       title: string;
       moduleDesc: string;
@@ -468,6 +495,9 @@ export interface Translations {
     scopeGlobal: string;
     scopeBox: string;
     clearScope: string;
+    aiModel: string;
+    activeModel: string;
+    quickPresets: string;
   };
   shortcuts: {
     button: string;
@@ -910,6 +940,33 @@ const en: Translations = {
       delete: 'Delete',
       duplicate: 'Duplicate',
     },
+    builtinPresets: {
+      detailEnhancer: {
+        name: 'Detail Enhancer',
+        description: 'Add rich visual detail to an English prompt, tuned for Ideogram 4 image generation.',
+      },
+      chinesePrompt: {
+        name: 'Chinese Prompt Refiner',
+        description: 'Refine a simple description into a detailed Chinese prompt.',
+      },
+      sceneAtmosphere: {
+        name: 'Scene Atmosphere',
+        description: "Strengthen the scene's mood and lighting description.",
+      },
+      characterDetail: {
+        name: 'Character Detail',
+        description: 'Refine facial features, posture, clothing, and expression.',
+      },
+      tags: {
+        detail: 'Detail',
+        english: 'English',
+        chinese: 'Chinese',
+        general: 'General',
+        scene: 'Scene',
+        atmosphere: 'Atmosphere',
+        character: 'Character',
+      },
+    },
     systemPrompt: {
       title: 'System Prompts',
       moduleDesc: 'Edit Canvas & Box chat system prompts',
@@ -975,6 +1032,9 @@ const en: Translations = {
     scopeGlobal: 'Full Scene',
     scopeBox: 'Box #{idx}',
     clearScope: 'Clear selection',
+    aiModel: 'AI Model',
+    activeModel: 'Active LLM Model',
+    quickPresets: 'Quick Prompt Presets',
   },
   shortcuts: {
     button: 'Shortcuts',
@@ -1417,6 +1477,33 @@ const zh: Translations = {
       delete: '删除',
       duplicate: '复制',
     },
+    builtinPresets: {
+      detailEnhancer: {
+        name: '增强细节描述',
+        description: '增强视觉细节的英文描述，适合 Ideogram 4 图像生成',
+      },
+      chinesePrompt: {
+        name: '中文 prompt 优化',
+        description: '将简单描述优化为详细的中文 prompt',
+      },
+      sceneAtmosphere: {
+        name: '场景氛围描写',
+        description: '增强场景氛围和光影描写',
+      },
+      characterDetail: {
+        name: '人物特征增强',
+        description: '增强人物面部、姿态、服饰等细节',
+      },
+      tags: {
+        detail: '细节',
+        english: '英文',
+        chinese: '中文',
+        general: '通用',
+        scene: '场景',
+        atmosphere: '氛围',
+        character: '人物',
+      },
+    },
     systemPrompt: {
       title: '系统提示词',
       moduleDesc: '管理 Canvas Chat 和 Per-Box Chat 的系统提示词',
@@ -1482,6 +1569,9 @@ const zh: Translations = {
     scopeGlobal: '全场景',
     scopeBox: '选区 #{idx}',
     clearScope: '取消选中',
+    aiModel: 'AI 模型',
+    activeModel: '当前 LLM 模型',
+    quickPresets: '快捷提示词预设',
   },
   shortcuts: {
     button: '快捷键',

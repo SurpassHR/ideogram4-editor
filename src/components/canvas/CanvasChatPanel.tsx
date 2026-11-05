@@ -12,6 +12,7 @@ import { useI18n } from '../../i18n/context';
 import { useEditorStore } from '../../store';
 import { resolveTemplate } from '../../utils/resolveTemplate';
 import { highlightJson } from '../../utils/json-highlight';
+import { getPresetName } from '../../utils/preset-display';
 import SkillManagerPanel from '../skills/SkillManagerPanel';
 import type { CanvasChatRequestLog, ChatMessage as ChatMessageType } from '../../types/chat';
 
@@ -770,7 +771,7 @@ export default function CanvasChatPanel() {
                 {chatPresets.length > 0 && (
                   <SelectMenu
                     className="chat-preset-select"
-                    options={chatPresets.map(p => ({ value: p.id, label: p.name }))}
+                    options={chatPresets.map(p => ({ value: p.id, label: getPresetName(p, t) }))}
                     value={selectedPreset?.id || ''}
                     onChange={handlePresetChange}
                     placeholder={t('chat.presets.selectPreset')}
@@ -956,7 +957,7 @@ export default function CanvasChatPanel() {
                     {chatPresets.length > 0 && (
                       <SelectMenu
                         className="chat-preset-select"
-                        options={chatPresets.map(p => ({ value: p.id, label: p.name }))}
+                        options={chatPresets.map(p => ({ value: p.id, label: getPresetName(p, t) }))}
                         value={selectedPreset?.id || ''}
                         onChange={handlePresetChange}
                         placeholder={t('chat.presets.selectPreset')}
