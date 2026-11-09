@@ -170,7 +170,7 @@ describe('sendChatMessageStream', () => {
       const signal = init?.signal;
       return new Promise((_resolve, reject) => {
         signal?.addEventListener('abort', () => {
-          reject(new Error('signal is aborted without reason'));
+          reject(new DOMException('Aborted', 'AbortError'));
         });
       });
     });
@@ -193,6 +193,63 @@ describe('sendChatMessageStream', () => {
 
     expect(errorText).toContain('Request timed out');
     expect(errorText).not.toContain('signal is aborted without reason');
+  });
+
+  it('持续到达的思考 chunk 应重置流空闲超时，长思考不会按总时长被中断', async () => {
+    vi.useFakeTimers();
+    const encoder = new TextEncoder();
+    let streamController: ReadableStreamDefaultController<Uint8Array> | null = null;
+
+    mockFetch.mockImplementation((_url, init?: RequestInit) => {
+      const signal = init?.signal;
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          streamController = controller;
+          signal?.addEventListener('abort', () => {
+            controller.error(new DOMException('Aborted', 'AbortError'));
+          });
+        },
+      });
+      return Promise.resolve({ ok: true, body, headers: new Headers() } as unknown as Response);
+    });
+
+    const thinkingChunks: string[] = [];
+    let errorText = '';
+    let doneText = '';
+    const request = sendChatMessageStream(
+      makeProvider('openai'),
+      'reasoning-model',
+      [{ role: 'user', content: 'Generate a layout' }],
+      'Return JSON.',
+      {
+        onChunk: chunk => {
+          if (chunk.type === 'thinking') thinkingChunks.push(chunk.text);
+        },
+        onDone: text => { doneText = text; },
+        onError: err => { errorText = err; },
+      },
+    );
+
+    await vi.advanceTimersByTimeAsync(0);
+    for (const text of ['a', 'b', 'c']) {
+      await vi.advanceTimersByTimeAsync(100_000);
+      streamController!.enqueue(encoder.encode(
+        `data: {"choices":[{"delta":{"reasoning_content":"${text}"}}]}\n`,
+      ));
+      await vi.advanceTimersByTimeAsync(0);
+    }
+
+    streamController!.enqueue(encoder.encode(
+      'data: {"choices":[{"delta":{"content":"{\\"ok\\":true}"}}]}\n',
+    ));
+    streamController!.enqueue(encoder.encode('data: [DONE]\n'));
+    streamController!.close();
+    await vi.advanceTimersByTimeAsync(0);
+    await request;
+
+    expect(errorText).toBe('');
+    expect(thinkingChunks).toEqual(['a', 'b', 'c']);
+    expect(doneText).toBe('{"ok":true}');
   });
 
   it('统一入口在 streamEnabled=false 时应等待完整回复后一次性回调', async () => {

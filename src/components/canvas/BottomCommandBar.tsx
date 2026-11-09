@@ -546,7 +546,7 @@ export const BottomCommandBar: React.FC = () => {
                   No messages in this session. Type in the command bar below to chat.
                 </div>
               ) : (
-                activeSession.messages.map((msg) => (
+                activeSession.messages.map((msg, msgIndex) => (
                   <ChatMessage
                     key={msg.id}
                     message={msg}
@@ -556,6 +556,11 @@ export const BottomCommandBar: React.FC = () => {
                     }}
                     outputCheck={checkMessageOutput}
                     renderMode="summary"
+                    isStreaming={
+                      isChatStreaming
+                      && msg.role === 'assistant'
+                      && msgIndex === activeSession.messages.length - 1
+                    }
                   />
                 ))
               )}

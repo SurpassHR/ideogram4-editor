@@ -176,5 +176,56 @@ describe('ChatMessage', () => {
       render(<ChatMessage message={msg as any} />);
       expect(screen.getByTestId('json-code-block')).toBeTruthy();
     });
+
+    it('思考中的流式消息不提前解析，也不显示解析失败提示', () => {
+      const outputCheck = vi.fn(() => ({ canApply: false, error: 'not json yet' }));
+      const msg = makeMsg({
+        content: '',
+        thinking: 'Let me reason about the composition...',
+      });
+      const { container } = render(
+        <ChatMessage
+          message={msg as any}
+          renderMode="summary"
+          isStreaming
+          outputCheck={outputCheck}
+        />,
+      );
+
+      expect(container.querySelector('.chat-thinking-block')).not.toBeNull();
+      expect(container.querySelector('.chat-msg-parse-hint')).toBeNull();
+      expect(container.querySelector('.chat-parse-error-icon')).toBeNull();
+      expect(outputCheck).not.toHaveBeenCalled();
+    });
+
+    it('传输错误消息不额外显示“无法转换成布局”的解析提示', () => {
+      const msg = makeMsg({
+        content: '[Stream Error: Request timed out after 120 seconds.]',
+        thinking: 'Reasoning output was still arriving...',
+      });
+      const { container } = render(
+        <ChatMessage
+          message={msg as any}
+          renderMode="summary"
+          outputCheck={() => ({ canApply: false, error: 'not json' })}
+        />,
+      );
+
+      expect(container.querySelector('.chat-msg-parse-hint')).toBeNull();
+      expect(container.querySelector('.chat-msg-prose')?.textContent).toContain('Stream Error');
+    });
+
+    it('真正完成但输出非 JSON 时仍显示解析提示', () => {
+      const msg = makeMsg({ content: 'I cannot produce that layout.' });
+      const { container } = render(
+        <ChatMessage
+          message={msg as any}
+          renderMode="summary"
+          outputCheck={() => ({ canApply: false, error: 'not json' })}
+        />,
+      );
+
+      expect(container.querySelector('.chat-msg-parse-hint')).not.toBeNull();
+    });
   });
 });

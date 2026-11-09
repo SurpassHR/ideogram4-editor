@@ -689,6 +689,7 @@ export default function CanvasChatPanel() {
         onRetry={msg.role === 'assistant' ? handleRetry : undefined}
         onEdit={msg.role === 'user' ? handleEdit : undefined}
         isLoading={isLoading}
+        isStreaming={isLoading && msg.role === 'assistant' && msg.id === messages[messages.length - 1]?.id}
       />
     </div>
   );

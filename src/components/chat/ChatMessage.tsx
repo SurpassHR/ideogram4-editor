@@ -24,6 +24,8 @@ interface ChatMessageProps {
   onEdit?: (messageId: string) => void;
   dismissed?: boolean;
   isLoading?: boolean;
+  /** 当前消息仍处于流式接收状态：暂不解析，避免把思考/半成品当解析失败。 */
+  isStreaming?: boolean;
   /**
    * 判断回复能否 Apply（决定 Apply 按钮是否出现）。
    * 缺省用 Ideogram 校验；Canvas Chat 会传入按当前 skill 解析的检查函数。
@@ -65,7 +67,7 @@ function renderMarkdown(text: string): string {
   });
 }
 
-export default function ChatMessage({ message, onAdopt, onDismiss, onApply, onRetry, onEdit, dismissed, isLoading, outputCheck, renderMode = 'json' }: ChatMessageProps) {
+export default function ChatMessage({ message, onAdopt, onDismiss, onApply, onRetry, onEdit, dismissed, isLoading, isStreaming = false, outputCheck, renderMode = 'json' }: ChatMessageProps) {
   const { t, lang } = useI18n();
   const timeLabel = useMemo(() => formatTime(message.timestamp), [message.timestamp]);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -80,14 +82,17 @@ export default function ChatMessage({ message, onAdopt, onDismiss, onApply, onRe
 
   const parseResult = useMemo(
     () => {
-      if (isUser) return null;
+      if (isUser || isStreaming) return null;
       if (outputCheck) return outputCheck(message);
       const ideogramResult = validateIdeogramJSONVerbose(message.content);
       return { canApply: ideogramResult.output !== null, error: ideogramResult.error };
     },
-    [isUser, message.content, outputCheck],
+    [isUser, isStreaming, message.content, outputCheck],
   );
   const parseError = parseResult?.error ?? null;
+  const hasTransportError = message.content.includes('[Stream Error:')
+    || message.content.includes('[Request cancelled by user]');
+  const shouldShowParseError = !!parseError && !hasTransportError;
   const hasOutput = (parseResult?.canApply ?? false) && !!onApply;
   const showApply = hasOutput;
   const applyLabel = message.applied ? 'Re-Apply' : 'Apply';
@@ -132,7 +137,7 @@ export default function ChatMessage({ message, onAdopt, onDismiss, onApply, onRe
         <span className="chat-msg-card-role">{roleLabel}</span>
         <span className="chat-msg-card-spacer" />
         <span className="chat-msg-card-time">{timeLabel}</span>
-        {!isUser && parseError && !isSummaryMode && (
+        {!isUser && shouldShowParseError && !isSummaryMode && (
           <span className="chat-parse-error-icon" title={parseError}>!</span>
         )}
       </div>
@@ -180,7 +185,7 @@ export default function ChatMessage({ message, onAdopt, onDismiss, onApply, onRe
                 ))}
               </div>
             )}
-            {parseError && (
+            {shouldShowParseError && (
               <div className="chat-msg-parse-hint">{t('chat.parseFailedHint')}</div>
             )}
             {showDeveloperTools && (

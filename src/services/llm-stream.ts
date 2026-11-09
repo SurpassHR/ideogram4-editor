@@ -15,6 +15,8 @@ export interface StreamCallbacks {
   onAbort?: () => void;
   /** 捕获 HTTP 响应状态和头信息，用于调试展示 */
   onResponse?: (status: number, headers: Record<string, string>) => void;
+  /** 内部使用：底层流每收到一段新数据时通知空闲超时看门狗。 */
+  onActivity?: () => void;
 }
 
 export interface ChatRunOptions {
@@ -92,7 +94,7 @@ export async function sendChatMessageWithOptions(
 /**
  * SSE 流式聊天消息发送。
  * 按 provider.kind 分发到对应的流式 API 调用。
- * 使用 AbortController 实现 120s 超时。
+ * 使用 AbortController 实现 120s 流空闲超时；任何新数据/思考 chunk 都会重置计时。
  */
 export async function sendChatMessageStream(
   provider: LlmProvider,
@@ -187,29 +189,78 @@ export async function sendChatMessageStream(
   const controller = new AbortController();
   let timedOut = false;
   activeAbortController = controller;
-  const timeoutId = setTimeout(() => {
-    timedOut = true;
-    controller.abort(new Error(`Request timed out after ${STREAM_TIMEOUT_MS / 1000} seconds.`));
-  }, STREAM_TIMEOUT_MS);
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  let streamFinished = false;
+
+  const clearIdleTimeout = () => {
+    if (timeoutId !== null) {
+      clearTimeout(timeoutId);
+      timeoutId = null;
+    }
+  };
+
+  const resetIdleTimeout = () => {
+    if (streamFinished || timedOut) return;
+    clearIdleTimeout();
+    timeoutId = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, STREAM_TIMEOUT_MS);
+  };
+
+  const finishStream = () => {
+    streamFinished = true;
+    clearIdleTimeout();
+  };
+
+  const timeoutMessage = `Request timed out after ${STREAM_TIMEOUT_MS / 1000} seconds without new stream data. The model may still be reasoning or the connection may be stalled.`;
+  const activeCallbacks: StreamCallbacks = {
+    ...callbacks,
+    onChunk: chunk => {
+      resetIdleTimeout();
+      callbacks.onChunk(chunk);
+    },
+    onDone: fullText => {
+      finishStream();
+      callbacks.onDone(fullText);
+    },
+    onError: error => {
+      finishStream();
+      callbacks.onError(error);
+    },
+    onAbort: () => {
+      finishStream();
+      callbacks.onAbort?.();
+    },
+    onResponse: (status, headers) => {
+      resetIdleTimeout();
+      callbacks.onResponse?.(status, headers);
+    },
+    onActivity: resetIdleTimeout,
+  };
+  resetIdleTimeout();
 
   try {
     await dispatchStreamCall(
       provider.kind, baseUrl, provider.api_key, model, systemPrompt, apiMessages,
-      callbacks, controller.signal, options
+      activeCallbacks, controller.signal, options
     );
-    clearTimeout(timeoutId);
+    finishStream();
   } catch (err) {
-    clearTimeout(timeoutId);
+    finishStream();
+    if (timedOut) {
+      callbacks.onError(timeoutMessage);
+      return;
+    }
     // 用户手动终止请求 — 不显示错误，调用 onAbort 回调
     if (err instanceof Error && err.name === 'AbortError') {
       callbacks.onAbort?.();
       return;
     }
-    const msg = timedOut
-      ? `Request timed out after ${STREAM_TIMEOUT_MS / 1000} seconds. The model did not start or finish a streaming response in time.`
-      : err instanceof Error ? err.message : String(err);
+    const msg = err instanceof Error ? err.message : String(err);
     callbacks.onError(msg);
   } finally {
+    finishStream();
     activeAbortController = null;
   }
 }
@@ -218,6 +269,7 @@ export async function sendChatMessageStream(
 async function readSSEStream(
   reader: ReadableStreamDefaultReader<Uint8Array>,
   onLine: (line: string) => void,
+  onActivity?: () => void,
 ): Promise<void> {
   const decoder = new TextDecoder();
   let buffer = '';
@@ -225,6 +277,7 @@ async function readSSEStream(
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
+    onActivity?.();
     buffer += decoder.decode(value, { stream: true });
     const lines = buffer.split('\n');
     buffer = lines.pop() || '';
@@ -261,7 +314,7 @@ async function callOpenAIStream(
     }),
     signal,
   });
-  callbacks.onResponse?.(resp.status, Object.fromEntries(resp.headers.entries()));
+  callbacks.onResponse?.(resp.status, resp.headers ? Object.fromEntries(resp.headers.entries()) : {});
 
   if (!resp.ok) {
     const body = await resp.text().catch(() => '');
@@ -288,7 +341,7 @@ async function callOpenAIStream(
         callbacks.onChunk({ type: 'thinking', text: delta.reasoning_content });
       }
     } catch { /* skip unparseable lines */ }
-  });
+  }, callbacks.onActivity);
 
   if (!accumulated) {
     callbacks.onError('The API returned an empty response. Check that the model supports streaming and the request parameters are correct.');
@@ -328,7 +381,7 @@ async function callAnthropicStream(
     }),
     signal,
   });
-  callbacks.onResponse?.(resp.status, Object.fromEntries(resp.headers.entries()));
+  callbacks.onResponse?.(resp.status, resp.headers ? Object.fromEntries(resp.headers.entries()) : {});
 
   if (!resp.ok) {
     const body = await resp.text().catch(() => '');
@@ -358,7 +411,7 @@ async function callAnthropicStream(
         }
       }
     } catch { /* skip */ }
-  });
+  }, callbacks.onActivity);
 
   if (!accumulated) {
     callbacks.onError('The API returned an empty response. Check that the model supports streaming with thinking enabled.');
@@ -397,7 +450,7 @@ async function callGeminiStream(
     }),
     signal,
   });
-  callbacks.onResponse?.(resp.status, Object.fromEntries(resp.headers.entries()));
+  callbacks.onResponse?.(resp.status, resp.headers ? Object.fromEntries(resp.headers.entries()) : {});
 
   if (!resp.ok) {
     const body = await resp.text().catch(() => '');
@@ -424,7 +477,7 @@ async function callGeminiStream(
         }
       }
     } catch { /* skip */ }
-  });
+  }, callbacks.onActivity);
 
   if (!accumulated) {
     callbacks.onError('The API returned an empty response. Check that the model supports streaming and the API key is valid.');

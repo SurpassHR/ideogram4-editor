@@ -317,6 +317,7 @@ export default function ChatPanel() {
               onEdit={msg.role === 'user' ? handleEdit : undefined}
               dismissed={dismissedIds.has(msg.id)}
               isLoading={isLoading}
+              isStreaming={isLoading && msg.role === 'assistant' && msg.id === messages[messages.length - 1]?.id}
             />
           ))}
           {isLoading && <div className="chat-loading">{t('chat.loading')}</div>}
