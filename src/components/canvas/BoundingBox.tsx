@@ -26,8 +26,9 @@ export default function BoundingBox({ box, index, zoom, isSelected, boxRef, inte
   const canvasW = useEditorStore(s => s.canvasW);
   const canvasH = useEditorStore(s => s.canvasH);
   const selectedBoxIds = useEditorStore(s => s.selectedBoxIds);
+  const layoutLocked = useEditorStore(s => s.isLayoutStreaming || s.layoutStreamRecovery !== null);
   const { t } = useI18n();
-  const isEditing = editingBoxId === box.id;
+  const isEditing = editingBoxId === box.id && !layoutLocked;
   const contentRef = useRef<HTMLDivElement>(null);
   const savedTextRef = useRef('');
 
@@ -139,7 +140,7 @@ export default function BoundingBox({ box, index, zoom, isSelected, boxRef, inte
           draggable={false}
         />
       )}
-      {box.imageDataUrl && (
+      {box.imageDataUrl && !layoutLocked && (
         <button
           className="bounding-box-img-dismiss"
           onClick={handleDismissImage}
@@ -167,13 +168,13 @@ export default function BoundingBox({ box, index, zoom, isSelected, boxRef, inte
         >
           {displayText}
         </div>
-        {isSelected && (
+        {isSelected && !layoutLocked && (
           <ChatBubbleButton boxId={box.id} interactionMode={interactionMode} />
         )}
       </div>
 
       {/* 4 角缩放手柄（Krea 式）：仅选中时显示；右下角保持既有语义 */}
-      {isSelected && (
+      {isSelected && !layoutLocked && (
         <>
           <div className="resize-handle nw" data-handle="nw" />
           <div className="resize-handle ne" data-handle="ne" />

@@ -148,6 +148,7 @@ export default function CanvasArea({ zoom, panX, panY, screenToCanvas, onFitToAr
   const setCanvasBackgroundUrl = useEditorStore(s => s.setCanvasBackgroundUrl);
   const setCanvasDimensions = useEditorStore(s => s.setCanvasDimensions);
   const setCanvasRatio = useEditorStore(s => s.setCanvasRatio);
+  const layoutLocked = useEditorStore(s => s.isLayoutStreaming || s.layoutStreamRecovery !== null);
 
   // Store actions
   const duplicateBox = useEditorStore(s => s.duplicateBox);
@@ -212,6 +213,7 @@ export default function CanvasArea({ zoom, panX, panY, screenToCanvas, onFitToAr
   // ─── 画布粘贴（外部图片：document 级原生事件监听） ────────────
   useEffect(() => {
     const handlePaste = async (e: ClipboardEvent) => {
+      if (layoutLocked) return;
       const target = e.target as HTMLElement;
       const wrapper = canvasRef.current;
 
@@ -293,7 +295,7 @@ export default function CanvasArea({ zoom, panX, panY, screenToCanvas, onFitToAr
 
     document.addEventListener('paste', handlePaste);
     return () => document.removeEventListener('paste', handlePaste);
-  }, []);
+  }, [layoutLocked]);
 
   // ─── 挂载后自动聚焦 canvas，确保浏览器 paste 事件能触发 ────────
   useEffect(() => {
@@ -305,6 +307,11 @@ export default function CanvasArea({ zoom, panX, panY, screenToCanvas, onFitToAr
 
   // ─── 框右键菜单 ──────────────────────────────────────────────
   const handleBoxContextMenu = useCallback((e: React.MouseEvent, boxId: string) => {
+    if (layoutLocked) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
     const isContextOnSelectedGroup = selectedBoxIds.length > 1 && selectedBoxIds.includes(boxId);
     const actionBoxIds = isContextOnSelectedGroup ? selectedBoxIds : [boxId];
     if (!isContextOnSelectedGroup) {
@@ -331,7 +338,7 @@ export default function CanvasArea({ zoom, panX, panY, screenToCanvas, onFitToAr
         { label: t('contextMenu.openAiChat'), onClick: () => openChat(boxId) },
       ],
     });
-  }, [selectedBoxIds, selectBox, duplicateBox, cutBox, copyBox, removeBox, bringToFront, sendToBack, importImageToBox, clearBoxImage, openChat, t]);
+  }, [selectedBoxIds, selectBox, duplicateBox, cutBox, copyBox, removeBox, bringToFront, sendToBack, importImageToBox, clearBoxImage, openChat, t, layoutLocked]);
 
   // ─── 画布空白右键菜单 ────────────────────────────────────────
   const handleCanvasContextMenu = useCallback((e: React.MouseEvent) => {
@@ -340,6 +347,7 @@ export default function CanvasArea({ zoom, panX, panY, screenToCanvas, onFitToAr
     if (target.closest('.bounding-box')) return;
 
     e.preventDefault();
+    if (layoutLocked) return;
     const { x: canvasX, y: canvasY } = screenToCanvas(e.clientX, e.clientY);
 
     const items: (ContextMenuItem | 'divider')[] = [
@@ -390,14 +398,14 @@ export default function CanvasArea({ zoom, panX, panY, screenToCanvas, onFitToAr
     items.push({ label: t('contextMenu.fitToArtboard'), onClick: onFitToArtboard });
 
     setContextMenu({ x: e.clientX, y: e.clientY, items });
-  }, [screenToCanvas, pasteBox, setCanvasBackgroundUrl, canvasBackgroundUrl, clearBoxes, onFitToArtboard, t]);
+  }, [screenToCanvas, pasteBox, setCanvasBackgroundUrl, canvasBackgroundUrl, clearBoxes, onFitToArtboard, t, layoutLocked]);
 
   return (
     <div
       ref={canvasRef}
       id="canvas-wrapper"
       tabIndex={-1}
-      className={`canvas-bg${altPressed ? ' alt-create-mode' : ''}`}
+      className={`canvas-bg${altPressed ? ' alt-create-mode' : ''}${layoutLocked ? ' layout-locked' : ''}`}
       style={{
         width: canvasW,
         height: canvasH,

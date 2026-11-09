@@ -6,8 +6,7 @@ import { buildLayoutFeedbackPrompt } from '../services/llm-canvas-chat';
 import { getAdapter } from '../services/skill-adapters';
 import { isSkillExtractionError } from '../services/skill-adapters/types';
 import type { SkillExtraction } from '../services/skill-adapters/types';
-import { applyExtractionToStore } from '../services/skill-apply';
-import { applyRegionExtractionToStore } from '../services/skill-apply';
+import { applyExtractionToStore, applyRegionExtractionToStore, buildCanvasReplacement } from '../services/skill-apply';
 import { buildExtractionSummary } from '../utils/summary';
 import { getBuiltinSkills } from '../skills/builtin-skills';
 import { resolveActiveSkill } from '../types/skill';
@@ -381,6 +380,74 @@ export function useCanvasChat() {
     }
   }
 
+  /**
+   * 将给定的 skill 输出应用到画布，并基于已落地布局生成质量诊断。
+   * 返回落框数量；null 表示该消息无法按当前 skill 的格式解析。
+   */
+  const applyExtraction = useCallback(
+    (
+      extraction: SkillExtraction,
+      skillId: string,
+      regionBoxId?: string,
+      streamingRequestId?: string,
+    ): { count: number; warnings: string[] } => {
+    const store = useEditorStore.getState();
+    let effective = extraction;
+    // 全量 Apply 时，模型返回的画布尺寸会改写画板；尺寸变化时给一条提示
+    // 区域 Apply 只替换目标 box，不动画板尺寸与全局设置
+    const resized = extraction.canvas
+      ? normalizeCanvasSize(extraction.canvas.width, extraction.canvas.height)
+      : null;
+    if (!regionBoxId && resized && (resized.width !== store.canvasW || resized.height !== store.canvasH)) {
+      effective = {
+        ...extraction,
+        warnings: [
+          ...extraction.warnings,
+          `已按模型给出的画布尺寸把画板调整为 ${resized.width}×${resized.height}（原 ${store.canvasW}×${store.canvasH}）。`,
+        ],
+      };
+    }
+
+    setPendingApply({ skillId, adapter: effective.adapter, extraction: effective });
+    if (effective.ideogramOutput) setPendingIdeogramOutput(effective.ideogramOutput);
+
+    let count = 0;
+    const previewCommitted = streamingRequestId
+      ? (() => {
+          const replacement = buildCanvasReplacement(effective, store);
+          if (regionBoxId) {
+            const box = replacement.boxes[0];
+            return box ? store.commitStreamingRegion(streamingRequestId, regionBoxId, box) : false;
+          }
+          return store.commitStreamingLayout(streamingRequestId, replacement);
+        })()
+      : false;
+
+    if (previewCommitted) {
+      count = regionBoxId ? 1 : effective.elements.length;
+    } else {
+      count = regionBoxId
+        ? applyRegionExtractionToStore(effective, store, regionBoxId)
+        : applyExtractionToStore(effective, store);
+    }
+    if (count === 0) {
+      store.setPendingQualityReport(null);
+      return { count: 0, warnings: effective.warnings };
+    }
+
+    if (regionBoxId) {
+      // 区域 Apply：只诊断受影响的这一个元素
+      store.setPendingQualityReport(null);
+    } else {
+      // 画板可能已被 Apply 改尺寸，质量诊断使用最新尺寸
+      const after = useEditorStore.getState();
+      store.setPendingQualityReport(validateLayout(effective.elements, after.canvasW, after.canvasH));
+    }
+    return { count, warnings: effective.warnings };
+    },
+    [setPendingApply, setPendingIdeogramOutput],
+  );
+
   const sendMessage = useCallback(async (content: string, retryContext?: { feedback?: string }) => {
     const requestId = startCanvasChatRequest(content.slice(0, 80));
     const userMessage = createUserMessage(content);
@@ -550,9 +617,10 @@ export function useCanvasChat() {
       contextJson,
     });
 
-    const accumulatedContent: string[] = [];
-    const accumulatedThinking: string[] = [];
+    let accumulatedContent = '';
+    let accumulatedThinking = '';
     let loggedFirstChunk = false;
+    let loggedFirstPreview = false;
 
     appendCanvasChatRequestStep(requestId, {
       kind: 'stream_start',
@@ -561,26 +629,82 @@ export function useCanvasChat() {
       detail: `${provider.name || provider.id} · ${parsed.modelName}`,
     });
 
-    const abortHandler = (resolve: () => void) => {
-      const store = useEditorStore.getState();
-      store.updateCanvasChatMessage(placeholderId, { content: '\n\n[Request cancelled by user]' });
-      appendCanvasChatRequestStep(requestId, {
-        kind: 'error',
-        status: 'error',
-        label: 'Aborted by user',
-      });
-      finishCanvasChatRequest(requestId, 'error', 'Request stopped by user.');
-      setIsLoading(false);
-      resolve();
-    };
-
     await new Promise<void>((resolve) => {
       let settled = false;
-      const markSettled = () => { settled = true; };
+      let uiTimer: ReturnType<typeof setTimeout> | null = null;
+      let lastUiUpdate = 0;
+      const STREAM_UI_INTERVAL_MS = 50;
+
+      const writeStreamingMessage = () => {
+        useEditorStore.getState().updateCanvasChatMessage(placeholderId, {
+          content: accumulatedContent,
+          thinking: accumulatedThinking,
+        });
+      };
+
+      const updateStreamingPreview = () => {
+        if (!chatStreamEnabled || !skillAdapter.extractPreview) return;
+        const store = useEditorStore.getState();
+        const preview = skillAdapter.extractPreview(accumulatedContent, {
+          canvasW: store.canvasW,
+          canvasH: store.canvasH,
+        });
+        if (!preview || preview.elements.length === 0) return;
+
+        const previewExtraction: SkillExtraction = {
+          adapter: preview.adapter,
+          elements: preview.elements,
+          raw: accumulatedContent,
+          warnings: [],
+        };
+        const replacement = buildCanvasReplacement(previewExtraction, store);
+        const previewBoxes = regionTarget?.boxId
+          ? replacement.boxes.slice(0, 1)
+          : replacement.boxes;
+        store.updateStreamingLayout(requestId, previewBoxes, regionTarget?.boxId);
+
+        if (!loggedFirstPreview) {
+          loggedFirstPreview = true;
+          appendCanvasChatRequestStep(requestId, {
+            kind: 'stream_chunk',
+            status: 'running',
+            label: 'Realtime bbox preview started',
+            detail: `${previewBoxes.length} boxes written while streaming.`,
+          });
+        }
+      };
+
+      const scheduleStreamingUi = () => {
+        if (uiTimer !== null) return;
+        const wait = Math.max(0, STREAM_UI_INTERVAL_MS - (Date.now() - lastUiUpdate));
+        uiTimer = setTimeout(() => {
+          uiTimer = null;
+          if (settled) return;
+          writeStreamingMessage();
+          updateStreamingPreview();
+          lastUiUpdate = Date.now();
+        }, wait);
+      };
+
+      const finishWithRecovery = (reason: string) => {
+        const recoveryShown = useEditorStore.getState().requestStreamingLayoutRecovery(requestId, reason);
+        if (recoveryShown) {
+          appendCanvasChatRequestStep(requestId, {
+            kind: 'error',
+            status: 'error',
+            label: 'Streaming layout paused for recovery',
+            detail: reason,
+          });
+        }
+      };
+
       const finishWithError = (err: string) => {
         if (settled) return;
-        markSettled();
-        const partialResponse = accumulatedContent.join('');
+        settled = true;
+        if (uiTimer !== null) clearTimeout(uiTimer);
+        uiTimer = null;
+        const partialResponse = accumulatedContent;
+        updateStreamingPreview();
         const store = useEditorStore.getState();
         store.updateCanvasChatMessage(placeholderId, {
           content: (partialResponse || '') + `\n\n[Stream Error: ${err}]`,
@@ -595,7 +719,30 @@ export function useCanvasChat() {
           label: 'Stream failed',
           detail: err,
         });
+        finishWithRecovery(err);
         finishCanvasChatRequest(requestId, 'error', err);
+        setIsLoading(false);
+        resolve();
+      };
+
+      const handleAbort = () => {
+        if (settled) return;
+        settled = true;
+        if (uiTimer !== null) clearTimeout(uiTimer);
+        uiTimer = null;
+        updateStreamingPreview();
+        const store = useEditorStore.getState();
+        store.updateCanvasChatMessage(placeholderId, {
+          content: (accumulatedContent || '') + '\n\n[Request cancelled by user]',
+          thinking: accumulatedThinking || undefined,
+        });
+        appendCanvasChatRequestStep(requestId, {
+          kind: 'error',
+          status: 'error',
+          label: 'Aborted by user',
+        });
+        finishWithRecovery('Request stopped by user.');
+        finishCanvasChatRequest(requestId, 'error', 'Request stopped by user.');
         setIsLoading(false);
         resolve();
       };
@@ -603,9 +750,9 @@ export function useCanvasChat() {
       const streamResult = sendChatMessageWithOptions(provider, parsed.modelName, apiMessages, systemPrompt, {
         onChunk: ({ type, text }) => {
           if (type === 'thinking') {
-            accumulatedThinking.push(text);
+            accumulatedThinking += text;
           } else {
-            accumulatedContent.push(text);
+            accumulatedContent += text;
           }
           if (!loggedFirstChunk) {
             loggedFirstChunk = true;
@@ -615,21 +762,20 @@ export function useCanvasChat() {
               label: 'Receive first stream chunk',
             });
           }
-          const store = useEditorStore.getState();
-          store.updateCanvasChatMessage(placeholderId, {
-            content: accumulatedContent.join(''),
-            thinking: accumulatedThinking.join(''),
-          });
+          scheduleStreamingUi();
         },
         onDone: async (fullText) => {
           if (settled) return;
-          markSettled();
-          const finalContent = accumulatedContent.join('') || fullText;
-          const finalThinking = accumulatedThinking.join('');
+          settled = true;
+          if (uiTimer !== null) clearTimeout(uiTimer);
+          uiTimer = null;
+          const finalContent = accumulatedContent || fullText;
+          const finalThinking = accumulatedThinking;
           useEditorStore.getState().updateCanvasChatMessage(placeholderId, {
             content: finalContent,
             thinking: finalThinking || undefined,
           });
+          updateStreamingPreview();
           appendCanvasChatRequestStep(requestId, {
             kind: 'stream_done',
             status: 'success',
@@ -661,15 +807,9 @@ export function useCanvasChat() {
               label: `Parse ${skillAdapter.label} output`,
               detail: `${extraction.elements.length} elements`,
             });
-            // 自动落框：生成完成后直接把 JSON 对应的 bboxes 添加到画布
+            // 自动落框：有实时事务时原子收尾，否则沿用原有一次性 Apply。
             if (extraction.elements.length > 0) {
-              const currentStore = useEditorStore.getState();
-              currentStore.snapshot();
-              if (regionTarget?.boxId) {
-                applyRegionExtractionToStore(extraction, currentStore, regionTarget.boxId);
-              } else {
-                applyExtractionToStore(extraction, currentStore);
-              }
+              applyExtraction(extraction, activeSkill.id, regionTarget?.boxId, requestId);
             }
 
             setPendingQualityReport(null);
@@ -697,6 +837,7 @@ export function useCanvasChat() {
               label: `Parse ${skillAdapter.label} output failed`,
               detail: parseError,
             });
+            finishWithRecovery(parseError);
             finishCanvasChatRequest(requestId, 'error', parseError);
           }
           setIsLoading(false);
@@ -708,7 +849,7 @@ export function useCanvasChat() {
             responseHeaders: headers,
           });
         },
-        onAbort: () => abortHandler(resolve),
+        onAbort: handleAbort,
         onError: finishWithError,
       }, {
         streamEnabled: chatStreamEnabled,
@@ -735,57 +876,10 @@ export function useCanvasChat() {
     boxes, canvasW, canvasH, globalPalette, highLevelDescription,
     aesthetics, lighting, medium, artStyle, background, photoArtStyleMode,
     canvasChatMessages, chatResponseLang, chatStreamEnabled, chatThinkingLevel, canvasChatTargetSize,
-    activeSkill, skillAdapter, activeSkillReferencePaths,
+    activeSkill, skillAdapter, activeSkillReferencePaths, applyExtraction,
     setPendingIdeogramOutput, setPendingQualityReport, canvasBackgroundUrl,
     regionTargetDismissed,
   ]);
-
-  /**
-   * 将给定的 skill 输出应用到画布，并基于已落地布局生成质量诊断。
-   * 返回落框数量；null 表示该消息无法按当前 skill 的格式解析。
-   */
-  const applyExtraction = useCallback(
-    (extraction: SkillExtraction, skillId: string, regionBoxId?: string): { count: number; warnings: string[] } => {
-    const store = useEditorStore.getState();
-    let effective = extraction;
-    // 全量 Apply 时，模型返回的画布尺寸会改写画板；尺寸变化时给一条提示
-    // 区域 Apply 只替换目标 box，不动画板尺寸与全局设置
-    const resized = extraction.canvas
-      ? normalizeCanvasSize(extraction.canvas.width, extraction.canvas.height)
-      : null;
-    if (!regionBoxId && resized && (resized.width !== store.canvasW || resized.height !== store.canvasH)) {
-      effective = {
-        ...extraction,
-        warnings: [
-          ...extraction.warnings,
-          `已按模型给出的画布尺寸把画板调整为 ${resized.width}×${resized.height}（原 ${store.canvasW}×${store.canvasH}）。`,
-        ],
-      };
-    }
-
-    setPendingApply({ skillId, adapter: effective.adapter, extraction: effective });
-    if (effective.ideogramOutput) setPendingIdeogramOutput(effective.ideogramOutput);
-
-    const count = regionBoxId
-      ? applyRegionExtractionToStore(effective, store, regionBoxId)
-      : applyExtractionToStore(effective, store);
-    if (count === 0) {
-      store.setPendingQualityReport(null);
-      return { count: 0, warnings: effective.warnings };
-    }
-
-    if (regionBoxId) {
-      // 区域 Apply：只诊断受影响的这一个元素
-      store.setPendingQualityReport(null);
-    } else {
-      // 画板可能已被 Apply 改尺寸，质量诊断使用最新尺寸
-      const after = useEditorStore.getState();
-      store.setPendingQualityReport(validateLayout(effective.elements, after.canvasW, after.canvasH));
-    }
-    return { count, warnings: effective.warnings };
-    },
-    [setPendingApply, setPendingIdeogramOutput],
-  );
 
   /**
    * 解析消息内容并按当前 skill 的 adapter 应用到画布。

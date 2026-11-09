@@ -20,6 +20,9 @@ export default function Artboard() {
   const { handleRegenerate } = useCanvasChat();
   const pendingQualityReport = useEditorStore(s => s.pendingQualityReport);
   const setPendingQualityReport = useEditorStore(s => s.setPendingQualityReport);
+  const isLayoutStreaming = useEditorStore(s => s.isLayoutStreaming);
+  const streamingLayoutBoxCount = useEditorStore(s => s.streamingLayoutBoxCount);
+  const layoutLocked = useEditorStore(s => s.isLayoutStreaming || s.layoutStreamRecovery !== null);
 
   const {
     zoom,
@@ -53,6 +56,13 @@ export default function Artboard() {
     >
       <ArtboardToolbar />
 
+      {isLayoutStreaming && (
+        <div className="layout-streaming-status" role="status" aria-live="polite">
+          <span className="layout-streaming-dot" />
+          {t('chat.streamingLayout', { count: streamingLayoutBoxCount })}
+        </div>
+      )}
+
       <div className="artboard-controls">
         <span className="artboard-zoom-label">{Math.round(zoom * 100)}%</span>
         <button className="artboard-reset-btn" onClick={fitToArtboard} title={t('artboard.resetPosition')}>
@@ -61,7 +71,7 @@ export default function Artboard() {
         <button
           className="artboard-clear-btn"
           onClick={clearBoxes}
-          disabled={boxes.length === 0}
+          disabled={boxes.length === 0 || layoutLocked}
           title={t('contextMenu.clearAllBoxes')}
         >
           <IconTrash size={14} />

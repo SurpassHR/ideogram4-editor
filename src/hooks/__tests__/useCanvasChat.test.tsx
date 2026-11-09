@@ -62,9 +62,122 @@ describe('useCanvasChat', () => {
       pendingIdeogramOutput: null,
       pendingQualityReport: null,
       isCanvasChatLoading: false,
+      isLayoutStreaming: false,
+      layoutStreamRecovery: null,
+      streamingLayoutBoxCount: 0,
+      layoutStreamTransaction: null,
       chatModel: 'mock:gpt-4',
       chatResponseLang: 'auto',
     });
+  });
+
+  it('把已闭合的 bbox 写入画布，并在 onDone 前保持流式锁定', async () => {
+    let callbacks: Parameters<typeof sendChatMessageWithOptions>[4] | null = null;
+    let releaseRequest: (() => void) | null = null;
+    vi.mocked(sendChatMessageWithOptions).mockImplementation(
+      async (_provider, _model, _messages, _systemPrompt, cb) => {
+        callbacks = cb;
+        await new Promise<void>(resolve => { releaseRequest = resolve; });
+      },
+    );
+
+    const { result } = renderHook(() => useCanvasChat());
+    await waitFor(() => expect(result.current.hasProviders).toBe(true));
+
+    let sendPromise: Promise<void> | null = null;
+    act(() => { sendPromise = result.current.sendMessage('生成一张实时布局海报'); });
+    await waitFor(() => expect(callbacks).not.toBeNull());
+
+    const prefix = '```json\n{"high_level_description":"x","compositional_deconstruction":{"background":"b","elements":[{"type":"obj","bbox":[100,200,400,800],';
+    act(() => { callbacks!.onChunk({ type: 'content', text: prefix }); });
+
+    await waitFor(() => {
+      const state = useEditorStore.getState();
+      expect(state.boxes).toHaveLength(1);
+      expect(state.boxes[0].desc).toBe('');
+      expect(state.isLayoutStreaming).toBe(true);
+      expect(state.streamingLayoutBoxCount).toBe(1);
+    });
+
+    const suffix = '"desc":"a cat"}]}}```';
+    act(() => { callbacks!.onChunk({ type: 'content', text: suffix }); });
+
+    await act(async () => {
+      await callbacks!.onDone(prefix + suffix);
+      releaseRequest?.();
+      await sendPromise;
+    });
+
+    const state = useEditorStore.getState();
+    expect(state.isLayoutStreaming).toBe(false);
+    expect(state.layoutStreamRecovery).toBeNull();
+    expect(state.boxes[0]).toMatchObject({ id: 'box_0', desc: 'a cat' });
+    expect(state.isCanvasChatLoading).toBe(false);
+  });
+
+  it('流式 bbox 后最终解析失败时进入保留/恢复待决状态', async () => {
+    let callbacks: Parameters<typeof sendChatMessageWithOptions>[4] | null = null;
+    let releaseRequest: (() => void) | null = null;
+    vi.mocked(sendChatMessageWithOptions).mockImplementation(
+      async (_provider, _model, _messages, _systemPrompt, cb) => {
+        callbacks = cb;
+        await new Promise<void>(resolve => { releaseRequest = resolve; });
+      },
+    );
+
+    const { result } = renderHook(() => useCanvasChat());
+    await waitFor(() => expect(result.current.hasProviders).toBe(true));
+
+    let sendPromise: Promise<void> | null = null;
+    act(() => { sendPromise = result.current.sendMessage('生成一张会失败的布局'); });
+    await waitFor(() => expect(callbacks).not.toBeNull());
+
+    const prefix = '```json\n{"compositional_deconstruction":{"elements":[{"type":"obj","bbox":[10,20,30,40],';
+    act(() => { callbacks!.onChunk({ type: 'content', text: prefix }); });
+    await waitFor(() => expect(useEditorStore.getState().boxes).toHaveLength(1));
+
+    await act(async () => {
+      await callbacks!.onDone('no valid json');
+      releaseRequest?.();
+      await sendPromise;
+    });
+
+    const state = useEditorStore.getState();
+    expect(state.layoutStreamRecovery).toMatchObject({ requestId: expect.any(String), boxCount: 1 });
+    expect(state.boxes).toHaveLength(1);
+    expect(state.isCanvasChatLoading).toBe(false);
+  });
+
+  it('用户停止流式请求后，如果已经写入 bbox 则进入恢复待决状态', async () => {
+    let callbacks: Parameters<typeof sendChatMessageWithOptions>[4] | null = null;
+    let releaseRequest: (() => void) | null = null;
+    vi.mocked(sendChatMessageWithOptions).mockImplementation(
+      async (_provider, _model, _messages, _systemPrompt, cb) => {
+        callbacks = cb;
+        await new Promise<void>(resolve => { releaseRequest = resolve; });
+      },
+    );
+
+    const { result } = renderHook(() => useCanvasChat());
+    await waitFor(() => expect(result.current.hasProviders).toBe(true));
+
+    let sendPromise: Promise<void> | null = null;
+    act(() => { sendPromise = result.current.sendMessage('生成后立即停止'); });
+    await waitFor(() => expect(callbacks).not.toBeNull());
+
+    const prefix = '```json\n{"compositional_deconstruction":{"elements":[{"type":"obj","bbox":[10,20,30,40],';
+    act(() => { callbacks!.onChunk({ type: 'content', text: prefix }); });
+    await waitFor(() => expect(useEditorStore.getState().boxes).toHaveLength(1));
+
+    await act(async () => {
+      callbacks!.onAbort?.();
+      releaseRequest?.();
+      await sendPromise;
+    });
+
+    const state = useEditorStore.getState();
+    expect(state.layoutStreamRecovery).toMatchObject({ boxCount: 1 });
+    expect(state.isCanvasChatLoading).toBe(false);
   });
 
   it('JSON 解析失败时只请求一次并写入 parse_failed 请求日志', async () => {

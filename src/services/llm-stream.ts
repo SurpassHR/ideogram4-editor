@@ -109,14 +109,32 @@ export async function sendChatMessageStream(
     : messages;
   // 测试打桩模式 (Mock Test Mode) 拦截
   if (provider.id === 'mock_test_provider' || provider.api_key === 'mock-key' || (typeof localStorage !== 'undefined' && localStorage.getItem('ideogram4-mock-test-mode') === 'true' && provider.name.includes('Mock'))) {
-    await new Promise(r => setTimeout(r, 400));
-    callbacks.onResponse?.(200, { 'content-type': 'text/event-stream' });
-    const thinkingText = 'Analyzing the prompt and craft an ideal composition with balanced bounding boxes and vivid descriptions...';
-    callbacks.onChunk({ type: 'thinking', text: thinkingText });
-    await new Promise(r => setTimeout(r, 600));
+    const mockController = new AbortController();
+    activeAbortController = mockController;
+    const wait = (ms: number) => new Promise<void>((resolve, reject) => {
+      if (mockController.signal.aborted) {
+        reject(new DOMException('Aborted', 'AbortError'));
+        return;
+      }
+      const timer = setTimeout(() => {
+        mockController.signal.removeEventListener('abort', onAbort);
+        resolve();
+      }, ms);
+      const onAbort = () => {
+        clearTimeout(timer);
+        reject(new DOMException('Aborted', 'AbortError'));
+      };
+      mockController.signal.addEventListener('abort', onAbort, { once: true });
+    });
     const mockJson = '```json\n' + JSON.stringify({
       high_level_description: 'A cinematic, high-detail composition with dramatic lighting and balanced spatial depth.',
-      style_description: 'Hyper-detailed photographic render with natural rim lighting and subtle atmospheric haze.',
+      style_description: {
+        aesthetics: 'cinematic, high-detail poster design',
+        lighting: 'dramatic rim lighting with subtle atmospheric haze',
+        photo: '85mm lens, shallow depth of field, eye-level',
+        medium: 'photograph',
+        color_palette: ['#FAFAFA', '#38BDF8', '#1E293B']
+      },
       canvasW: 1024,
       canvasH: 576,
       compositional_deconstruction: {
@@ -124,22 +142,43 @@ export async function sendChatMessageStream(
         elements: [
           {
             type: 'object',
-            description: 'Main hero subject positioned with clear visual hierarchy and sharp focus.',
+            desc: 'Main hero subject positioned with clear visual hierarchy and sharp focus.',
             bbox: [120, 80, 880, 520],
             color_palette: ['#fafafa', '#38bdf8', '#1e293b']
           },
           {
             type: 'text',
             text: 'MOCK STUDIO',
-            description: 'Bold modern sans-serif headline in upper region with subtle glow.',
+            desc: 'Bold modern sans-serif headline in upper region with subtle glow.',
             bbox: [160, 560, 360, 920],
             color_palette: ['#ffffff', '#00d4aa']
           }
         ]
       }
     }, null, 2) + '\n```';
-    callbacks.onChunk({ type: 'content', text: mockJson });
-    callbacks.onDone(mockJson);
+    try {
+      await wait(400);
+      callbacks.onResponse?.(200, { 'content-type': 'text/event-stream' });
+      const thinkingText = 'Analyzing the prompt and craft an ideal composition with balanced bounding boxes and vivid descriptions...';
+      callbacks.onChunk({ type: 'thinking', text: thinkingText });
+      await wait(600);
+
+      // 分片输出，便于在 mock 模式下验证实时 bbox 预览与中断恢复。
+      const MOCK_CHUNK_SIZE = 36;
+      for (let offset = 0; offset < mockJson.length; offset += MOCK_CHUNK_SIZE) {
+        callbacks.onChunk({ type: 'content', text: mockJson.slice(offset, offset + MOCK_CHUNK_SIZE) });
+        await wait(38);
+      }
+      callbacks.onDone(mockJson);
+    } catch (error) {
+      if (mockController.signal.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
+        callbacks.onAbort?.();
+      } else {
+        callbacks.onError(error instanceof Error ? error.message : String(error));
+      }
+    } finally {
+      if (activeAbortController === mockController) activeAbortController = null;
+    }
     return;
   }
 

@@ -13,10 +13,21 @@ import { collectJsonCandidates } from './json-candidates';
 import { composeSystemPrompt } from './prompt';
 import type {
   SkillAdapter,
+  SkillExtractContext,
   SkillExtraction,
   SkillExtractionError,
   SkillPromptOptions,
+  SkillStreamPreview,
 } from './types';
+import {
+  parsePartialJson,
+  partialArrayItems,
+  partialNumber,
+  partialNumberTuple,
+  partialObjectField,
+  partialString,
+  partialStringArray,
+} from '../../utils/partial-json';
 
 const MOSS_BASE_PROMPT = `You are the MOSS-Image prompt enhancer working on the user's canvas.
 
@@ -84,6 +95,45 @@ export const mossLayoutAdapter: SkillAdapter = {
         ? 'present (attached as image in the same message)'
         : 'none',
     }, null, 2);
+  },
+
+  extractPreview(text: string, _ctx: SkillExtractContext): SkillStreamPreview | null {
+    const parsed = parsePartialJson(text, 'object');
+    if (!parsed) return null;
+
+    const width = partialNumber(partialObjectField(parsed.node, 'width'));
+    const height = partialNumber(partialObjectField(parsed.node, 'height'));
+    if (!width || !height || width <= 0 || height <= 0) return null;
+
+    const itemsNode = partialObjectField(parsed.node, 'items');
+    const elements: IdeogramElement[] = [];
+    for (const item of partialArrayItems(itemsNode)) {
+      const bbox = partialNumberTuple(partialObjectField(item, 'bbox'));
+      if (!bbox) continue;
+      const label = partialString(partialObjectField(item, 'label'));
+      const element: IdeogramElement = {
+        type: label === 'text' ? 'text' : 'obj',
+        bbox: [
+          to1000(bbox[1], height),
+          to1000(bbox[0], width),
+          to1000(bbox[3], height),
+          to1000(bbox[2], width),
+        ],
+        desc: partialString(partialObjectField(item, 'caption')) ?? '',
+      };
+      const literal = partialString(partialObjectField(item, 'text'));
+      if (label === 'text' && literal !== undefined) element.text = literal;
+      const palette = partialStringArray(partialObjectField(item, 'palette'));
+      if (palette !== undefined) element.color_palette = palette;
+      elements.push(element);
+    }
+
+    if (elements.length === 0) return null;
+    return {
+      adapter: 'moss-layout',
+      elements,
+      canvas: { width, height },
+    };
   },
 
   extract(text: string): SkillExtraction | SkillExtractionError {

@@ -43,6 +43,15 @@ export interface SkillExtraction {
   summary?: string;
 }
 
+/** 流式生成期间可安全落画布的部分结果。 */
+export interface SkillStreamPreview {
+  adapter: SkillAdapterId;
+  /** 只包含 bbox 已完整闭合的元素；desc/text 可能仍在生成。 */
+  elements: IdeogramElement[];
+  /** 模型已经明确给出的输出画布尺寸（仅用于预览坐标换算）。 */
+  canvas?: { width: number; height: number };
+}
+
 export interface SkillExtractionError {
   error: string;
   raw: string;
@@ -67,6 +76,8 @@ export interface SkillAdapter {
   buildSystemPrompt(skill: SkillRecord, opts: SkillPromptOptions): string;
   /** 生成发给 LLM 的画布上下文 */
   buildCanvasContext(snapshot: CanvasChatStoreSnapshot, targetSize: number): string;
+  /** 从尚未完成的 JSON 中提取可预览的 bbox；不允许抛错。 */
+  extractPreview?(text: string, ctx: SkillExtractContext): SkillStreamPreview | null;
   extract(text: string, ctx: SkillExtractContext): SkillExtraction | SkillExtractionError;
   toCopyText(extraction: SkillExtraction): string;
   /**

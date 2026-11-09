@@ -280,6 +280,8 @@ export default function CanvasChatPanel() {
   const canvasChatSessions = useEditorStore(s => s.canvasChatSessions);
   const activeCanvasChatSessionId = useEditorStore(s => s.activeCanvasChatSessionId);
   const activeCanvasChatRequestId = useEditorStore(s => s.activeCanvasChatRequestId);
+  const isLayoutStreaming = useEditorStore(s => s.isLayoutStreaming);
+  const streamingLayoutBoxCount = useEditorStore(s => s.streamingLayoutBoxCount);
   const setCanvasChatMaximized = useEditorStore(s => s.setCanvasChatMaximized);
   const setCanvasChatOpen = useEditorStore(s => s.setCanvasChatOpen);
   const createCanvasChatSession = useEditorStore(s => s.createCanvasChatSession);
@@ -751,7 +753,9 @@ export default function CanvasChatPanel() {
               {isLoading && (
                 <div className="chat-loading">
                   <span className="canvas-chat-spinner" />
-                  {' '}{t('chat.loading')}
+                  {' '}{isLayoutStreaming
+                    ? t('chat.streamingLayout', { count: streamingLayoutBoxCount })
+                    : t('chat.loading')}
                   {' · '}<span className="chat-stop-hint" style={{ color: 'var(--danger)' }}>{t('chat.stop')}</span>
                 </div>
               )}

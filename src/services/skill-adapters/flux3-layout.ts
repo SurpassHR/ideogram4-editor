@@ -17,7 +17,15 @@ import type {
   SkillExtraction,
   SkillExtractionError,
   SkillPromptOptions,
+  SkillStreamPreview,
 } from './types';
+import {
+  parsePartialJson,
+  partialArrayItems,
+  partialNumberTuple,
+  partialObjectField,
+  partialString,
+} from '../../utils/partial-json';
 
 const FLUX3_BASE_PROMPT = `You are a FLUX 3 Image Klein prompt writer working on the user's canvas.
 
@@ -72,6 +80,41 @@ export const flux3LayoutAdapter: SkillAdapter = {
         ? 'present (attached as image in the same message)'
         : 'none',
     }, null, 2);
+  },
+
+  extractPreview(text: string, ctx: SkillExtractContext): SkillStreamPreview | null {
+    const parsed = parsePartialJson(text, 'array');
+    if (!parsed) return null;
+
+    const rawElements: IdeogramElement[] = [];
+    for (const row of partialArrayItems(parsed.node)) {
+      const bbox = partialNumberTuple(partialObjectField(row, 'bbox'))
+        ?? partialNumberTuple(partialObjectField(row, 'tgt_bbox'));
+      if (!bbox) continue;
+
+      const isText = partialString(partialObjectField(row, 'type')) === 'text'
+        || partialString(partialObjectField(row, 'label')) === 'text';
+      const element: IdeogramElement = {
+        type: isText ? 'text' : 'obj',
+        bbox,
+        desc: partialString(partialObjectField(row, 'desc')) ?? '',
+      };
+      if (isText) {
+        const literal = partialString(partialObjectField(row, 'text'));
+        if (literal !== undefined) element.text = literal;
+      }
+      rawElements.push(element);
+    }
+
+    if (rawElements.length === 0) return null;
+    const system = detectBboxSystem(rawElements);
+    return {
+      adapter: 'flux3-layout',
+      elements: rawElements.map(element => ({
+        ...element,
+        bbox: normalizeBboxTo1000(element.bbox, system, ctx.canvasW, ctx.canvasH),
+      })),
+    };
   },
 
   extract(text: string, ctx: SkillExtractContext): SkillExtraction | SkillExtractionError {

@@ -297,6 +297,7 @@ export default function ChatMessage({ message, onAdopt, onDismiss, onApply, onRe
               type="button"
               className={`chat-msg-card-apply-ghost${message.applied ? ' reapplied' : ''}`}
               onClick={() => onApply!(message.id)}
+              disabled={isLoading}
               aria-label={`${applyLabel} this composition to canvas`}
               title={`${applyLabel} this composition to canvas`}
             >

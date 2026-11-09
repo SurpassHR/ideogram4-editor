@@ -5,6 +5,7 @@ import CanvasPage from './MainContent';
 import SettingsPage from './SettingsPage';
 import BottomBar from './BottomBar';
 import ShortcutsModal from '../shortcuts/ShortcutsModal';
+import StreamingLayoutRecoveryDialog from '../canvas/StreamingLayoutRecoveryDialog';
 import { useEditorStore } from '../../store';
 
 const SHORTCUTS_SEEN_KEY = 'ideogram4-shortcuts-seen';
@@ -36,6 +37,7 @@ export default function App() {
         {isCanvas && <BottomBar />}
       </div>
       <ShortcutsModal />
+      <StreamingLayoutRecoveryDialog />
     </>
   );
 }

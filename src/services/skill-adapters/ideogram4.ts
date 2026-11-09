@@ -19,7 +19,17 @@ import type {
   SkillExtraction,
   SkillExtractionError,
   SkillPromptOptions,
+  SkillStreamPreview,
 } from './types';
+import {
+  parsePartialJson,
+  partialArrayItems,
+  partialNumber,
+  partialNumberTuple,
+  partialObjectField,
+  partialString,
+  partialStringArray,
+} from '../../utils/partial-json';
 
 export const ideogram4Adapter: SkillAdapter = {
   id: 'ideogram4',
@@ -31,6 +41,48 @@ export const ideogram4Adapter: SkillAdapter = {
 
   buildCanvasContext(snapshot: CanvasChatStoreSnapshot) {
     return buildCanvasChatContext(snapshot);
+  },
+
+  extractPreview(text: string, ctx: SkillExtractContext): SkillStreamPreview | null {
+    const parsed = parsePartialJson(text, 'object');
+    if (!parsed) return null;
+
+    const deconstruction = partialObjectField(parsed.node, 'compositional_deconstruction');
+    const elementsNode = partialObjectField(deconstruction, 'elements');
+    const outputW = partialNumber(partialObjectField(parsed.node, 'canvasW'));
+    const outputH = partialNumber(partialObjectField(parsed.node, 'canvasH'));
+    const canvas = outputW && outputH && outputW > 0 && outputH > 0
+      ? { width: outputW, height: outputH }
+      : undefined;
+    const canvasW = canvas?.width ?? ctx.canvasW;
+    const canvasH = canvas?.height ?? ctx.canvasH;
+    const rawElements: IdeogramElement[] = [];
+
+    for (const item of partialArrayItems(elementsNode)) {
+      const bbox = partialNumberTuple(partialObjectField(item, 'bbox'));
+      if (!bbox) continue;
+      const element: IdeogramElement = {
+        type: partialString(partialObjectField(item, 'type'))?.trim() || 'obj',
+        bbox,
+        desc: partialString(partialObjectField(item, 'desc')) ?? '',
+      };
+      const textValue = partialString(partialObjectField(item, 'text'));
+      if (textValue !== undefined) element.text = textValue;
+      const palette = partialStringArray(partialObjectField(item, 'color_palette'));
+      if (palette !== undefined) element.color_palette = palette;
+      rawElements.push(element);
+    }
+
+    if (rawElements.length === 0) return null;
+    const system = detectBboxSystem(rawElements);
+    return {
+      adapter: 'ideogram4',
+      elements: rawElements.map(element => ({
+        ...element,
+        bbox: normalizeBboxTo1000(element.bbox, system, canvasW, canvasH),
+      })),
+      canvas,
+    };
   },
 
   extract(text: string, ctx: SkillExtractContext): SkillExtraction | SkillExtractionError {

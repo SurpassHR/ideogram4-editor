@@ -69,6 +69,7 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
   const snapshot = useEditorStore(s => s.snapshot);
   const undo = useEditorStore(s => s.undo);
   const redo = useEditorStore(s => s.redo);
+  const layoutLocked = useEditorStore(s => s.isLayoutStreaming || s.layoutStreamRecovery !== null);
 
   const getPointerPos = useCallback((e: PointerEvent | React.PointerEvent): { x: number; y: number } => {
     return screenToCanvas(e.clientX, e.clientY);
@@ -153,6 +154,7 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
 
   const handleCanvasPointerDown = useCallback((e: React.PointerEvent) => {
     if (e.button !== 0) return;
+    if (layoutLocked) return;
     const target = e.target as HTMLElement;
     blurStaleTextEntryFocus(target);
     const boxEl = target.closest('.bounding-box') as HTMLDivElement | null;
@@ -236,7 +238,7 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
     if (target === canvasRef.current || (target as HTMLElement).id === 'canvas-inner') {
       startDrawing(e);
     }
-  }, [beginSelectionGesture, canvasRef, getPointerPos, selectBox, startDrawing]);
+  }, [beginSelectionGesture, canvasRef, getPointerPos, layoutLocked, selectBox, startDrawing]);
 
   const handleCanvasPointerMove = useCallback((e: React.PointerEvent) => {
     const ir = interactionRef.current;
@@ -485,6 +487,7 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
       if (isTextEntryElement(target)) return;
 
       const store = useEditorStore.getState();
+      if (layoutLocked) return;
       const activeSelection = store.selectedBoxIds.length > 0
         ? store.selectedBoxIds
         : store.selectedBoxId ? [store.selectedBoxId] : [];
@@ -540,7 +543,20 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo, snapshot]);
+  }, [undo, redo, snapshot, layoutLocked]);
+
+  // 流式布局开始时取消任何尚未完成的画布手势，避免恢复编辑后残留拖拽状态。
+  useEffect(() => {
+    if (!layoutLocked) return;
+    const ir = interactionRef.current;
+    if (ir.mode === 'drawing') ir.currentBoxElement?.remove();
+    ir.mode = 'idle';
+    ir.currentBoxElement = null;
+    setInteractionMode('idle');
+    setDrawingGhost(null);
+    setMarqueeGhost(null);
+    setDragPreviewOffset(null);
+  }, [layoutLocked]);
 
   // ─── Alt 修饰键状态跟踪（用于画布光标提示） ──────────────────
   useEffect(() => {

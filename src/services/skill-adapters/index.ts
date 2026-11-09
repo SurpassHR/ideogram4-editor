@@ -23,4 +23,4 @@ export function listAdapters(): SkillAdapter[] {
 }
 
 export { flux3LayoutAdapter, ideogram4Adapter, mossLayoutAdapter, noneAdapter };
-export type { SkillAdapter, SkillExtraction, SkillExtractionError, SkillPromptOptions } from './types';
+export type { SkillAdapter, SkillExtraction, SkillExtractionError, SkillPromptOptions, SkillStreamPreview } from './types';

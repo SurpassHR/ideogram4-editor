@@ -54,6 +54,13 @@ export interface CanvasChatSession {
   requestLogs: CanvasChatRequestLog[];
 }
 
+/** 流式布局中断后，等待用户决定保留还是恢复。 */
+export interface LayoutRecoveryPrompt {
+  requestId: string;
+  reason: string;
+  boxCount: number;
+}
+
 /** Canvas Chat 的一次请求日志 */
 export interface CanvasChatRequestLog {
   id: string;

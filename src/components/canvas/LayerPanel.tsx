@@ -14,6 +14,7 @@ export default function LayerPanel() {
   const isLayerPanelOpen = useEditorStore(s => s.isLayerPanelOpen);
   const toggleLayerPanel = useEditorStore(s => s.toggleLayerPanel);
   const setCanvasChatOpen = useEditorStore(s => s.setCanvasChatOpen);
+  const layoutLocked = useEditorStore(s => s.isLayoutStreaming || s.layoutStreamRecovery !== null);
 
   // 点击面板外部关闭
   const handleClickOutside = useCallback((e: MouseEvent) => {
@@ -104,14 +105,16 @@ export default function LayerPanel() {
                     {/* 针对该区域提问：选中该 box，Canvas Chat 自动跟随 */}
                     <button
                       type="button"
-                      className="layer-panel-item-ask"
+                      className={`layer-panel-item-ask${layoutLocked ? ' disabled' : ''}`}
                       aria-label={t('layerPanel.askAboutRegion', { index: boxNumber })}
                       title={t('layerPanel.askAboutRegion', { index: boxNumber })}
                       onClick={e => {
                         e.stopPropagation();
+                        if (layoutLocked) return;
                         selectBox(box.id);
                         setCanvasChatOpen(true);
                       }}
+                      disabled={layoutLocked}
                     >
                       <IconBrain size={12} />
                     </button>

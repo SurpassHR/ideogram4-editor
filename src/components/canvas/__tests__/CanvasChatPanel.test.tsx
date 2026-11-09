@@ -57,6 +57,11 @@ describe('CanvasChatPanel', () => {
       activeCanvasChatRequestId: null,
       pendingIdeogramOutput: null,
       pendingQualityReport: null,
+      isCanvasChatLoading: false,
+      isLayoutStreaming: false,
+      layoutStreamRecovery: null,
+      streamingLayoutBoxCount: 0,
+      layoutStreamTransaction: null,
       chatModel: 'mock:gpt-4',
       chatStreamEnabled: true,
       chatThinkingLevel: 'medium',
@@ -74,6 +79,18 @@ describe('CanvasChatPanel', () => {
     expect(wrapper).not.toBeNull();
     const panel = wrapper!.querySelector('.canvas-chat-panel');
     expect(panel).not.toBeNull();
+  });
+
+  it('流式布局期间显示实时 bbox 数量', async () => {
+    useEditorStore.setState({
+      isCanvasChatOpen: true,
+      isCanvasChatLoading: true,
+      isLayoutStreaming: true,
+      streamingLayoutBoxCount: 3,
+      layoutStreamRecovery: null,
+    });
+    await renderWithPending();
+    expect(document.querySelector('.chat-loading')?.textContent).toContain('Live layout · 3');
   });
 
   // ─── 面板内容 ────────────────────────────────────────────────────

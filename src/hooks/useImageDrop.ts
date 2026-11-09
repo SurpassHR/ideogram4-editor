@@ -17,6 +17,8 @@ export function useImageDrop() {
 
     const onDrop = async (e: DragEvent) => {
       e.preventDefault();
+      const state = useEditorStore.getState();
+      if (state.isLayoutStreaming || state.layoutStreamRecovery) return;
       const file = e.dataTransfer?.files[0];
       if (!file) return;
 

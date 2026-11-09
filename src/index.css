@@ -266,6 +266,12 @@ body {
   cursor: crosshair;
 }
 
+.canvas-bg.layout-locked,
+.canvas-bg.layout-locked .bounding-box,
+.canvas-bg.layout-locked .resize-handle {
+  cursor: default;
+}
+
 /* Color swatches */
 .color-list {
   display: flex;
@@ -1082,6 +1088,41 @@ input[type="color"]::-webkit-color-swatch {
   font-size: 12px;
   white-space: nowrap;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
+.layout-streaming-status {
+  position: absolute;
+  left: 18px;
+  bottom: 22px;
+  z-index: 45;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 11px;
+  border: 1px solid rgba(0, 212, 170, 0.35);
+  border-radius: 999px;
+  background: rgba(18, 18, 26, 0.88);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.34);
+  backdrop-filter: blur(12px);
+  pointer-events: none;
+}
+
+.layout-streaming-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px rgba(0, 212, 170, 0.8);
+  animation: layout-streaming-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes layout-streaming-pulse {
+  0%, 100% { opacity: 0.45; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1); }
 }
 
 .artboard.is-panning {
@@ -5511,6 +5552,50 @@ input[type="color"]::-webkit-color-swatch {
   justify-content: flex-end;
   gap: 8px;
 }
+
+/* Streaming layout recovery */
+.streaming-layout-recovery-overlay {
+  z-index: 300;
+}
+
+.streaming-layout-recovery-dialog {
+  width: min(440px, calc(100vw - 32px));
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-raised);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+}
+
+.streaming-layout-recovery-dialog h3 {
+  margin: 0 0 10px;
+  color: var(--text);
+  font-size: 15px;
+}
+
+.streaming-layout-recovery-dialog p {
+  margin: 0 0 10px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.streaming-layout-recovery-reason {
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 82, 82, 0.22);
+  border-radius: 6px;
+  background: rgba(255, 82, 82, 0.07);
+  color: var(--danger) !important;
+  word-break: break-word;
+}
+
+.streaming-layout-recovery-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+
 /* Layout Quality Dialog */
 .layout-quality-dialog {
   position: fixed;
@@ -6300,6 +6385,11 @@ input[type="color"]::-webkit-color-swatch {
   cursor: pointer;
   opacity: 0;
   transition: opacity 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.layer-panel-item-ask.disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
 }
 
 .layer-panel-item:hover .layer-panel-item-ask,

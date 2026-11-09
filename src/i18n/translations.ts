@@ -350,6 +350,14 @@ export interface Translations {
     regionTargetDismiss: string;
     regionTargetReenable: string;
     regionApplyHint: string;
+    streamingLayout: string;
+    layoutRecovery: {
+      title: string;
+      description: string;
+      reason: string;
+      keep: string;
+      discard: string;
+    };
     thinkingLevels: {
       off: string;
       low: string;
@@ -887,6 +895,14 @@ const en: Translations = {
     regionTargetDismiss: 'Ask about the whole canvas instead',
     regionTargetReenable: 'Ask about the selected region',
     regionApplyHint: 'Applies to this region only',
+    streamingLayout: 'Live layout · {count}',
+    layoutRecovery: {
+      title: 'The layout stream was interrupted',
+      description: 'Already written to the canvas: {count}. Keep this partial layout or restore the canvas from before generation?',
+      reason: 'Reason: {reason}',
+      keep: 'Keep generated layout',
+      discard: 'Restore previous canvas',
+    },
     thinkingLevels: {
       off: 'Off',
       low: 'Low',
@@ -1424,6 +1440,14 @@ const zh: Translations = {
     regionTargetDismiss: '改为针对整张画布提问',
     regionTargetReenable: '针对选中区域提问',
     regionApplyHint: '只作用于该区域',
+    streamingLayout: '正在实时写入布局 · {count} 个框',
+    layoutRecovery: {
+      title: '布局流式生成已中断',
+      description: '已经有 {count} 个框写入画布。要保留这些生成结果，还是恢复生成前的画布？',
+      reason: '原因：{reason}',
+      keep: '保留已生成布局',
+      discard: '恢复生成前画布',
+    },
     thinkingLevels: {
       off: '关',
       low: '低',

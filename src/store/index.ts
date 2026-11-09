@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { Box, IdeogramOutput, GenerationStatus, PhotoArtStyleMode } from '../types';
-import type { CanvasChatRequestLogDetail, CanvasChatRequestLogStep, CanvasChatSession, ChatMessage, ChatThinkingLevel, SystemPromptEntry } from '../types/chat';
+import type { CanvasChatRequestLogDetail, CanvasChatRequestLogStep, CanvasChatSession, ChatMessage, ChatThinkingLevel, LayoutRecoveryPrompt, SystemPromptEntry } from '../types/chat';
 import type { PromptPreset } from '../types/presets';
 import type { CanvasFavorite, CanvasSnapshotLite, PersistedCanvasChatStateV1, PersistedCanvasDocumentV1, WorkspaceBackupSettings } from '../types/workspace';
 import type { SkillAdapterId, SkillPrefs, SkillRecord } from '../types/skill';
@@ -562,6 +562,14 @@ interface EditorSnapshot {
   photoArtStyleMode: PhotoArtStyleMode;
 }
 
+interface LayoutStreamTransaction {
+  requestId: string;
+  baseSnapshot: EditorSnapshot;
+  baseUndoStack: EditorSnapshot[];
+  baseRedoStack: EditorSnapshot[];
+  regionBoxId?: string;
+}
+
 interface EditorStore {
   canvasW: number;
   canvasH: number;
@@ -656,6 +664,18 @@ interface EditorStore {
   activeCanvasChatRequestId: string | null;
   canvasChatMessages: ChatMessage[];
   pendingIdeogramOutput: IdeogramOutput | null;
+  /** 流式布局正在实时写入画布（boxes 只读）。 */
+  isLayoutStreaming: boolean;
+  /** 流式布局中断后的待决恢复提示。 */
+  layoutStreamRecovery: LayoutRecoveryPrompt | null;
+  streamingLayoutBoxCount: number;
+  /** 内部事务：保存生成前状态、撤销栈与区域目标。 */
+  layoutStreamTransaction: LayoutStreamTransaction | null;
+  updateStreamingLayout: (requestId: string, boxes: Array<Omit<Box, 'id'>>, regionBoxId?: string) => void;
+  commitStreamingLayout: (requestId: string, replacement: CanvasReplacement) => boolean;
+  commitStreamingRegion: (requestId: string, boxId: string, box: Omit<Box, 'id'>) => boolean;
+  requestStreamingLayoutRecovery: (requestId: string, reason: string) => boolean;
+  resolveStreamingLayoutRecovery: (action: 'keep' | 'discard') => void;
   createCanvasChatSession: (title?: string) => string;
   selectCanvasChatSession: (sessionId: string) => void;
   renameCanvasChatSession: (sessionId: string, title: string) => void;
@@ -776,6 +796,19 @@ interface EditorStore {
   snapshot: () => void;
 }
 
+function isLayoutEditLocked(
+  state: Pick<EditorStore, 'isLayoutStreaming' | 'layoutStreamRecovery'>,
+): boolean {
+  return state.isLayoutStreaming || state.layoutStreamRecovery !== null;
+}
+
+function boxesFromReplacement(replacement: CanvasReplacement): Box[] {
+  return replacement.boxes.map((box, index) => ({
+    ...box,
+    id: `box_${index}`,
+  }));
+}
+
 // ─── Undo/Redo 快照工具函数 ───────────────────────────────────
 function takeSnapshot(state: EditorStore): EditorSnapshot {
   return {
@@ -807,19 +840,24 @@ function takeSnapshot(state: EditorStore): EditorSnapshot {
 export const useEditorStore = create<EditorStore>((set, get) => ({
   ...initialCanvasState,
 
-  setCanvasDimensions: (w, h) => set({
-    canvasW: w,
-    canvasH: h,
-    ...inferCanvasControlsFromDimensions(w, h),
-  }),
+  setCanvasDimensions: (w, h) => {
+    if (isLayoutEditLocked(get())) return;
+    set({
+      canvasW: w,
+      canvasH: h,
+      ...inferCanvasControlsFromDimensions(w, h),
+    });
+  },
 
   setCanvasRatio: (ratio) => {
     const state = get();
+    if (isLayoutEditLocked(state)) return;
     const { w, h } = computeCanvasDims(ratio as RatioKey, state.canvasScale, state.canvasCustomW, state.canvasCustomH);
     set({ canvasRatio: ratio, canvasW: w, canvasH: h });
   },
   setCanvasScale: (scale) => {
     const state = get();
+    if (isLayoutEditLocked(state)) return;
     const { w, h } = computeCanvasDims(state.canvasRatio as RatioKey, scale, state.canvasCustomW, state.canvasCustomH);
     const scaleX = state.canvasW > 0 ? w / state.canvasW : 1;
     const scaleY = state.canvasH > 0 ? h / state.canvasH : 1;
@@ -833,12 +871,14 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
   setCanvasCustom: (w, h) => {
     const state = get();
+    if (isLayoutEditLocked(state)) return;
     const { w: newW, h: newH } = computeCanvasDims(state.canvasRatio as RatioKey, state.canvasScale, w, h);
     set({ canvasCustomW: w, canvasCustomH: h, canvasW: newW, canvasH: newH });
   },
 
   resetCanvas: () => {
     const state = get();
+    if (isLayoutEditLocked(state)) return;
     const snap = takeSnapshot(state);
     set({
       boxes: [],
@@ -851,15 +891,19 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     });
   },
 
-  applyCanvasSnapshot: (snapshot) => set({
-    ...canvasStateFromSnapshot(snapshot),
-    canvasBackgroundUrl: null,
-  }),
+  applyCanvasSnapshot: (snapshot) => {
+    if (isLayoutEditLocked(get())) return;
+    set({
+      ...canvasStateFromSnapshot(snapshot),
+      canvasBackgroundUrl: null,
+    });
+  },
 
   hydrateCanvasImages: () => ensureCanvasImagesHydrated(),
 
   addBox: (box) => {
     const state = get();
+    if (isLayoutEditLocked(state)) return '';
     const snap = takeSnapshot(state);
     const id = `box_${state.boxCounter}`;
     set({
@@ -875,6 +919,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
   updateBox: (id, updates, recordHistory = true) => {
     const state = get();
+    if (isLayoutEditLocked(state)) return;
     const snap = recordHistory ? takeSnapshot(state) : null;
     set(state => ({
       boxes: state.boxes.map(b => b.id === id ? { ...b, ...updates } : b),
@@ -884,6 +929,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
   removeBox: (id) => {
     const state = get();
+    if (isLayoutEditLocked(state)) return;
     const snap = takeSnapshot(state);
     const ids = idsFromInput(id);
     const idSet = new Set(ids);
@@ -947,12 +993,10 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   // ─── Apply（原子化：整份画布状态一次提交，只压一次撤销快照）────────
   applyCanvasReplacement: (replacement) => {
     const state = get();
+    if (isLayoutEditLocked(state)) return;
     const snap = takeSnapshot(state);
     // 保留既有 box ID 规则（box_0、box_1…），保证撤销后 ID 稳定
-    const boxes: Box[] = replacement.boxes.map((box, index) => ({
-      ...box,
-      id: `box_${index}`,
-    }));
+    const boxes = boxesFromReplacement(replacement);
     set({
       ...inferCanvasControlsFromDimensions(replacement.canvasW, replacement.canvasH),
       canvasW: replacement.canvasW,
@@ -977,6 +1021,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
   replaceBox: (id, box) => {
     const state = get();
+    if (isLayoutEditLocked(state)) return;
     const snap = takeSnapshot(state);
     set({
       boxes: state.boxes.map(b => (b.id === id ? { ...b, ...box } : b)),
@@ -985,10 +1030,165 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     });
   },
 
+  // ─── 流式布局事务：实时写入、原子收尾与失败恢复 ──────────────────
+  updateStreamingLayout: (requestId, previewBoxes, regionBoxId) => {
+    if (previewBoxes.length === 0) return;
+
+    set(state => {
+      if (state.layoutStreamRecovery) return {};
+      const existing = state.layoutStreamTransaction;
+      if (existing && existing.requestId !== requestId) return {};
+      if (!existing && state.isLayoutStreaming) return {};
+      if (existing && (existing.regionBoxId ?? undefined) !== regionBoxId) return {};
+      if (regionBoxId && !state.boxes.some(box => box.id === regionBoxId)) return {};
+
+      const transaction: LayoutStreamTransaction = existing ?? {
+        requestId,
+        baseSnapshot: takeSnapshot(state),
+        baseUndoStack: [...state.undoStack],
+        baseRedoStack: [...state.redoStack],
+        regionBoxId,
+      };
+
+      if (transaction.regionBoxId) {
+        const replacement = previewBoxes[0];
+        return {
+          layoutStreamTransaction: transaction,
+          isLayoutStreaming: true,
+          layoutStreamRecovery: null,
+          streamingLayoutBoxCount: 1,
+          editingBoxId: null,
+          boxes: state.boxes.map(box => (
+            box.id === transaction.regionBoxId ? { ...replacement, id: box.id } : box
+          )),
+          ...(!existing ? {
+            undoStack: [...state.undoStack, transaction.baseSnapshot].slice(-MAX_UNDO_DEPTH),
+            redoStack: [],
+          } : {}),
+        };
+      }
+
+      const boxes: Box[] = previewBoxes.map((box, index) => ({
+        ...box,
+        id: `box_${index}`,
+      }));
+      return {
+        layoutStreamTransaction: transaction,
+        isLayoutStreaming: true,
+        layoutStreamRecovery: null,
+        streamingLayoutBoxCount: boxes.length,
+        boxes,
+        boxCounter: boxes.length,
+        selectedBoxId: null,
+        selectedBoxIds: [],
+        editingBoxId: null,
+        ...(!existing ? {
+          undoStack: [...state.undoStack, transaction.baseSnapshot].slice(-MAX_UNDO_DEPTH),
+          redoStack: [],
+        } : {}),
+      };
+    });
+  },
+
+  commitStreamingLayout: (requestId, replacement) => {
+    const state = get();
+    const transaction = state.layoutStreamTransaction;
+    if (!transaction || transaction.requestId !== requestId || transaction.regionBoxId) return false;
+
+    const boxes = boxesFromReplacement(replacement);
+    set({
+      ...inferCanvasControlsFromDimensions(replacement.canvasW, replacement.canvasH),
+      canvasW: replacement.canvasW,
+      canvasH: replacement.canvasH,
+      boxes,
+      boxCounter: boxes.length,
+      selectedBoxId: null,
+      selectedBoxIds: [],
+      editingBoxId: null,
+      globalPalette: [...replacement.globalPalette],
+      highLevelDescription: replacement.highLevelDescription,
+      aesthetics: replacement.aesthetics,
+      lighting: replacement.lighting,
+      medium: replacement.medium,
+      artStyle: replacement.artStyle,
+      background: replacement.background,
+      photoArtStyleMode: replacement.photoArtStyleMode,
+      redoStack: [],
+      layoutStreamTransaction: null,
+      isLayoutStreaming: false,
+      layoutStreamRecovery: null,
+      streamingLayoutBoxCount: 0,
+    });
+    return true;
+  },
+
+  commitStreamingRegion: (requestId, boxId, box) => {
+    const state = get();
+    const transaction = state.layoutStreamTransaction;
+    if (!transaction || transaction.requestId !== requestId || transaction.regionBoxId !== boxId) {
+      return false;
+    }
+
+    set({
+      boxes: state.boxes.map(existing => (
+        existing.id === boxId ? { ...box, id: boxId } : existing
+      )),
+      redoStack: [],
+      layoutStreamTransaction: null,
+      isLayoutStreaming: false,
+      layoutStreamRecovery: null,
+      streamingLayoutBoxCount: 0,
+    });
+    return true;
+  },
+
+  requestStreamingLayoutRecovery: (requestId, reason) => {
+    const state = get();
+    const transaction = state.layoutStreamTransaction;
+    if (!transaction || transaction.requestId !== requestId) return false;
+
+    set({
+      isLayoutStreaming: false,
+      layoutStreamRecovery: {
+        requestId,
+        reason,
+        boxCount: state.streamingLayoutBoxCount,
+      },
+      editingBoxId: null,
+    });
+    return true;
+  },
+
+  resolveStreamingLayoutRecovery: (action) => {
+    const state = get();
+    const transaction = state.layoutStreamTransaction;
+
+    if (action === 'discard' && transaction) {
+      set({
+        ...transaction.baseSnapshot,
+        undoStack: transaction.baseUndoStack,
+        redoStack: transaction.baseRedoStack,
+        layoutStreamTransaction: null,
+        isLayoutStreaming: false,
+        layoutStreamRecovery: null,
+        streamingLayoutBoxCount: 0,
+      });
+      return;
+    }
+
+    set({
+      layoutStreamTransaction: null,
+      isLayoutStreaming: false,
+      layoutStreamRecovery: null,
+      streamingLayoutBoxCount: 0,
+    });
+  },
+
   hasBox: (id) => get().boxes.some(b => b.id === id),
 
   clearBoxes: () => {
     const state = get();
+    if (isLayoutEditLocked(state)) return;
     const snap = takeSnapshot(state);
     set({
       boxes: [],
@@ -1030,6 +1230,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
   addBoxColor: (hex) => {
     const state = get();
+    if (isLayoutEditLocked(state)) return false;
     const snap = takeSnapshot(state);
     const upper = hex.toUpperCase();
     if (!state.selectedBoxId) return false;
@@ -1049,6 +1250,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
   removeBoxColor: (hex) => {
     const state = get();
+    if (isLayoutEditLocked(state)) return;
     const snap = takeSnapshot(state);
     set(state => ({
       boxes: state.boxes.map(b =>
@@ -1141,6 +1343,10 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   isCanvasChatLoading: false,
   canvasChatAutoMaximize: false,
   pendingIdeogramOutput: initialCanvasChatRuntime.pendingIdeogramOutput,
+  isLayoutStreaming: false,
+  layoutStreamRecovery: null,
+  streamingLayoutBoxCount: 0,
+  layoutStreamTransaction: null,
 
   createCanvasChatSession: (title) => {
     const session = createCanvasChatSessionRecord(title);
@@ -1673,6 +1879,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   // Image 操作
   importImageToBox: (boxId, dataUrl) => {
     const state = get();
+    if (isLayoutEditLocked(state)) return;
     const snap = takeSnapshot(state);
     set(state => ({
       boxes: state.boxes.map(b => b.id === boxId ? { ...b, imageDataUrl: dataUrl } : b),
@@ -1683,6 +1890,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
   clearBoxImage: (boxId) => {
     const state = get();
+    if (isLayoutEditLocked(state)) return;
     const snap = takeSnapshot(state);
     set(state => ({
       boxes: state.boxes.map(b => b.id === boxId ? { ...b, imageDataUrl: null } : b),
@@ -1817,6 +2025,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   redoStack: [],
 
   snapshot: () => {
+    if (isLayoutEditLocked(get())) return;
     set(state => {
       const snap = takeSnapshot(state);
       return {
@@ -1827,6 +2036,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   },
 
   undo: () => {
+    if (isLayoutEditLocked(get())) return;
     set(state => {
       if (state.undoStack.length === 0) return {};
       const snap = state.undoStack[state.undoStack.length - 1];
@@ -1840,6 +2050,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   },
 
   redo: () => {
+    if (isLayoutEditLocked(get())) return;
     set(state => {
       if (state.redoStack.length === 0) return {};
       const snap = state.redoStack[state.redoStack.length - 1];
@@ -1856,6 +2067,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
   duplicateBox: (boxId) => {
     const state = get();
+    if (isLayoutEditLocked(state)) return;
     const snap = takeSnapshot(state);
     const idSet = new Set(idsFromInput(boxId));
     const sourceBoxes = state.boxes.filter(b => idSet.has(b.id));
@@ -1877,6 +2089,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
   cutBox: (boxId) => {
     const state = get();
+    if (isLayoutEditLocked(state)) return;
     const snap = takeSnapshot(state);
     const idSet = new Set(idsFromInput(boxId));
     const sourceBoxes = state.boxes.filter(b => idSet.has(b.id));
@@ -1912,6 +2125,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   pasteBox: (x, y) => {
     if (internalClipboard.length === 0) return;
     const state = get();
+    if (isLayoutEditLocked(state)) return;
     const snap = takeSnapshot(state);
     const first = internalClipboard[0];
     const baseX = x ?? first.x + 20;
@@ -1933,6 +2147,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
   bringToFront: (boxId) => {
     const state = get();
+    if (isLayoutEditLocked(state)) return;
     const snap = takeSnapshot(state);
     set(state => {
       const idSet = new Set(idsFromInput(boxId));
@@ -1950,6 +2165,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
   sendToBack: (boxId) => {
     const state = get();
+    if (isLayoutEditLocked(state)) return;
     const snap = takeSnapshot(state);
     set(state => {
       const idSet = new Set(idsFromInput(boxId));
@@ -1984,6 +2200,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
   loadFromJSON: (json) => {
     const state = get();
+    if (isLayoutEditLocked(state)) return;
     const snap = takeSnapshot(state);
     // 优先使用 JSON 内嵌的画布尺寸，fallback 到 store 当前值
     const cw = json.canvasW ?? state.canvasW;
@@ -2048,6 +2265,8 @@ const CANVAS_AUTOSAVE_FIELDS = [
   'background',
   'photoArtStyleMode',
   'canvasBackgroundUrl',
+  'isLayoutStreaming',
+  'layoutStreamRecovery',
 ] as const;
 
 const CANVAS_AUTOSAVE_DELAY_MS = 400;
@@ -2059,6 +2278,8 @@ function flushCanvasAutosave(): void {
     canvasAutosaveTimer = null;
   }
   const state = useEditorStore.getState();
+  // 流式布局或恢复待决期间不持久化半成品。
+  if (isLayoutEditLocked(state)) return;
   saveCanvasDocument(canvasDocumentFromState(state));
 
   const images = canvasImagesFromState(state);
@@ -2071,7 +2292,15 @@ function flushCanvasAutosave(): void {
 if (typeof window !== 'undefined') {
   useEditorStore.subscribe((state, prevState) => {
     const changed = CANVAS_AUTOSAVE_FIELDS.some(key => state[key] !== prevState[key]);
-    if (!changed) return;
+    const unlocked = isLayoutEditLocked(prevState) && !isLayoutEditLocked(state);
+    if (!changed && !unlocked) return;
+    if (isLayoutEditLocked(state)) {
+      if (canvasAutosaveTimer !== null) {
+        clearTimeout(canvasAutosaveTimer);
+        canvasAutosaveTimer = null;
+      }
+      return;
+    }
     if (canvasAutosaveTimer !== null) clearTimeout(canvasAutosaveTimer);
     canvasAutosaveTimer = setTimeout(flushCanvasAutosave, CANVAS_AUTOSAVE_DELAY_MS);
   });
