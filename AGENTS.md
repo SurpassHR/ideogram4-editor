@@ -156,7 +156,7 @@ src/
 - `canvasW / canvasH` — 画布尺寸（256-4096）
 - `canvasBackgroundUrl` — 画布背景参考图 Data URL，渲染在 boxes 下方 opacity 0.5
 - `generationStatus` — `'idle' | 'generating' | 'polling' | 'done' | 'error'`
-- `apiUrl` — ComfyUI API 地址（默认 `http://localhost:8188`）
+- `apiUrl` — ComfyUI 外部服务地址（桌面版通过内置后端代理，默认留空）
 - `editingBoxId` — 当前内联编辑的 box ID（双击进入）
 - `activeChatBoxId` — 当前 AI 对话的 box ID（✨ 按钮打开）
 - `chatHistories` — 每个 box 的对话历史（`Record<string, ChatMessage[]>`）
@@ -213,21 +213,27 @@ src/
 ## 运行方式
 
 ```bash
-npm run dev      # 启动开发服务器（默认 http://localhost:5173）
-npm run build    # 生产构建
-npm run test     # 运行 Vitest 测试套件
-npm run preview  # 预览生产构建
+npm run dev        # 启动 Electron 桌面开发应用（内嵌 Node 后端）
+npm run dev:web    # 仅启动旧 Web 迁移桥（http://localhost:5173）
+npm run build      # Electron 主进程 + preload + 前端构建
+npm run build:web  # 旧 Web 迁移桥构建
+npm run dist       # 打包当前平台安装包
+npm run test       # Vitest 单元/集成测试
+npm run test:e2e   # Playwright Electron 冒烟测试（隐藏窗口）
+npm run preview    # 预览 Electron 生产构建
 ```
 
-需要本地 ComfyUI 实例（默认 `http://localhost:8188`）才能使用图片生成功能。LLM 配置存储在浏览器 localStorage 中。
+桌面应用内嵌 Node 后端；Provider API Key 通过 Electron `safeStorage` 保存，工作区/图片保存在应用数据目录。ComfyUI 是外部服务，地址在 Generate 面板配置。
+
+旧 Web 版仅用于导出桌面迁移包，验证完成后停止 GitHub Pages 部署。
 
 ### 视觉验证
 
 ```bash
-export CODEX_HOME="${CODEX_HOME:-$HOME/.codex}" && \
-export PWCLI="$CODEX_HOME/skills/playwright/scripts/playwright_cli.sh" && \
-xvfb-run --server-args="-screen 0 1280x1024x24" "$PWCLI" open http://localhost:5173 --headed 2>&1
+npm run test:e2e
 ```
+
+Electron E2E 使用 `IDEOGRAM4_TEST_HEADLESS=1` 隐藏窗口，不抢前台焦点。旧 Web 迁移桥需要页面检查时，使用 `npm run dev:web`。
 
 ## Agent 工作流规则
 

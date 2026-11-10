@@ -3867,6 +3867,61 @@ input[type="color"]::-webkit-color-swatch {
   padding: 20px;
 }
 
+.desktop-workspace-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px 18px;
+  margin: 16px 16px 0;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(26, 26, 26, 0.52);
+}
+
+.workspace-panel-embedded .desktop-workspace-actions {
+  margin: 20px 20px 0;
+}
+
+.desktop-workspace-actions-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.desktop-workspace-actions-copy strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.desktop-workspace-actions-copy span {
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.desktop-workspace-action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.desktop-workspace-status {
+  grid-column: 1 / -1;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.settings-desktop-info code {
+  display: inline-block;
+  max-width: 100%;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+  color: var(--text-secondary);
+  font-family: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+  font-size: 10px;
+}
+
 .workspace-panel-body {
   display: grid;
   grid-template-columns: minmax(280px, 0.85fr) minmax(420px, 1.15fr);
@@ -6117,6 +6172,65 @@ input[type="color"]::-webkit-color-swatch {
 }
 
 /* ─── 快捷键速查弹窗 ────────────────────────────────────── */
+.desktop-fatal-error,
+.desktop-welcome-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(6px);
+}
+
+.desktop-fatal-error {
+  position: static;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 100vh;
+  color: var(--text);
+  text-align: center;
+}
+
+.desktop-welcome-card {
+  width: min(520px, 92vw);
+  padding: 28px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-raised);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+}
+
+.desktop-welcome-card h1 {
+  margin: 0 0 10px;
+  color: var(--text);
+  font-size: 22px;
+}
+
+.desktop-welcome-card p {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.desktop-welcome-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.desktop-welcome-error {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.1);
+  color: #fca5a5;
+  font-size: 12px;
+}
+
 .shortcuts-overlay {
   position: fixed;
   inset: 0;

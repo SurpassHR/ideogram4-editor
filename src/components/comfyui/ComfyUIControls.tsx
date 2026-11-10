@@ -1,6 +1,7 @@
 import { useEditorStore } from '../../store';
 import { useComfyUIGeneration } from '../../hooks/useComfyUIGeneration';
 import { useI18n } from '../../i18n/context';
+import { isDesktopRuntime, saveDesktopSettings } from '../../services/desktop-api';
 
 export default function ComfyUIControls() {
   const apiUrl = useEditorStore(s => s.apiUrl);
@@ -54,6 +55,11 @@ export default function ComfyUIControls() {
           type="text"
           value={apiUrl}
           onChange={e => setApiUrl(e.target.value)}
+          onBlur={e => {
+            if (isDesktopRuntime()) {
+              void saveDesktopSettings({ comfyuiUrl: e.currentTarget.value }).catch(console.warn);
+            }
+          }}
         />
       </div>
 

@@ -520,3 +520,41 @@ export async function chatGateway(
       throw new Error(`Unsupported provider kind: ${provider.kind}`);
   }
 }
+
+export async function fetchProviderModels(provider: GatewayProviderConfig): Promise<string[]> {
+  let response: Response;
+  if (provider.kind === 'openai' || provider.kind === 'openai_compat') {
+    response = await safeFetch(`${provider.baseUrl}/models`, {
+      headers: { Authorization: `Bearer ${provider.apiKey}` },
+    });
+  } else if (provider.kind === 'anthropic') {
+    response = await safeFetch(`${provider.baseUrl}/models`, {
+      headers: {
+        'x-api-key': provider.apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+    });
+  } else {
+    response = await safeFetch(`${provider.baseUrl}/models`, {
+      headers: { 'x-goog-api-key': provider.apiKey },
+    });
+  }
+  if (!response.ok) await throwUpstreamError(response);
+  let payload: Record<string, unknown>;
+  try {
+    payload = await response.json() as Record<string, unknown>;
+  } catch {
+    throw providerError('Provider returned invalid JSON');
+  }
+  if (provider.kind === 'gemini') {
+    return ((payload.models as Array<{ name?: string; supportedGenerationMethods?: string[] }> | undefined) ?? [])
+      .filter(model => model.supportedGenerationMethods?.includes('generateContent'))
+      .map(model => (model.name ?? '').replace(/^models\//, ''))
+      .filter(Boolean)
+      .sort();
+  }
+  return ((payload.data as Array<{ id?: string }> | undefined) ?? [])
+    .map(model => model.id ?? '')
+    .filter(Boolean)
+    .sort();
+}

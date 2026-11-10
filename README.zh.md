@@ -55,7 +55,7 @@ Ideogram4 Editor 是一个基于 Web 的可视化编辑器，专为 [Ideogram 4]
 
 ## 📖 使用方法
 
-> 确保已安装依赖（见下方 [安装与运行](#-安装与运行)），`npm run dev` 后浏览器打开 `http://localhost:5173`。
+> 确保已安装依赖（见下方 [安装与运行](#-安装与运行)）。`npm run dev` 启动 Electron 桌面应用；`npm run dev:web` 仅用于旧 Web 迁移桥调试。
 
 ### 基本工作流程
 
@@ -310,20 +310,26 @@ cd ideogram4-editor
 # 安装依赖
 npm install
 
-# 启动开发服务器
+# 启动 Electron 开发应用
 npm run dev
 ```
 
-开发服务器默认运行在 `http://localhost:5173`。
+开发模式会自动启动 Vite 渲染进程和内嵌 Node 后端。生产包内前端与后端同源运行，不要求用户单独启动服务。
 
 ### 构建与预览
 
 ```bash
-# 生产构建（TypeScript 类型检查 + Vite 打包）
+# Electron 生产构建（主进程 + preload + 前端）
 npm run build
 
-# 预览生产构建
+# 打包当前平台安装包
+npm run dist
+
+# 预览 Electron 生产构建
 npm run preview
+
+# 仅构建旧 Web 迁移桥
+npm run build:web
 ```
 
 ---
@@ -411,9 +417,9 @@ LLM 配置完全存储在浏览器本地（localStorage），包括：
 - 提供商列表及其连接参数
 - API Key（⚠️ 注意：API Key 以明文存储在 localStorage，请确保浏览器环境安全）
 
-### 可选 AI Gateway
+### 桌面应用与内置后端
 
-仓库新增了**仅本地运行**的 AI Gateway 基础服务，作为未来桌面应用 sidecar 的起点：把 Provider API Key 留在本地服务端，并统一 OpenAI / Anthropic / Gemini 的流式协议。默认前端行为不变；运行方式、接口和桌面打包方向见 [`docs/ai-gateway.md`](docs/ai-gateway.md)。
+应用采用 Electron 单安装包架构：React 前端、内嵌 Node 后端和本地存储都在同一个应用内。Provider API Key 使用 Electron `safeStorage`，工作区与图片保存在应用数据目录；ComfyUI 作为可配置的外部服务。接口和桌面架构见 [`docs/ai-gateway.md`](docs/ai-gateway.md)。
 
 
 ### 对话返回值格式
@@ -493,16 +499,19 @@ LLM 配置完全存储在浏览器本地（localStorage），包括：
 ### 常用开发命令
 
 ```bash
-# 启动开发服务器
+# 启动 Electron 开发应用
 npm run dev
 
 # TypeScript 类型检查
 npx tsc -b
 
-# 生产构建
+# Electron 生产构建
 npm run build
 
-# 预览生产构建
+# 打包当前平台
+npm run dist
+
+# 预览 Electron 构建
 npm run preview
 ```
 

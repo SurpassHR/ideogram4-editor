@@ -18,6 +18,12 @@ import type {
   StorageResult,
   WorkspaceBackupSettings,
 } from '../types/workspace';
+import {
+  isDesktopRuntime,
+  saveDesktopCanvas,
+  saveDesktopChat,
+  saveDesktopFavorites,
+} from './desktop-api';
 import { isJsonScheme } from '../utils/json-schemes';
 
 export const CANVAS_CHAT_STORAGE_KEY = 'ideogram4-canvas-chat-sessions:v1';
@@ -299,6 +305,12 @@ export function loadCanvasChatState(): PersistedCanvasChatStateV1 | null {
 }
 
 export function saveCanvasChatState(state: PersistedCanvasChatStateV1): StorageResult {
+  if (isDesktopRuntime()) {
+    void saveDesktopChat({ ...state, schemaVersion: 1 }).catch(error => {
+      console.warn('[desktop] chat save failed', error);
+    });
+    return { ok: true };
+  }
   const storage = getStorage();
   if (!storage) return { ok: false, error: 'localStorage 不可用' };
   try {
@@ -433,6 +445,12 @@ export function loadCanvasDocument(): PersistedCanvasDocumentV1 | null {
  * 避免 Data URL 把 localStorage（~5MB）撑爆。旧存档中的内联图像会在启动时迁移过去。
  */
 export function saveCanvasDocument(document: PersistedCanvasDocumentV1): StorageResult {
+  if (isDesktopRuntime()) {
+    void saveDesktopCanvas(document).catch(error => {
+      console.warn('[desktop] canvas save failed', error);
+    });
+    return { ok: true };
+  }
   const storage = getStorage();
   if (!storage) return { ok: false, error: 'localStorage 不可用' };
   try {
@@ -480,6 +498,12 @@ export function loadCanvasFavorites(): CanvasFavorite[] {
 }
 
 export function saveCanvasFavorites(favorites: CanvasFavorite[]): StorageResult {
+  if (isDesktopRuntime()) {
+    void saveDesktopFavorites(favorites).catch(error => {
+      console.warn('[desktop] favorites save failed', error);
+    });
+    return { ok: true };
+  }
   const storage = getStorage();
   if (!storage) return { ok: false, error: 'localStorage 不可用' };
   try {

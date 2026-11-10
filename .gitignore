@@ -8,6 +8,8 @@ node_modules/
 
 # Build output
 dist/
+out/
+release/
 
 # TypeScript
 *.tsbuildinfo
@@ -25,6 +27,8 @@ dist/
 # Playwright
 .playwright-cli/
 output/
+test-results/
+playwright-report/
 
 # OS
 .DS_Store

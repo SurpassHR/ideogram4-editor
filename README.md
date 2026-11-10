@@ -57,14 +57,20 @@ Ideogram4 Editor is a web-based visual tool for crafting structured JSON prompts
 # Install dependencies
 npm install
 
-# Start dev server (default http://localhost:5173)
+# Start the Electron desktop app
 npm run dev
 
-# Production build
+# Build the Electron app
 npm run build
 
-# Preview production build
+# Package the current platform
+npm run dist
+
+# Preview the Electron build
 npm run preview
+
+# Build only the legacy web migration bridge
+npm run build:web
 ```
 
 ### Basic Workflow
@@ -257,9 +263,9 @@ Configure providers at `/#/settings` → LLM Providers panel.
 - **Streaming**: SSE token-by-token output for both per-box and canvas chat
 - **Chain of Thought**: Model reasoning displayed in collapsible blocks
 
-### Optional AI Gateway
+### Desktop App and Bundled Backend
 
-The repository includes a **local-only** AI gateway foundation intended as the starting point for a future desktop sidecar. It keeps provider API keys server-side and normalizes OpenAI, Anthropic, and Gemini streaming. The existing static frontend remains the default path; see [`docs/ai-gateway.md`](docs/ai-gateway.md) for setup, the HTTP/SSE contract, and the desktop packaging direction.
+The app is packaged as a single Electron application containing the React renderer, an embedded Node backend, and local storage. Provider API keys use Electron `safeStorage`; workspaces and image assets live in the app data directory; ComfyUI remains a configurable external service. See [`docs/ai-gateway.md`](docs/ai-gateway.md) for the API and desktop architecture.
 
 ### Output Formats
 
@@ -300,11 +306,14 @@ The repository includes a **local-only** AI gateway foundation intended as the s
 ### Commands
 
 ```bash
-npm run dev       # Start dev server
+npm run dev       # Start the Electron desktop app
+npm run dev:web   # Legacy web migration bridge
 npx tsc -b        # TypeScript type check
-npm run build     # Production build
+npm run build     # Electron production build
+npm run dist      # Package the current platform
 npm run test      # Run test suite (Vitest)
-npm run preview   # Preview production build
+npm run test:e2e  # Electron smoke test (hidden window)
+npm run preview   # Preview Electron build
 ```
 
 ---

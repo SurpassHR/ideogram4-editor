@@ -73,7 +73,9 @@ export default function SettingsPage() {
       id: 'workspace' as const,
       marker: 'WS',
       title: t('settings.modules.workspace.title'),
-      description: t('settings.modules.workspace.description'),
+      description: window.desktop
+        ? t('settings.modules.workspace.desktopDescription')
+        : t('settings.modules.workspace.description'),
       status: gistId
         ? t('settings.modules.workspace.statusWithGist', { count: favoriteCount })
         : t('settings.modules.workspace.status', { count: favoriteCount }),

@@ -32,6 +32,7 @@ import {
   writeStoredJsonScheme,
 } from '../utils/json-schemes';
 import type { LayoutQualityReport } from '../services/layout-validator';
+import type { DesktopBootstrap, DesktopSettings } from '../../shared/desktop-contract';
 import {
   loadCanvasChatState,
   loadCanvasDocument,
@@ -48,6 +49,7 @@ import {
   saveCanvasImages,
   type CanvasImageSnapshot,
 } from '../services/canvas-image-store';
+import { isDesktopRuntime } from '../services/desktop-api';
 
 // ─── 内部剪贴板（模块级变量，非 OS 剪贴板）──────────────────────────
 let internalClipboard: Box[] = [];
@@ -299,8 +301,10 @@ function canvasDocumentFromState(state: EditorStore): PersistedCanvasDocumentV1 
     canvasScale: state.canvasScale,
     canvasCustomW: state.canvasCustomW,
     canvasCustomH: state.canvasCustomH,
-    // 图像走 IndexedDB，localStorage 只留结构化字段
-    boxes: state.boxes.map(box => ({ ...box, imageDataUrl: null })),
+    // 浏览器模式图像走 IndexedDB；桌面模式交给内置后端转存资产。
+    boxes: isDesktopRuntime()
+      ? state.boxes.map(box => ({ ...box }))
+      : state.boxes.map(box => ({ ...box, imageDataUrl: null })),
     globalPalette: state.globalPalette,
     highLevelDescription: state.highLevelDescription,
     aesthetics: state.aesthetics,
@@ -309,7 +313,7 @@ function canvasDocumentFromState(state: EditorStore): PersistedCanvasDocumentV1 
     artStyle: state.artStyle,
     background: state.background,
     photoArtStyleMode: state.photoArtStyleMode,
-    canvasBackgroundUrl: null,
+    canvasBackgroundUrl: isDesktopRuntime() ? state.canvasBackgroundUrl : null,
     activeJsonScheme: state.activeJsonScheme,
     flux3Globals: state.flux3Globals ? { ...state.flux3Globals, palette: [...state.flux3Globals.palette] } : null,
     mossGlobals: state.mossGlobals
@@ -686,6 +690,10 @@ interface EditorStore {
   seed: number;
   setApiUrl: (url: string) => void;
   setSeed: (seed: number) => void;
+  desktopFirstRun: boolean;
+  desktopSettings: DesktopSettings | null;
+  hydrateDesktop: (bootstrap: DesktopBootstrap) => void;
+  setDesktopSettings: (settings: DesktopSettings) => void;
 
   generationStatus: GenerationStatus;
   generatedImageUrl: string | null;
@@ -1387,10 +1395,31 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     }));
   },
 
-  apiUrl: 'http://localhost:8188',
+  apiUrl: '',
   seed: 42,
   setApiUrl: (url) => set({ apiUrl: url }),
   setSeed: (seed) => set({ seed }),
+  desktopFirstRun: false,
+  desktopSettings: null,
+  hydrateDesktop: (bootstrap) => {
+    const canvasState = bootstrap.canvas
+      ? canvasStateFromDocument(bootstrap.canvas as PersistedCanvasDocumentV1)
+      : {};
+    set({
+      ...canvasState,
+      ...(bootstrap.chat ? {} : {}),
+      desktopFirstRun: bootstrap.firstRun,
+      desktopSettings: bootstrap.settings,
+      apiUrl: bootstrap.settings.comfyuiUrl,
+    });
+    if (bootstrap.chat) {
+      get().replaceCanvasChatState(bootstrap.chat as PersistedCanvasChatStateV1);
+    }
+    if (bootstrap.favorites.length > 0) {
+      get().replaceCanvasFavorites(bootstrap.favorites as CanvasFavorite[]);
+    }
+  },
+  setDesktopSettings: (settings) => set({ desktopSettings: settings, apiUrl: settings.comfyuiUrl }),
 
   generationStatus: 'idle',
   generatedImageUrl: null,

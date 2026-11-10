@@ -47,14 +47,14 @@ function isProviderKind(value: unknown): value is GatewayProviderConfig['kind'] 
     || value === 'openai_compat';
 }
 
-function validateApiKey(label: string, value: string): string {
+export function validateProviderApiKey(label: string, value: string): string {
   if (/[\u0000-\u001f\u007f]/.test(value)) {
     throw new Error(`${label} contains control characters`);
   }
   return value.trim();
 }
 
-function normalizeBaseUrl(label: string, raw: string): string {
+export function normalizeProviderBaseUrl(label: string, raw: string): string {
   if (!raw.trim()) throw new Error(`${label} is required`);
   let url: URL;
   try {
@@ -113,8 +113,8 @@ function parseJsonProviders(raw: string | undefined): GatewayProviderConfig[] {
       id: value.id.trim(),
       name: value.name.trim(),
       kind: value.kind,
-      baseUrl: normalizeBaseUrl(`AI_GATEWAY_PROVIDERS[${index}].baseUrl`, value.baseUrl),
-      apiKey: validateApiKey(`AI_GATEWAY_PROVIDERS[${index}].apiKey`, value.apiKey),
+      baseUrl: normalizeProviderBaseUrl(`AI_GATEWAY_PROVIDERS[${index}].baseUrl`, value.baseUrl),
+      apiKey: validateProviderApiKey(`AI_GATEWAY_PROVIDERS[${index}].apiKey`, value.apiKey),
       models,
     };
   });
@@ -149,13 +149,13 @@ function providerFromEnv(
 ): GatewayProviderConfig | null {
   const rawApiKey = env[options.keyEnv]?.trim();
   if (!rawApiKey) return null;
-  const apiKey = validateApiKey(options.keyEnv, rawApiKey);
+  const apiKey = validateProviderApiKey(options.keyEnv, rawApiKey);
   if (!apiKey) return null;
   const models = readList(env[options.modelsEnv]);
   if (models.length === 0) {
     throw new Error(`${options.modelsEnv} must contain at least one model`);
   }
-  const baseUrl = normalizeBaseUrl(options.baseUrlEnv, env[options.baseUrlEnv]?.trim() || options.defaultBaseUrl);
+  const baseUrl = normalizeProviderBaseUrl(options.baseUrlEnv, env[options.baseUrlEnv]?.trim() || options.defaultBaseUrl);
   return {
     id: (options.idEnv ? env[options.idEnv]?.trim() : '') || options.defaultId,
     name: (options.nameEnv ? env[options.nameEnv]?.trim() : '') || options.defaultName,

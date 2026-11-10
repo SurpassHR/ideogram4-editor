@@ -2,6 +2,7 @@ import type { LlmProvider } from '../components/llm/types';
 import { DEFAULT_BASE_URLS } from '../components/llm/types';
 import type { ChatMessage, ChatMessageForApi, ChatThinkingLevel } from '../types/chat';
 import { buildMultimodalMessages, ensureDataUrl, sendChatMessage } from './llm-chat';
+import { isDesktopRuntime, streamDesktopChat } from './desktop-api';
 
 export interface StreamChunk {
   type: 'thinking' | 'content';
@@ -105,6 +106,39 @@ export async function sendChatMessageStream(
   imageDataUrl?: string,
   options: StreamRequestOptions = {},
 ): Promise<void> {
+  if (isDesktopRuntime()) {
+    const controller = new AbortController();
+    activeAbortController = controller;
+    let settled = false;
+    callbacks.onResponse?.(200, { 'content-type': 'text/event-stream' });
+    try {
+      await streamDesktopChat({
+        providerId: provider.id,
+        model,
+        messages,
+        systemPrompt,
+        ...(imageDataUrl ? { imageDataUrl } : {}),
+        thinkingLevel: options.thinkingLevel,
+      }, event => {
+        if (event.type === 'thinking' || event.type === 'content') {
+          callbacks.onChunk({ type: event.type, text: event.text });
+        } else if (event.type === 'done') {
+          settled = true;
+          callbacks.onDone(event.text);
+        } else if (event.type === 'error') {
+          settled = true;
+          callbacks.onError(event.error);
+        }
+      }, controller.signal);
+      if (!settled) callbacks.onError('Desktop stream ended without a result');
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') callbacks.onAbort?.();
+      else callbacks.onError(error instanceof Error ? error.message : String(error));
+    } finally {
+      if (activeAbortController === controller) activeAbortController = null;
+    }
+    return;
+  }
   const safeImageUrl = imageDataUrl ? await ensureDataUrl(imageDataUrl) : undefined;
   const apiMessages = safeImageUrl
     ? buildMultimodalMessages(messages, safeImageUrl, provider.kind)

@@ -82,6 +82,7 @@ export interface Translations {
       workspace: {
         title: string;
         description: string;
+        desktopDescription: string;
         status: string;
         statusWithGist: string;
       };
@@ -521,6 +522,23 @@ export interface Translations {
     activeModel: string;
     quickPresets: string;
   };
+  desktop: {
+    welcomeTitle: string;
+    welcomeBody: string;
+    importMigration: string;
+    startFresh: string;
+    importing: string;
+    importFailed: string;
+    providerKeysNotice: string;
+    localBackupTitle: string;
+    exportWorkspace: string;
+    importWorkspace: string;
+    backupDone: string;
+    restoreDone: string;
+    backupFailed: string;
+    exportWebMigration: string;
+    webMigrationHint: string;
+  };
   shortcuts: {
     button: string;
     title: string;
@@ -641,6 +659,7 @@ const en: Translations = {
       workspace: {
         title: 'Workspace',
         description: 'Save favorite canvases and back up local workspace data to a private Gist.',
+        desktopDescription: 'Save favorite canvases and export/import the local workspace archive.',
         status: '{count} favorites',
         statusWithGist: '{count} favorites · Gist backup configured',
       },
@@ -1080,6 +1099,23 @@ const en: Translations = {
     activeModel: 'Active LLM Model',
     quickPresets: 'Quick Prompt Presets',
   },
+  desktop: {
+    welcomeTitle: 'Welcome to Ideogram4 Editor',
+    welcomeBody: 'Import your workspace from the previous web version, or start with a fresh local workspace.',
+    importMigration: 'Import Web Migration',
+    startFresh: 'Start Fresh',
+    importing: 'Importing…',
+    importFailed: 'Import failed',
+    providerKeysNotice: 'Provider settings were migrated, but API keys must be entered again in Settings.',
+    localBackupTitle: 'Local Workspace Backup',
+    exportWorkspace: 'Export Workspace',
+    importWorkspace: 'Import Workspace',
+    backupDone: 'Workspace exported.',
+    restoreDone: 'Workspace imported. Re-enter provider API keys if needed.',
+    backupFailed: 'Workspace operation failed',
+    exportWebMigration: 'Export Desktop Migration Package',
+    webMigrationHint: 'Download this package, then import it on the first launch of the desktop app.',
+  },
   shortcuts: {
     button: 'Shortcuts',
     title: 'Shortcuts',
@@ -1200,6 +1236,7 @@ const zh: Translations = {
       workspace: {
         title: 'Workspace',
         description: '管理画布收藏，并将本地工作区数据备份到 private Gist。',
+        desktopDescription: '管理画布收藏，并导出/导入本地工作区压缩包。',
         status: '{count} 个收藏',
         statusWithGist: '{count} 个收藏 · 已配置 Gist 备份',
       },
@@ -1638,6 +1675,23 @@ const zh: Translations = {
     aiModel: 'AI 模型',
     activeModel: '当前 LLM 模型',
     quickPresets: '快捷提示词预设',
+  },
+  desktop: {
+    welcomeTitle: '欢迎使用 Ideogram4 Editor',
+    welcomeBody: '可从旧 Web 版导入工作区，或从空白本地工作区开始。',
+    importMigration: '导入 Web 迁移包',
+    startFresh: '全新开始',
+    importing: '正在导入…',
+    importFailed: '导入失败',
+    providerKeysNotice: 'Provider 配置已迁移，但 API Key 需要重新在设置中填写。',
+    localBackupTitle: '本地工作区备份',
+    exportWorkspace: '导出工作区',
+    importWorkspace: '导入工作区',
+    backupDone: '工作区已导出。',
+    restoreDone: '工作区已导入。如有需要，请重新填写 Provider API Key。',
+    backupFailed: '工作区操作失败',
+    exportWebMigration: '导出桌面迁移包',
+    webMigrationHint: '下载后，在桌面应用首次启动时导入该文件。',
   },
   shortcuts: {
     button: '快捷键',

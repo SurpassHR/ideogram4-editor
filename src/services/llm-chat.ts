@@ -11,6 +11,7 @@ import { DEFAULT_BASE_URLS } from '../components/llm/types';
 import type { ChatMessage } from '../types/chat';
 import { messagesToApiFormat } from '../types/chat';
 import type { Box } from '../types';
+import { desktopChat, isDesktopRuntime } from './desktop-api';
 
 // ─── 多模态辅助函数 ─────────────────────────────────────────────────
 
@@ -477,6 +478,20 @@ export async function sendChatMessage(
   imageDataUrl?: string,
 ): Promise<ChatResult> {
   const rawApiMessages = messagesToApiFormat(messages);
+  if (isDesktopRuntime()) {
+    try {
+      const result = await desktopChat({
+        providerId: provider.id,
+        model,
+        messages: rawApiMessages,
+        systemPrompt,
+        ...(imageDataUrl ? { imageDataUrl } : {}),
+      });
+      return { ok: true, content: result.content };
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  }
   // 当有参考图时，构造多模态消息格式（先确保 blob: URL 转为 data: URL）
   const safeImageUrl = imageDataUrl ? await ensureDataUrl(imageDataUrl) : undefined;
   const apiMessages = safeImageUrl

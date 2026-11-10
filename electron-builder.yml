@@ -1,0 +1,34 @@
+appId: com.ideogram4.editor
+productName: Ideogram4 Editor
+directories:
+  output: release
+  buildResources: build
+files:
+  - out/**/*
+  - package.json
+asar: true
+mac:
+  target:
+    - target: dmg
+      arch: universal
+    - target: zip
+      arch: universal
+  category: public.app-category.graphics-design
+  identity: null
+  hardenedRuntime: false
+  gatekeeperAssess: false
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+linux:
+  target:
+    - AppImage
+    - deb
+  category: Graphics
+  maintainer: SurpassHR <surpasshr@users.noreply.github.com>
+  syncDesktopName: true
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true

@@ -1,165 +1,109 @@
-# Optional AI Gateway
+# Electron Desktop Application
 
-This is the first backend slice: a **local-only** LLM gateway intended to become
-the sidecar for a future desktop application. It keeps provider keys out of the
-browser and normalizes OpenAI, Anthropic, and Gemini streaming. It does not
-change the existing static app until the frontend is explicitly switched to the
-gateway.
+Ideogram4 Editor is packaged as a single Electron application. The React
+renderer, Node backend, and local storage all ship inside one installer; users
+do not start a separate backend service.
 
-The gateway requires Node.js 22.18+ because it runs the TypeScript sources
-directly with Node's native type stripping. The static frontend still builds
-with the repository's existing Node version requirement.
+## Runtime
 
-## Run
-
-```bash
-cp .env.example .env
-# Fill in one or more provider API keys.
-npm run gateway
+```text
+Ideogram4 Editor
+├─ Electron main process
+│  ├─ embedded Node HTTP backend
+│  ├─ provider/ComfyUI proxy
+│  ├─ workspace + asset storage
+│  └─ safeStorage-backed provider keys
+└─ BrowserWindow
+   └─ React renderer
 ```
 
-Development mode:
+- Production uses a stable loopback origin on `127.0.0.1:47821` so renderer
+  localStorage preferences survive restarts.
+- Every launch creates a random API token. Preload exposes the API base URL and
+  token to the renderer through `window.desktop`.
+- `contextIsolation` is enabled, Node integration is disabled, and external
+  navigation is blocked.
+- The backend serves both the built renderer and `/v1/*` from the same origin in
+  production. Development uses the Vite dev server with an explicit CORS origin.
 
-```bash
-npm run gateway:dev
+## Data locations
+
+Everything is rooted at Electron's `app.getPath('userData')/data`:
+
+```text
+workspace/canvas.json
+workspace/chat.json
+workspace/favorites.json
+settings.json
+providers.json
+secrets.json
+assets.json
+assets/<asset id>
+backups/auto-<timestamp>.zip
 ```
 
-The default bind address is `127.0.0.1:8787`. The gateway refuses to expose
-API keys through `/v1/models`.
+JSON writes are atomic. Provider API keys are encrypted through Electron
+`safeStorage`; the renderer only receives `hasApiKey`. If secure storage is
+unavailable, the backend refuses to persist a key.
 
-## Endpoints
+## API
 
-### `GET /health`
+- `GET /v1/bootstrap`
+- `GET/PUT /v1/settings`
+- `GET /v1/providers`
+- `PUT/DELETE /v1/providers/:id`
+- `POST /v1/providers/:id/models/refresh`
+- `POST /v1/chat`
+- `POST /v1/chat/stream`
+- `POST /v1/comfyui/prompt`
+- `GET /v1/comfyui/history/:id`
+- `GET /v1/comfyui/view`
+- `PUT /v1/workspace/canvas`
+- `PUT /v1/workspace/chat`
+- `PUT /v1/workspace/favorites`
+- `POST /v1/assets`
+- `GET /v1/assets/:id`
+- `GET/POST /v1/workspace/export`
+- `POST /v1/workspace/import`
 
-```json
-{ "ok": true }
-```
-
-### `GET /v1/models`
-
-Returns public provider metadata only:
-
-```json
-{
-  "providers": [
-    { "id": "openai", "name": "OpenAI", "kind": "openai", "models": ["gpt-5.1"] }
-  ]
-}
-```
-
-### `POST /v1/chat`
-
-Non-streaming request. When `AI_GATEWAY_TOKEN` is configured, send
-`Authorization: Bearer <token>`.
-
-```json
-{
-  "providerId": "openai",
-  "model": "gpt-5.1",
-  "systemPrompt": "Be concise.",
-  "messages": [{ "role": "user", "content": "Describe a cat." }],
-  "thinkingLevel": "off"
-}
-```
-
-Response:
-
-```json
-{ "content": "A small feline...", "thinking": "" }
-```
-
-### `POST /v1/chat/stream`
-
-Same request shape. Response is an SSE stream with normalized events:
+`/v1/chat/stream` emits normalized SSE events:
 
 ```text
 event: thinking
-data: {"type":"thinking","text":"..."}
-
 event: content
-data: {"type":"content","text":"..."}
-
 event: done
-data: {"type":"done","text":"full content"}
-```
-
-On failure after headers are sent:
-
-```text
 event: error
-data: {"type":"error","error":"..."}
 ```
 
-## Configuration
+## ComfyUI
 
-- `AI_GATEWAY_HOST`, `AI_GATEWAY_PORT`: listener address. Default is loopback.
-- `AI_GATEWAY_ALLOWED_ORIGINS`: comma-separated CORS origins.
-- `AI_GATEWAY_TOKEN`: optional bearer token for `/v1/*`.
-- `AI_GATEWAY_RATE_LIMIT_PER_MINUTE`: fixed-window per-client limit; default 60.
-  Set to `0` only for controlled local testing.
-- `AI_GATEWAY_MAX_BODY_BYTES`: request limit; default 25 MiB because base64
-  reference images are supported.
-- `AI_GATEWAY_REQUEST_TIMEOUT_MS`: upstream timeout; default 180 seconds.
-- `AI_GATEWAY_PROVIDERS`: JSON array for custom providers; overrides built-ins
-  with the same `id`.
+ComfyUI is an external service. Configure an HTTP/HTTPS URL in the Generate
+panel; the embedded backend proxies prompt submission, history polling, and
+image retrieval. No localhost default is assumed and no extra ComfyUI auth is
+supported in this version.
 
-## Desktop packaging direction
+## Migration and backup
 
-The target topology is local-only:
+- The legacy Web version can export a `.zip` containing workspace JSON,
+  IndexedDB images, presets/skills/local preferences, and provider metadata.
+- API keys are deliberately omitted from migration bundles.
+- The desktop first-run flow imports that bundle through the backend and asks
+  the user to re-enter provider keys.
+- Desktop workspace export/import uses the same versioned archive format and
+  includes image assets plus localStorage preferences.
+- GitHub Gist backup is hidden in the desktop Workspace panel.
 
-```text
-Electron main process
-  ├─ starts the Node gateway on 127.0.0.1:<ephemeral-port>
-  ├─ serves the built frontend and /v1 API from the same local origin
-  ├─ stores provider keys in the OS keychain / Electron safeStorage
-  └─ BrowserWindow loads http://127.0.0.1:<port>
+## Development commands
+
+```bash
+npm run dev        # Electron + Vite development app
+npm run build      # Type-check and build main/preload/renderer
+npm run dist       # Package the current platform
+npm run test       # Vitest unit/integration tests
+npm run test:e2e   # Playwright Electron smoke test, hidden window
+npm run dev:web    # Legacy web migration bridge only
+npm run build:web  # Legacy web migration bridge build
 ```
 
-Recommended packaging choices:
-
-- Use Electron first. Its main process is already Node, so the gateway can run
-  in-process or as a child process without packaging a second runtime.
-- Bind to loopback only and let the OS choose an ephemeral port (`port: 0`).
-  Pass the actual port to the renderer through the main process.
-- Serve the production `dist/` and `/v1` API from the same origin. This removes
-  CORS and custom-protocol edge cases from the packaged app.
-- Move provider secrets from `.env` into the OS keychain / Electron
-  `safeStorage` before shipping.
-- Store canvas images in the app data directory instead of IndexedDB in desktop
-  mode, while keeping IndexedDB as the browser fallback.
-- Keep ComfyUI local (`127.0.0.1:8188`); the local sidecar can proxy it without
-  browser CORS or HTTPS issues.
-- Treat GitHub Gist backup as optional. A desktop app should default to local
-  workspace files/zip exports, not cloud sync.
-
-Cloud hosting, multi-user auth, and public rate-limit infrastructure are
-explicit non-goals for this backend.
-
-## Security boundary
-
-- Provider API keys remain in server environment variables.
-- The browser never receives `apiKey` or private `baseUrl` values from this
-  gateway.
-- Requests with a disallowed browser `Origin` are rejected before any provider
-  call. Chat requests must use `Content-Type: application/json`.
-- When no token is configured, `/v1/*` is accepted only from loopback clients.
-  A public bind address therefore requires `AI_GATEWAY_TOKEN`.
-- Provider configuration rejects credential-bearing URLs, control characters in
-  keys, and empty model allowlists. Upstream response bodies are not reflected
-  in gateway errors.
-- Bind to `127.0.0.1`; public deployment is out of scope. The optional bearer
-  token and in-memory limiter remain useful local defenses, especially because
-  any local process can reach a loopback port.
-- The gateway currently forwards prompts and optional reference images to the
-  configured provider. This is not a local-only inference path.
-
-## Next steps
-
-1. Add a dynamic-port/per-launch-token startup path for the desktop main process.
-2. Add an optional static-file mode so the packaged app can load `dist/` and the
-   API from one origin.
-3. Add a runtime gateway URL setting and map `/v1/models` into the existing
-   provider selector.
-4. Route `sendChatMessageWithOptions` through `/v1/chat/stream` while preserving
-   direct mode as a fallback.
-5. Add the Electron shell and move secrets/assets to desktop-native storage.
+Desktop packages are intentionally unsigned development builds. Signing,
+notarization, and auto-update are not part of this version.
