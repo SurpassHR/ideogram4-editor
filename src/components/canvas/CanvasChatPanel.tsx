@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback, type ChangeEvent } from 'reac
 import { createPortal } from 'react-dom';
 import { useCanvasChat } from '../../hooks/useCanvasChat';
 import { useAutoGrowTextarea } from '../../hooks/useAutoGrowTextarea';
+import { useStickyAutoScroll } from '../../hooks/useStickyAutoScroll';
 import ChatMessage from '../chat/ChatMessage';
 import SelectMenu from '../chat/SelectMenu';
 import ChatRunControls from '../chat/ChatRunControls';
@@ -303,7 +304,6 @@ export default function CanvasChatPanel() {
   const [expandedStepId, setExpandedStepId] = useState<string | null>(null);
   /** 输入框随内容增高（面板 + 最大化工作台两个 textarea 共用） */
   const registerAutoGrowTextarea = useAutoGrowTextarea(inputText, 160);
-  const messagesRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const activeSession = canvasChatSessions.find(session => session.id === activeCanvasChatSessionId) ?? canvasChatSessions[0];
   const terminalLogs = activeSession?.requestLogs ?? [];
@@ -312,6 +312,16 @@ export default function CanvasChatPanel() {
   const renamingSession = renamingSessionId
     ? canvasChatSessions.find(session => session.id === renamingSessionId) ?? null
     : null;
+  const normalMessagesScroll = useStickyAutoScroll({
+    active: hasProviders && isCanvasChatOpen && !isCanvasChatMaximized,
+    resetKey: `${activeCanvasChatSessionId}:normal`,
+    messageCount: messages.length,
+  });
+  const workbenchMessagesScroll = useStickyAutoScroll({
+    active: hasProviders && isCanvasChatOpen && isCanvasChatMaximized,
+    resetKey: `${activeCanvasChatSessionId}:workbench`,
+    messageCount: messages.length,
+  });
 
   // 点击画布空白区关闭面板
   useEffect(() => {
@@ -416,16 +426,10 @@ export default function CanvasChatPanel() {
     openSessionMenu(sessionId, rect.right + 4, rect.top);
   }, [openSessionMenu]);
 
-  // 新消息自动滚到底部
-  useEffect(() => {
-    const el = messagesRef.current;
-    if (!el) return;
-    el.scrollTop = el.scrollHeight;
-  }, [messages.length, isLoading]);
   // 阻止 wheel 事件冒泡到 Artboard（避免缩放 canvas 而非滚动消息列表）
   // 边界时 preventDefault 防止页面滚动链
   useEffect(() => {
-    const el = messagesRef.current;
+    const el = normalMessagesScroll.ref.current;
     if (!el) return;
     const handler = (e: WheelEvent) => {
       const atTop = el.scrollTop <= 0;
@@ -746,7 +750,7 @@ export default function CanvasChatPanel() {
 
           {/* Messages */}
           {hasProviders && (
-            <div className="chat-messages" ref={messagesRef}>
+            <div className="chat-messages" ref={normalMessagesScroll.ref} onScroll={normalMessagesScroll.onScroll}>
               {messages.length === 0 && !isLoading && (
                 <div className="chat-empty-hint">{t('chat.emptyHint')}</div>
               )}
@@ -924,7 +928,11 @@ export default function CanvasChatPanel() {
                   <IconClose size={14} />
                 </button>
               </div>
-              <div className="canvas-chat-workbench-messages">
+              <div
+                className="canvas-chat-workbench-messages"
+                ref={workbenchMessagesScroll.ref}
+                onScroll={workbenchMessagesScroll.onScroll}
+              >
                 {!hasProviders && (
                   <div className="chat-no-provider">
                     <p>{t('chat.noProvider')}</p>
