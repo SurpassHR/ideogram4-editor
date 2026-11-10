@@ -1,6 +1,11 @@
 # Dependencies
 node_modules/
 
+# Local secrets
+.env
+.env.*
+!.env.example
+
 # Build output
 dist/
 

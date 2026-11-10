@@ -7,6 +7,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "gateway": "node --env-file-if-exists=.env server/index.ts",
+    "gateway:dev": "node --watch --env-file-if-exists=.env server/index.ts",
     "test": "vitest run",
     "preview": "vite preview"
   },
