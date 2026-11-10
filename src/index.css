@@ -6216,8 +6216,10 @@ input[type="color"]::-webkit-color-swatch {
   justify-content: center;
   min-width: 72px;
   padding: 3px 10px;
-  background: #fafafa;
-  color: #fff;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.45);
   font-family: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
   font-size: 12px;
   font-weight: 600;
