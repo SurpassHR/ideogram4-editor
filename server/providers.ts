@@ -8,6 +8,25 @@ import type {
 
 type OnEvent = (event: GatewayStreamEvent) => void;
 
+export class GatewayProviderError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'GatewayProviderError';
+  }
+}
+
+function providerError(message: string): GatewayProviderError {
+  return new GatewayProviderError(message);
+}
+
+async function safeFetch(input: string, init: RequestInit): Promise<Response> {
+  try {
+    return await fetch(input, init);
+  } catch {
+    throw providerError('Provider request failed');
+  }
+}
+
 async function readSseData(
   body: ReadableStream<Uint8Array>,
   onData: (data: string) => void,
@@ -15,19 +34,31 @@ async function readSseData(
   const decoder = new TextDecoder();
   let buffer = '';
 
+  const processFrame = (frame: string) => {
+    const dataLines: string[] = [];
+    for (const rawLine of frame.split(/\r?\n/)) {
+      if (!rawLine.startsWith('data:')) continue;
+      let value = rawLine.slice(5);
+      if (value.startsWith(' ')) value = value.slice(1);
+      dataLines.push(value);
+    }
+    if (dataLines.length > 0) onData(dataLines.join('\n'));
+  };
+
   for await (const chunk of body) {
     buffer += decoder.decode(chunk, { stream: true });
-    const lines = buffer.split('\n');
-    buffer = lines.pop() ?? '';
-    for (const rawLine of lines) {
-      const line = rawLine.endsWith('\r') ? rawLine.slice(0, -1) : rawLine;
-      if (!line.startsWith('data: ')) continue;
-      onData(line.slice(6).trim());
+    buffer = buffer.replace(/^\uFEFF/, '');
+    while (true) {
+      const boundary = /\r?\n\r?\n/.exec(buffer);
+      if (!boundary) break;
+      const frame = buffer.slice(0, boundary.index);
+      buffer = buffer.slice(boundary.index + boundary[0].length);
+      processFrame(frame);
     }
   }
 
-  const trailing = buffer.trim();
-  if (trailing.startsWith('data: ')) onData(trailing.slice(6).trim());
+  buffer += decoder.decode();
+  if (buffer.trim()) processFrame(buffer);
 }
 
 function thinkingBudgetFor(level: GatewayThinkingLevel | undefined): number | null {
@@ -41,7 +72,7 @@ function thinkingBudgetFor(level: GatewayThinkingLevel | undefined): number | nu
 
 function splitDataUrl(dataUrl: string): { mimeType: string; data: string } {
   const match = /^data:([^;,]+);(?:[^,]*;)?base64,(.*)$/s.exec(dataUrl);
-  if (!match) throw new Error('imageDataUrl must be a base64 data URL');
+  if (!match) throw providerError('imageDataUrl must be a base64 data URL');
   return { mimeType: match[1], data: match[2] };
 }
 
@@ -115,9 +146,7 @@ function openAiBody(request: GatewayChatRequest, stream: boolean): Record<string
 }
 
 async function throwUpstreamError(response: Response): Promise<never> {
-  const body = await response.text().catch(() => '');
-  const detail = body.trim().slice(0, 500);
-  throw new Error(`Provider API error ${response.status}${detail ? `: ${detail}` : ''}`);
+  throw providerError(`Provider API error ${response.status}`);
 }
 
 async function streamOpenAi(
@@ -126,7 +155,7 @@ async function streamOpenAi(
   onEvent: OnEvent,
   signal: AbortSignal,
 ): Promise<void> {
-  const response = await fetch(`${provider.baseUrl}/chat/completions`, {
+  const response = await safeFetch(`${provider.baseUrl}/chat/completions`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -139,13 +168,25 @@ async function streamOpenAi(
   if (!response.body) throw new Error('Provider returned an empty response body');
 
   let content = '';
+  let upstreamError = false;
+  let finishReason: string | null = null;
   await readSseData(response.body, data => {
     if (data === '[DONE]') return;
     try {
       const chunk = JSON.parse(data) as {
-        choices?: Array<{ delta?: { content?: string; reasoning_content?: string } }>;
+        error?: unknown;
+        choices?: Array<{
+          delta?: { content?: string; reasoning_content?: string };
+          finish_reason?: string | null;
+        }>;
       };
+      if (chunk.error) {
+        upstreamError = true;
+        return;
+      }
       const delta = chunk.choices?.[0]?.delta;
+      const reason = chunk.choices?.[0]?.finish_reason;
+      if (typeof reason === 'string' && reason) finishReason = reason;
       if (delta?.reasoning_content) onEvent({ type: 'thinking', text: delta.reasoning_content });
       if (delta?.content) {
         content += delta.content;
@@ -156,7 +197,11 @@ async function streamOpenAi(
     }
   });
 
-  if (!content) throw new Error('Provider returned no content');
+  if (upstreamError) throw providerError('Provider returned an error');
+  if (finishReason && finishReason !== 'stop') {
+    throw providerError(`Provider stopped before completion: ${finishReason}`);
+  }
+  if (!content) throw providerError('Provider returned no content');
   onEvent({ type: 'done', text: content });
 }
 
@@ -165,7 +210,7 @@ async function chatOpenAi(
   request: GatewayChatRequest,
   signal: AbortSignal,
 ): Promise<GatewayChatResult> {
-  const response = await fetch(`${provider.baseUrl}/chat/completions`, {
+  const response = await safeFetch(`${provider.baseUrl}/chat/completions`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -175,13 +220,25 @@ async function chatOpenAi(
     signal,
   });
   if (!response.ok) await throwUpstreamError(response);
-  const payload = await response.json() as {
-    choices?: Array<{ message?: { content?: unknown; reasoning_content?: unknown } }>;
+  let payload: {
+    choices?: Array<{
+      message?: { content?: unknown; reasoning_content?: unknown };
+      finish_reason?: string | null;
+    }>;
   };
+  try {
+    payload = await response.json() as typeof payload;
+  } catch {
+    throw providerError('Provider returned invalid JSON');
+  }
+  const finishReason = payload.choices?.[0]?.finish_reason;
+  if (typeof finishReason === 'string' && finishReason && finishReason !== 'stop') {
+    throw providerError(`Provider stopped before completion: ${finishReason}`);
+  }
   const message = payload.choices?.[0]?.message;
   const content = typeof message?.content === 'string' ? message.content : '';
   const thinking = typeof message?.reasoning_content === 'string' ? message.reasoning_content : '';
-  if (!content) throw new Error('Provider returned no content');
+  if (!content) throw providerError('Provider returned no content');
   return { content, thinking };
 }
 
@@ -192,7 +249,7 @@ async function streamAnthropic(
   signal: AbortSignal,
 ): Promise<void> {
   const thinkingBudget = thinkingBudgetFor(request.thinkingLevel);
-  const response = await fetch(`${provider.baseUrl}/messages`, {
+  const response = await safeFetch(`${provider.baseUrl}/messages`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -213,14 +270,28 @@ async function streamAnthropic(
   if (!response.body) throw new Error('Provider returned an empty response body');
 
   let content = '';
+  let upstreamError = false;
+  let stopReason: string | null = null;
   await readSseData(response.body, data => {
     try {
       const event = JSON.parse(data) as {
         type?: string;
         content_block?: { thinking?: string };
-        delta?: { text?: string; thinking?: string };
+        delta?: { text?: string; thinking?: string; stop_reason?: string | null };
       };
-      if (event.type === 'content_block_start' && event.content_block?.thinking) {
+      if (event.type === 'error') {
+        upstreamError = true;
+      } else if (event.type === 'message_delta') {
+        if (typeof event.delta?.stop_reason === 'string' && event.delta.stop_reason) {
+          stopReason = event.delta.stop_reason;
+        }
+        if (event.delta?.text) {
+          content += event.delta.text;
+          onEvent({ type: 'content', text: event.delta.text });
+        } else if (event.delta?.thinking) {
+          onEvent({ type: 'thinking', text: event.delta.thinking });
+        }
+      } else if (event.type === 'content_block_start' && event.content_block?.thinking) {
         onEvent({ type: 'thinking', text: event.content_block.thinking });
       } else if (event.type === 'content_block_delta') {
         if (event.delta?.text) {
@@ -235,7 +306,11 @@ async function streamAnthropic(
     }
   });
 
-  if (!content) throw new Error('Provider returned no content');
+  if (upstreamError) throw providerError('Provider returned an error');
+  if (stopReason && stopReason !== 'end_turn' && stopReason !== 'stop_sequence') {
+    throw providerError(`Provider stopped before completion: ${stopReason}`);
+  }
+  if (!content) throw providerError('Provider returned no content');
   onEvent({ type: 'done', text: content });
 }
 
@@ -245,7 +320,7 @@ async function chatAnthropic(
   signal: AbortSignal,
 ): Promise<GatewayChatResult> {
   const thinkingBudget = thinkingBudgetFor(request.thinkingLevel);
-  const response = await fetch(`${provider.baseUrl}/messages`, {
+  const response = await safeFetch(`${provider.baseUrl}/messages`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -262,16 +337,25 @@ async function chatAnthropic(
     signal,
   });
   if (!response.ok) await throwUpstreamError(response);
-  const payload = await response.json() as {
+  let payload: {
     content?: Array<{ type?: string; text?: string; thinking?: string }>;
+    stop_reason?: string | null;
   };
+  try {
+    payload = await response.json() as typeof payload;
+  } catch {
+    throw providerError('Provider returned invalid JSON');
+  }
+  if (payload.stop_reason && payload.stop_reason !== 'end_turn' && payload.stop_reason !== 'stop_sequence') {
+    throw providerError(`Provider stopped before completion: ${payload.stop_reason}`);
+  }
   let content = '';
   let thinking = '';
   for (const block of payload.content ?? []) {
     if (block.type === 'text' && block.text) content += block.text;
     if (block.type === 'thinking' && block.thinking) thinking += block.thinking;
   }
-  if (!content) throw new Error('Provider returned no content');
+  if (!content) throw providerError('Provider returned no content');
   return { content, thinking };
 }
 
@@ -283,7 +367,7 @@ async function streamGemini(
 ): Promise<void> {
   const thinkingBudget = thinkingBudgetFor(request.thinkingLevel);
   const model = encodeURIComponent(request.model);
-  const response = await fetch(`${provider.baseUrl}/models/${model}:streamGenerateContent?alt=sse`, {
+  const response = await safeFetch(`${provider.baseUrl}/models/${model}:streamGenerateContent?alt=sse`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -300,11 +384,23 @@ async function streamGemini(
   if (!response.body) throw new Error('Provider returned an empty response body');
 
   let content = '';
+  let upstreamError = false;
+  let finishReason: string | null = null;
   await readSseData(response.body, data => {
     try {
       const chunk = JSON.parse(data) as {
-        candidates?: Array<{ content?: { parts?: Array<{ text?: string; thought?: boolean | string }> } }>;
+        error?: unknown;
+        candidates?: Array<{
+          content?: { parts?: Array<{ text?: string; thought?: boolean | string }> };
+          finishReason?: string;
+        }>;
       };
+      if (chunk.error) {
+        upstreamError = true;
+        return;
+      }
+      const finish = chunk.candidates?.[0]?.finishReason;
+      if (typeof finish === 'string' && finish) finishReason = finish;
       const parts = chunk.candidates?.[0]?.content?.parts ?? [];
       for (const part of parts) {
         if (typeof part.thought === 'string' && part.thought) {
@@ -324,12 +420,19 @@ async function streamGemini(
     }
   });
 
-  if (!content) throw new Error('Provider returned no content');
+  if (upstreamError) throw providerError('Provider returned an error');
+  if (finishReason && finishReason !== 'STOP') {
+    throw providerError(`Provider stopped before completion: ${finishReason}`);
+  }
+  if (!content) throw providerError('Provider returned no content');
   onEvent({ type: 'done', text: content });
 }
 
 function extractGeminiParts(payload: {
-  candidates?: Array<{ content?: { parts?: Array<{ text?: string; thought?: boolean | string }> } }>;
+  candidates?: Array<{
+    content?: { parts?: Array<{ text?: string; thought?: boolean | string }> };
+    finishReason?: string;
+  }>;
 }): GatewayChatResult {
   let content = '';
   let thinking = '';
@@ -342,7 +445,7 @@ function extractGeminiParts(payload: {
     if (part.thought === true) thinking += part.text;
     else content += part.text;
   }
-  if (!content) throw new Error('Provider returned no content');
+  if (!content) throw providerError('Provider returned no content');
   return { content, thinking };
 }
 
@@ -353,7 +456,7 @@ async function chatGemini(
 ): Promise<GatewayChatResult> {
   const thinkingBudget = thinkingBudgetFor(request.thinkingLevel);
   const model = encodeURIComponent(request.model);
-  const response = await fetch(`${provider.baseUrl}/models/${model}:generateContent`, {
+  const response = await safeFetch(`${provider.baseUrl}/models/${model}:generateContent`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -367,7 +470,18 @@ async function chatGemini(
     signal,
   });
   if (!response.ok) await throwUpstreamError(response);
-  return extractGeminiParts(await response.json() as Parameters<typeof extractGeminiParts>[0]);
+  let payload: Parameters<typeof extractGeminiParts>[0] & { error?: unknown };
+  try {
+    payload = await response.json() as typeof payload;
+  } catch {
+    throw providerError('Provider returned invalid JSON');
+  }
+  if (payload.error) throw providerError('Provider returned an error');
+  const finishReason = payload.candidates?.[0]?.finishReason;
+  if (typeof finishReason === 'string' && finishReason && finishReason !== 'STOP') {
+    throw providerError(`Provider stopped before completion: ${finishReason}`);
+  }
+  return extractGeminiParts(payload);
 }
 
 export async function streamGatewayChat(

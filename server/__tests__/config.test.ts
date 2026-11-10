@@ -69,6 +69,7 @@ describe('loadGatewayConfig', () => {
   it('applies JSON provider overrides and appends custom providers', () => {
     const config = loadGatewayConfig({
       OPENAI_API_KEY: 'env-secret',
+      OPENAI_MODELS: 'gpt-5.1',
       AI_GATEWAY_PROVIDERS: JSON.stringify([
         {
           id: 'openai',
@@ -100,6 +101,7 @@ describe('loadGatewayConfig', () => {
   it('normalizes trailing slashes on environment provider base URLs', () => {
     const config = loadGatewayConfig({
       OPENAI_API_KEY: 'secret',
+      OPENAI_MODELS: 'gpt-5.1',
       OPENAI_BASE_URL: 'https://proxy.example.com/v1/',
     });
 
@@ -130,6 +132,7 @@ describe('loadGatewayConfig', () => {
       AI_GATEWAY_TOKEN: 'gateway-token',
       AI_GATEWAY_MAX_BODY_BYTES: '4096',
       AI_GATEWAY_REQUEST_TIMEOUT_MS: '5000',
+      AI_GATEWAY_RATE_LIMIT_PER_MINUTE: '30',
     });
 
     expect(config).toMatchObject({
@@ -139,6 +142,23 @@ describe('loadGatewayConfig', () => {
       authToken: 'gateway-token',
       maxBodyBytes: 4096,
       requestTimeoutMs: 5000,
+      rateLimitPerMinute: 30,
     });
+  });
+
+  it('rejects empty models, credential-bearing URLs, and control characters in keys', () => {
+    expect(() => loadGatewayConfig({ OPENAI_API_KEY: 'secret' }))
+      .toThrow('OPENAI_MODELS must contain at least one model');
+
+    expect(() => loadGatewayConfig({
+      OPENAI_API_KEY: 'secret',
+      OPENAI_MODELS: 'gpt-5.1',
+      OPENAI_BASE_URL: 'https://user:password@example.com/v1',
+    })).toThrow('OPENAI_BASE_URL must not include credentials');
+
+    expect(() => loadGatewayConfig({
+      OPENAI_API_KEY: 'secret\nInjected',
+      OPENAI_MODELS: 'gpt-5.1',
+    })).toThrow('OPENAI_API_KEY contains control characters');
   });
 });

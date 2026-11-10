@@ -82,6 +82,37 @@ describe('streamGatewayChat', () => {
     expect(String(init.body)).not.toContain('server-secret');
   });
 
+  it('parses SSE frames split across chunks and data fields without a space', async () => {
+    const fetchMock = vi.fn(async (_url: string | URL | Request, _init?: RequestInit) => sseResponse([
+      'data:{"choices":[{"delta":',
+      '{"content":"Hel',
+      'lo"}}]}\n\n',
+      'data: {"choices":[{"delta":{"content":"!"}}]}\n\n',
+    ]));
+    vi.stubGlobal('fetch', fetchMock);
+    const events: GatewayStreamEvent[] = [];
+
+    await streamGatewayChat(openAiProvider, baseRequest, event => events.push(event));
+
+    expect(events).toEqual([
+      { type: 'content', text: 'Hello' },
+      { type: 'content', text: '!' },
+      { type: 'done', text: 'Hello!' },
+    ]);
+  });
+
+  it('joins multi-line SSE data fields into one JSON payload', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => sseResponse([
+      'data: {"choices":[{"delta":\n',
+      'data: {"content":"Hello"}}]}\n\n',
+    ])));
+    const events: GatewayStreamEvent[] = [];
+
+    await streamGatewayChat(openAiProvider, baseRequest, event => events.push(event));
+
+    expect(events.at(-1)).toEqual({ type: 'done', text: 'Hello' });
+  });
+
   it('normalizes Anthropic thinking and text deltas', async () => {
     const fetchMock = vi.fn(async (_url: string | URL | Request, _init?: RequestInit) => sseResponse([
       'data: {"type":"content_block_start","content_block":{"type":"thinking","thinking":"plan"}}\n\n',
@@ -161,6 +192,37 @@ describe('streamGatewayChat', () => {
         { type: 'text', text: 'Describe a cat.' },
       ],
     });
+  });
+
+  it('does not leak upstream error bodies', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+      error: { message: 'secret upstream diagnostic' },
+    }), { status: 401 })));
+
+    await expect(streamGatewayChat(openAiProvider, baseRequest, () => {}))
+      .rejects.toThrow('Provider API error 401');
+    await expect(streamGatewayChat(openAiProvider, baseRequest, () => {}))
+      .rejects.not.toThrow('secret upstream diagnostic');
+  });
+
+  it('rejects provider error events instead of treating them as success', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => sseResponse([
+      'data: {"error":{"message":"secret provider error"}}\n\n',
+    ])));
+
+    await expect(streamGatewayChat(openAiProvider, baseRequest, () => {}))
+      .rejects.toThrow('Provider returned an error');
+  });
+
+  it('rejects truncated OpenAI streams instead of emitting a successful done event', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => sseResponse([
+      'data: {"choices":[{"delta":{"content":"Half"},"finish_reason":"length"}]}\n\n',
+    ])));
+    const events: GatewayStreamEvent[] = [];
+
+    await expect(streamGatewayChat(openAiProvider, baseRequest, event => events.push(event)))
+      .rejects.toThrow('Provider stopped before completion: length');
+    expect(events).toEqual([{ type: 'content', text: 'Half' }]);
   });
 
   it('returns normalized non-streaming OpenAI content and thinking', async () => {

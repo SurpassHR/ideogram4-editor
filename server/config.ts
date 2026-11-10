@@ -14,6 +14,7 @@ export interface GatewayConfig {
   authToken: string | null;
   maxBodyBytes: number;
   requestTimeoutMs: number;
+  rateLimitPerMinute: number;
   providers: GatewayProviderConfig[];
 }
 
@@ -34,11 +35,40 @@ function readPositiveInt(value: string | undefined, fallback: number): number {
   return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
 }
 
+function readNonNegativeInt(value: string | undefined, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : fallback;
+}
+
 function isProviderKind(value: unknown): value is GatewayProviderConfig['kind'] {
   return value === 'openai'
     || value === 'anthropic'
     || value === 'gemini'
     || value === 'openai_compat';
+}
+
+function validateApiKey(label: string, value: string): string {
+  if (/[\u0000-\u001f\u007f]/.test(value)) {
+    throw new Error(`${label} contains control characters`);
+  }
+  return value.trim();
+}
+
+function normalizeBaseUrl(label: string, raw: string): string {
+  if (!raw.trim()) throw new Error(`${label} is required`);
+  let url: URL;
+  try {
+    url = new URL(raw.trim());
+  } catch {
+    throw new Error(`${label} must be a valid URL`);
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    throw new Error(`${label} must use http or https`);
+  }
+  if (url.username || url.password) {
+    throw new Error(`${label} must not include credentials`);
+  }
+  return `${url.origin}${url.pathname}`.replace(/\/$/, '');
 }
 
 function parseJsonProviders(raw: string | undefined): GatewayProviderConfig[] {
@@ -75,13 +105,17 @@ function parseJsonProviders(raw: string | undefined): GatewayProviderConfig[] {
     if (!Array.isArray(value.models) || value.models.some(model => typeof model !== 'string')) {
       throw new Error(`AI_GATEWAY_PROVIDERS[${index}].models must be a string array`);
     }
+    const models = value.models.map(model => model.trim()).filter(Boolean);
+    if (models.length === 0) {
+      throw new Error(`AI_GATEWAY_PROVIDERS[${index}].models must contain at least one model`);
+    }
     return {
       id: value.id.trim(),
       name: value.name.trim(),
       kind: value.kind,
-      baseUrl: value.baseUrl.trim().replace(/\/$/, ''),
-      apiKey: value.apiKey.trim(),
-      models: value.models.map(model => model.trim()).filter(Boolean),
+      baseUrl: normalizeBaseUrl(`AI_GATEWAY_PROVIDERS[${index}].baseUrl`, value.baseUrl),
+      apiKey: validateApiKey(`AI_GATEWAY_PROVIDERS[${index}].apiKey`, value.apiKey),
+      models,
     };
   });
 }
@@ -113,16 +147,22 @@ function providerFromEnv(
     modelsEnv: string;
   },
 ): GatewayProviderConfig | null {
-  const apiKey = env[options.keyEnv]?.trim();
+  const rawApiKey = env[options.keyEnv]?.trim();
+  if (!rawApiKey) return null;
+  const apiKey = validateApiKey(options.keyEnv, rawApiKey);
   if (!apiKey) return null;
-  const baseUrl = (env[options.baseUrlEnv]?.trim() || options.defaultBaseUrl).replace(/\/$/, '');
+  const models = readList(env[options.modelsEnv]);
+  if (models.length === 0) {
+    throw new Error(`${options.modelsEnv} must contain at least one model`);
+  }
+  const baseUrl = normalizeBaseUrl(options.baseUrlEnv, env[options.baseUrlEnv]?.trim() || options.defaultBaseUrl);
   return {
     id: (options.idEnv ? env[options.idEnv]?.trim() : '') || options.defaultId,
     name: (options.nameEnv ? env[options.nameEnv]?.trim() : '') || options.defaultName,
     kind: options.kind,
     baseUrl,
     apiKey,
-    models: readList(env[options.modelsEnv]),
+    models,
   };
 }
 
@@ -178,6 +218,7 @@ export function loadGatewayConfig(env: NodeJS.ProcessEnv): GatewayConfig {
     authToken,
     maxBodyBytes: readPositiveInt(env.AI_GATEWAY_MAX_BODY_BYTES, 25 * 1024 * 1024),
     requestTimeoutMs: readPositiveInt(env.AI_GATEWAY_REQUEST_TIMEOUT_MS, 180_000),
+    rateLimitPerMinute: readNonNegativeInt(env.AI_GATEWAY_RATE_LIMIT_PER_MINUTE, 60),
     providers: mergeProviders(envProviders, parseJsonProviders(env.AI_GATEWAY_PROVIDERS)),
   };
 }

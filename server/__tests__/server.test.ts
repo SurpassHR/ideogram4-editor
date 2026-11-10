@@ -12,6 +12,7 @@ const config: GatewayConfig = {
   authToken: 'gateway-token',
   maxBodyBytes: 1024 * 1024,
   requestTimeoutMs: 5000,
+  rateLimitPerMinute: 1000,
   providers: [{
     id: 'openai',
     name: 'OpenAI',
@@ -49,6 +50,19 @@ function sseResponse(chunks: string[]): Response {
   return new Response(new ReadableStream<Uint8Array>({
     start(controller) {
       for (const chunk of chunks) controller.enqueue(encoder.encode(chunk));
+      controller.close();
+    },
+  }), { status: 200, headers: { 'content-type': 'text/event-stream' } });
+}
+
+function delayedSseResponse(chunks: string[], delayMs: number): Response {
+  const encoder = new TextEncoder();
+  return new Response(new ReadableStream<Uint8Array>({
+    async start(controller) {
+      for (const chunk of chunks) {
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+        controller.enqueue(encoder.encode(chunk));
+      }
       controller.close();
     },
   }), { status: 200, headers: { 'content-type': 'text/event-stream' } });
@@ -93,6 +107,58 @@ describe('AI gateway HTTP server', () => {
     await expect(response.json()).resolves.toEqual({ error: 'Unauthorized' });
   });
 
+  it('rejects disallowed browser origins before calling a provider', async () => {
+    const upstream = vi.fn();
+    vi.stubGlobal('fetch', upstream);
+    const { baseUrl } = await startServer();
+    const response = await realFetch(`${baseUrl}/v1/chat`, {
+      method: 'POST',
+      headers: { ...authHeaders('https://evil.example'), 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        providerId: 'openai',
+        model: 'gpt-5.1',
+        messages: [{ role: 'user', content: 'Hi' }],
+      }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(upstream).not.toHaveBeenCalled();
+  });
+
+  it('requires a JSON content type for chat requests', async () => {
+    const upstream = vi.fn();
+    vi.stubGlobal('fetch', upstream);
+    const { baseUrl } = await startServer();
+    const response = await realFetch(`${baseUrl}/v1/chat`, {
+      method: 'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        providerId: 'openai',
+        model: 'gpt-5.1',
+        messages: [{ role: 'user', content: 'Hi' }],
+      }),
+    });
+
+    expect(response.status).toBe(415);
+    expect(upstream).not.toHaveBeenCalled();
+  });
+
+  it('allows anonymous loopback requests only when no token is configured', async () => {
+    const { baseUrl } = await startServer({ authToken: null });
+    const response = await realFetch(`${baseUrl}/v1/models`);
+
+    expect(response.status).toBe(200);
+  });
+
+  it('rate-limits API requests per client address', async () => {
+    const { baseUrl } = await startServer({ rateLimitPerMinute: 2 });
+    const request = () => realFetch(`${baseUrl}/v1/models`, { headers: authHeaders() });
+
+    expect((await request()).status).toBe(200);
+    expect((await request()).status).toBe(200);
+    expect((await request()).status).toBe(429);
+  });
+
   it('relays a normalized SSE stream from the selected provider', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => sseResponse([
       'data: {"choices":[{"delta":{"content":"Hello"}}]}\n\n',
@@ -115,6 +181,29 @@ describe('AI gateway HTTP server', () => {
     expect(text).toContain('event: content');
     expect(text).toContain('"text":"Hello"');
     expect(text).toContain('event: done');
+  });
+
+  it('resets the streaming timeout when provider events keep arriving', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => delayedSseResponse([
+      'data: {"choices":[{"delta":{"content":"A"}}]}\n\n',
+      'data: {"choices":[{"delta":{"content":"B"}}]}\n\n',
+      'data: {"choices":[{"delta":{"content":"C"}}]}\n\n',
+      'data: {"choices":[{"delta":{"content":"D"}}]}\n\n',
+    ], 60)));
+    const { baseUrl } = await startServer({ requestTimeoutMs: 120 });
+    const response = await realFetch(`${baseUrl}/v1/chat/stream`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({
+        providerId: 'openai',
+        model: 'gpt-5.1',
+        messages: [{ role: 'user', content: 'Hi' }],
+      }),
+    });
+    const text = await response.text();
+
+    expect(text).toContain('event: done');
+    expect(text).not.toContain('Gateway request timed out');
   });
 
   it('returns a clear error for unknown providers', async () => {
@@ -150,6 +239,28 @@ describe('AI gateway HTTP server', () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ content: 'Hello', thinking: 'Plan' });
+  });
+
+  it('does not reflect upstream error bodies or provider URLs', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+      error: { message: 'provider secret diagnostic' },
+    }), { status: 401 })));
+    const { baseUrl } = await startServer();
+    const response = await realFetch(`${baseUrl}/v1/chat`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({
+        providerId: 'openai',
+        model: 'gpt-5.1',
+        messages: [{ role: 'user', content: 'Hi' }],
+      }),
+    });
+    const text = await response.text();
+
+    expect(response.status).toBe(502);
+    expect(text).toContain('Provider API error 401');
+    expect(text).not.toContain('provider secret diagnostic');
+    expect(text).not.toContain('api.openai.com');
   });
 
   it('rejects models that are not configured for the provider', async () => {
