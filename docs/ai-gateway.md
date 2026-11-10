@@ -5,6 +5,10 @@ keys out of the browser and normalizes OpenAI, Anthropic, and Gemini streaming.
 It does not change the existing static app until the frontend is explicitly
 switched to the gateway.
 
+The gateway requires Node.js 22.18+ because it runs the TypeScript sources
+directly with Node's native type stripping. The static frontend still builds
+with the repository's existing Node version requirement.
+
 ## Run
 
 ```bash
