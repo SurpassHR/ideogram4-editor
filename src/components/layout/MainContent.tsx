@@ -1,5 +1,6 @@
 import Artboard from '../canvas/Artboard';
 import RightPanelContainer from '../panels/RightPanelContainer';
+import SchemeSwitcher from '../panels/SchemeSwitcher';
 import { useImageDrop } from '../../hooks/useImageDrop';
 
 export default function CanvasPage() {
@@ -13,7 +14,8 @@ export default function CanvasPage() {
           <Artboard />
         </div>
 
-        <div style={{ width: '360px', flexShrink: 0 }}>
+        <div className="right-panel-column">
+          <SchemeSwitcher />
           <RightPanelContainer />
         </div>
       </div>

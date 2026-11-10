@@ -7,10 +7,11 @@
  */
 
 import type { Box, IdeogramElement, IdeogramOutput, PhotoArtStyleMode } from '../types';
+import type { Flux3Globals, JsonScheme, MossCanvasKind, MossGlobals } from '../types/scheme';
 import { generateJSON } from './json-serializer';
 import { norm } from './coordinates';
 
-export type JsonScheme = 'ideogram4' | 'flux3-layout' | 'moss-layout';
+export type { Flux3Globals, JsonScheme, MossCanvasKind, MossGlobals } from '../types/scheme';
 
 export interface JsonSchemeDescriptor {
   id: JsonScheme;
@@ -61,6 +62,46 @@ export interface JsonSchemeSnapshot {
   artStyle: string;
   background: string;
   photoArtStyleMode: PhotoArtStyleMode;
+  /** 非 Ideogram scheme 的独立 global 配置；缺省时回退到 Ideogram 字段。 */
+  flux3Globals?: Flux3Globals | null;
+  mossGlobals?: MossGlobals | null;
+}
+
+export type IdeogramGlobalSeed = Pick<
+  JsonSchemeSnapshot,
+  'highLevelDescription' | 'background' | 'aesthetics' | 'lighting' | 'medium' | 'artStyle' | 'globalPalette'
+>;
+
+function seedSceneCaption(seed: IdeogramGlobalSeed): string {
+  return [seed.highLevelDescription.trim(), seed.background.trim()].filter(Boolean).join(' ');
+}
+
+/** 首次切到 FLUX 3 时，从当前 Ideogram 设置克隆一份可编辑的初始值。 */
+export function createFlux3GlobalsFromIdeogram(seed: IdeogramGlobalSeed): Flux3Globals {
+  return {
+    fullScenePrompt: seedSceneCaption(seed),
+    palette: [...seed.globalPalette],
+  };
+}
+
+export function createEmptyFlux3Globals(): Flux3Globals {
+  return { fullScenePrompt: '', palette: [] };
+}
+
+/** 首次切到 MOSS-Image 时，保持与旧版 MOSS 导出等价的一份初始值。 */
+export function createMossGlobalsFromIdeogram(seed: IdeogramGlobalSeed): MossGlobals {
+  return {
+    summaryCaption: seedSceneCaption(seed),
+    meta: [seed.aesthetics, seed.lighting, seed.medium, seed.artStyle]
+      .map(value => value.trim())
+      .filter(Boolean),
+    canvas: 'single',
+    palette: [...seed.globalPalette],
+  };
+}
+
+export function createEmptyMossGlobals(): MossGlobals {
+  return { summaryCaption: '', meta: [], canvas: 'single', palette: [] };
 }
 
 /** Flux3LayoutPrompt 的单个布局行 */
@@ -88,7 +129,7 @@ export interface MossLayoutDraft {
   summary: {
     caption: string;
     meta?: string[];
-    canvas?: 'single' | 'multi_panel' | 'collage';
+    canvas?: MossCanvasKind;
     palette?: string[];
   };
   items: MossLayoutItem[];
@@ -175,15 +216,16 @@ function generateMossDraft(snapshot: JsonSchemeSnapshot): MossLayoutDraft | Moss
     return item;
   });
 
-  const summaryCaption = mossSummaryCaption(snapshot, items.length);
+  const moss = snapshot.mossGlobals;
+  const summaryCaption = moss?.summaryCaption.trim() || mossSummaryCaption(snapshot, items.length);
   if (items.length === 0) return { caption: summaryCaption };
 
-  const meta = [
-    snapshot.aesthetics,
-    snapshot.lighting,
-    snapshot.medium,
-    snapshot.artStyle,
-  ].map(value => value.trim()).filter(Boolean);
+  const meta = moss
+    ? moss.meta.map(value => value.trim()).filter(Boolean)
+    : [snapshot.aesthetics, snapshot.lighting, snapshot.medium, snapshot.artStyle]
+        .map(value => value.trim())
+        .filter(Boolean);
+  const palette = moss ? moss.palette : snapshot.globalPalette;
 
   return {
     width: snapshot.canvasW,
@@ -192,9 +234,9 @@ function generateMossDraft(snapshot: JsonSchemeSnapshot): MossLayoutDraft | Moss
     bbox_format: 'xyxy',
     summary: {
       caption: summaryCaption,
-      canvas: 'single',
+      canvas: moss?.canvas ?? 'single',
       ...(meta.length > 0 ? { meta } : {}),
-      ...(snapshot.globalPalette.length > 0 ? { palette: [...snapshot.globalPalette] } : {}),
+      ...(palette.length > 0 ? { palette: [...palette] } : {}),
     },
     items,
   };

@@ -2,6 +2,7 @@ import type { Box } from '../types';
 import type { CanvasChatSession } from '../types/chat';
 import type { LlmProvider } from '../components/llm/types';
 import type { PromptPreset } from '../types/presets';
+import type { Flux3Globals, JsonScheme, MossGlobals } from '../types/scheme';
 import { createEmptySkillPrefs, type SkillPrefs, type SkillRecord } from '../types/skill';
 import type {
   CanvasFavorite,
@@ -29,6 +30,9 @@ interface CanvasSnapshotSource {
   artStyle: string;
   background: string;
   photoArtStyleMode: 0 | 1;
+  activeJsonScheme?: JsonScheme;
+  flux3Globals?: Flux3Globals | null;
+  mossGlobals?: MossGlobals | null;
 }
 
 interface WorkspaceBackupSource extends CanvasSnapshotSource {
@@ -92,6 +96,9 @@ export function buildCanvasSnapshotLite(state: CanvasSnapshotSource): CanvasSnap
     artStyle: state.artStyle,
     background: state.background,
     photoArtStyleMode: state.photoArtStyleMode,
+    activeJsonScheme: state.activeJsonScheme,
+    flux3Globals: state.flux3Globals ?? null,
+    mossGlobals: state.mossGlobals ?? null,
   };
 }
 
@@ -174,7 +181,7 @@ export function createRestorePreview(pkg: WorkspaceBackupPackageV1): WorkspaceRe
     {
       module: 'currentCanvas',
       label: 'Current Canvas',
-      summary: `${modules.currentCanvas.canvasW} x ${modules.currentCanvas.canvasH} · ${modules.currentCanvas.boxes.length} boxes · ${summarizeText(modules.currentCanvas.highLevelDescription)}`,
+      summary: `${modules.currentCanvas.canvasW} x ${modules.currentCanvas.canvasH} · ${modules.currentCanvas.boxes.length} boxes · ${modules.currentCanvas.activeJsonScheme ?? 'ideogram4'} · ${summarizeText(modules.currentCanvas.highLevelDescription)}`,
       defaultSelected: true,
     },
     {

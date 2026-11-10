@@ -62,7 +62,10 @@ describe('generateJsonScheme', () => {
   });
 
   it('FLUX 3 输出布局行数组，并按 top/left/bottom/right 排列 bbox', () => {
-    const rows = generateJsonScheme('flux3-layout', makeSnapshot()) as Flux3LayoutRow[];
+    const rows = generateJsonScheme('flux3-layout', {
+      ...makeSnapshot(),
+      flux3Globals: { fullScenePrompt: 'A complete FLUX 3 scene.', palette: ['#00FF00'] },
+    }) as Flux3LayoutRow[];
 
     expect(rows).toHaveLength(2);
     expect(rows[0]).toMatchObject({
@@ -76,6 +79,42 @@ describe('generateJsonScheme', () => {
       text: 'HELLO',
       bbox: [500, 500, 750, 1000],
     });
+    // Full Scene Prompt 不进入布局数组，保持 FLUX 3 官方输出契约。
+    expect(Array.isArray(rows)).toBe(true);
+  });
+
+  it('MOSS-Image 使用独立 profile 的 summary 字段', () => {
+    const draft = generateJsonScheme('moss-layout', {
+      ...makeSnapshot(),
+      mossGlobals: {
+        summaryCaption: 'MOSS scene',
+        meta: ['poster', 'soft light'],
+        canvas: 'collage',
+        palette: ['#00FF00', '#0000FF'],
+      },
+    }) as MossLayoutDraft;
+
+    expect(draft.summary).toEqual({
+      caption: 'MOSS scene',
+      meta: ['poster', 'soft light'],
+      canvas: 'collage',
+      palette: ['#00FF00', '#0000FF'],
+    });
+    expect(() => compileMossPrompt(draft)).not.toThrow();
+  });
+
+  it('空画布的 MOSS-Image 使用 profile caption', () => {
+    const snapshot = {
+      ...makeSnapshot(),
+      boxes: [],
+      mossGlobals: {
+        summaryCaption: 'Only caption',
+        meta: [],
+        canvas: 'single' as const,
+        palette: [],
+      },
+    };
+    expect(generateJsonScheme('moss-layout', snapshot)).toEqual({ caption: 'Only caption' });
   });
 
   it('MOSS-Image 输出绝对像素 xyxy 草稿且可被官方 compiler 接受', () => {

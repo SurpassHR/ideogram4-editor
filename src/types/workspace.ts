@@ -2,6 +2,7 @@ import type { Box, PhotoArtStyleMode } from './index';
 import type { CanvasChatSession, ChatThinkingLevel } from './chat';
 import type { PromptPreset } from './presets';
 import type { SkillPrefs, SkillRecord } from './skill';
+import type { Flux3Globals, JsonScheme, MossGlobals } from './scheme';
 import type { LlmProvider } from '../components/llm/types';
 
 export interface PersistedCanvasChatStateV1 {
@@ -31,6 +32,10 @@ export interface CanvasSnapshotLite {
   artStyle: string;
   background: string;
   photoArtStyleMode: PhotoArtStyleMode;
+  /** 当前 JSON scheme 与其独立 global 配置（旧快照缺省时回到 Ideogram 4）。 */
+  activeJsonScheme?: JsonScheme;
+  flux3Globals?: Flux3Globals | null;
+  mossGlobals?: MossGlobals | null;
 }
 
 /**
@@ -58,6 +63,10 @@ export interface PersistedCanvasDocumentV1 {
   background: string;
   photoArtStyleMode: PhotoArtStyleMode;
   canvasBackgroundUrl: string | null;
+  /** 当前 JSON scheme 与其独立 global 配置（旧文档缺省时回到 Ideogram 4）。 */
+  activeJsonScheme?: JsonScheme;
+  flux3Globals?: Flux3Globals | null;
+  mossGlobals?: MossGlobals | null;
 }
 
 export interface CanvasFavorite {

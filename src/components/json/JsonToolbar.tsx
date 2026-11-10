@@ -6,11 +6,8 @@ import { getAdapter } from '../../services/skill-adapters';
 import { isSkillExtractionError } from '../../services/skill-adapters/types';
 import { buildCanvasReplacement } from '../../services/skill-apply';
 import {
-  JSON_SCHEMES,
   generateJsonScheme,
   parseJsonSchemeForPreview,
-  readStoredJsonScheme,
-  writeStoredJsonScheme,
   type JsonScheme,
   type JsonSchemePreview,
   type JsonSchemeSnapshot,
@@ -40,7 +37,13 @@ function currentSnapshot(): JsonSchemeSnapshot {
     artStyle: state.artStyle,
     background: state.background,
     photoArtStyleMode: state.photoArtStyleMode,
+    flux3Globals: state.flux3Globals,
+    mossGlobals: state.mossGlobals,
   };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function serializeScheme(scheme: JsonScheme): string {
@@ -48,8 +51,8 @@ function serializeScheme(scheme: JsonScheme): string {
 }
 
 export default function JsonToolbar() {
-  const [scheme, setScheme] = useState<JsonScheme>(() => readStoredJsonScheme());
-  const [jsonText, setJsonText] = useState(() => serializeScheme(readStoredJsonScheme()));
+  const scheme = useEditorStore(s => s.activeJsonScheme);
+  const [jsonText, setJsonText] = useState(() => serializeScheme(scheme));
   const [mode, setMode] = useState<ViewMode>('json');
   const [errorToast, setErrorToast] = useState<string | null>(null);
   const { t } = useI18n();
@@ -66,17 +69,17 @@ export default function JsonToolbar() {
   const artStyle = useEditorStore(s => s.artStyle);
   const background = useEditorStore(s => s.background);
   const photoArtStyleMode = useEditorStore(s => s.photoArtStyleMode);
+  const flux3Globals = useEditorStore(s => s.flux3Globals);
+  const mossGlobals = useEditorStore(s => s.mossGlobals);
 
   // ── 标志位：用户正在手动编辑 textarea 时暂停自动同步 ─
   const isUserEditingRef = useRef(false);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  const handleSchemeChange = useCallback((next: JsonScheme) => {
-    if (next === scheme) return;
+  // scheme 在右栏顶部切换：立即重置文本框，忽略旧的编辑状态。
+  useEffect(() => {
     isUserEditingRef.current = false;
-    writeStoredJsonScheme(next);
-    setScheme(next);
-    setJsonText(serializeScheme(next));
+    setJsonText(serializeScheme(scheme));
     setErrorToast(null);
   }, [scheme]);
 
@@ -93,7 +96,7 @@ export default function JsonToolbar() {
   }, [
     scheme, boxes, canvasW, canvasH, globalPalette,
     highLevelDescription, aesthetics, lighting,
-    medium, artStyle, background, photoArtStyleMode,
+    medium, artStyle, background, photoArtStyleMode, flux3Globals, mossGlobals,
   ]);
 
   const handleUserEditing = useCallback((editing: boolean) => {
@@ -136,7 +139,7 @@ export default function JsonToolbar() {
         const payload = extraction.payload;
         if (payload && typeof payload === 'object' && 'caption' in payload
           && typeof (payload as { caption?: unknown }).caption === 'string') {
-          state.setGlobalSetting('highLevelDescription', (payload as { caption: string }).caption);
+          state.updateMossGlobals({ summaryCaption: (payload as { caption: string }).caption });
           return;
         }
         setErrorToast(t('json.noElements'));
@@ -163,6 +166,25 @@ export default function JsonToolbar() {
         replacement.photoArtStyleMode = state.photoArtStyleMode;
       }
       state.applyCanvasReplacement(replacement);
+
+      // MOSS 的 summary 属于 scheme global，不是 Ideogram 的扁平字段。
+      if (scheme === 'moss-layout' && isRecord(extraction.payload)) {
+        const summary = isRecord(extraction.payload.summary) ? extraction.payload.summary : null;
+        if (summary) {
+          state.updateMossGlobals({
+            ...(typeof summary.caption === 'string' ? { summaryCaption: summary.caption } : {}),
+            ...(Array.isArray(summary.meta)
+              ? { meta: summary.meta.filter((entry): entry is string => typeof entry === 'string') }
+              : {}),
+            ...(summary.canvas === 'single' || summary.canvas === 'multi_panel' || summary.canvas === 'collage'
+              ? { canvas: summary.canvas }
+              : {}),
+            ...(Array.isArray(summary.palette)
+              ? { palette: summary.palette.filter((entry): entry is string => typeof entry === 'string') }
+              : {}),
+          });
+        }
+      }
     } catch (e) {
       setErrorToast(t('json.invalidJson', { error: (e as Error).message }));
     }
@@ -201,34 +223,11 @@ export default function JsonToolbar() {
 
   const isPreview = mode === 'preview';
   const preview = isPreview ? getPreviewState() : { output: null, error: null };
-  const activeScheme = JSON_SCHEMES.find(item => item.id === scheme) ?? JSON_SCHEMES[0];
   const previewSummary = preview.output?.summary.trim() ?? '';
 
   return (
     <div className="json-toolbar" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
-      {/* Row 1: JSON scheme selector */}
-      <div className="json-scheme-row">
-        <span className="json-scheme-label">{t('json.scheme')}</span>
-        <div className="json-view-tabs" role="radiogroup" aria-label={t('json.scheme')}>
-          {JSON_SCHEMES.map(item => (
-            <button
-              key={item.id}
-              type="button"
-              role="radio"
-              className={`json-view-tab ${scheme === item.id ? 'active' : ''}`}
-              aria-checked={scheme === item.id}
-              onClick={() => handleSchemeChange(item.id)}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="json-scheme-hint">
-        {t(`json.schemeHints.${activeScheme.hintKey}`)}
-      </div>
-
-      {/* Row 2: action buttons */}
+      {/* Row 1: action buttons */}
       <div className="panel-tab-toolbar">
         <div className="panel-tab-toolbar-actions">
           <button className="btn" onClick={handleGenerate}>{t('json.generatePrompt')}</button>

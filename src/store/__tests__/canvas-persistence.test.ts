@@ -140,6 +140,27 @@ describe('当前画布自动保存', () => {
     expect(state.canvasRatio).toBe('1:1');
   });
 
+  it('刷新页面后应恢复 active scheme 与独立 global profile', async () => {
+    saveCanvasDocument(makeDocument({
+      activeJsonScheme: 'moss-layout',
+      flux3Globals: { fullScenePrompt: 'FLUX scene', palette: ['#123456'] },
+      mossGlobals: {
+        summaryCaption: 'MOSS scene',
+        meta: ['poster'],
+        canvas: 'collage',
+        palette: ['#ABCDEF'],
+      },
+    }));
+
+    const { useEditorStore } = await import('../index');
+    const state = useEditorStore.getState();
+
+    expect(state.activeJsonScheme).toBe('moss-layout');
+    expect(state.flux3Globals).toEqual({ fullScenePrompt: 'FLUX scene', palette: ['#123456'] });
+    expect(state.mossGlobals?.summaryCaption).toBe('MOSS scene');
+    expect(state.mossGlobals?.canvas).toBe('collage');
+  });
+
   it('画布内容变化后应自动写入 localStorage', async () => {
     const { useEditorStore } = await import('../index');
 
@@ -151,6 +172,18 @@ describe('当前画布自动保存', () => {
     const saved = loadCanvasDocument();
     expect(saved?.boxes).toHaveLength(1);
     expect(saved?.boxes[0].desc).toBe('新框');
+  });
+
+  it('切换 scheme 与编辑 profile 后应自动写入 localStorage', async () => {
+    const { useEditorStore } = await import('../index');
+
+    useEditorStore.getState().setActiveJsonScheme('flux3-layout');
+    useEditorStore.getState().updateFlux3Globals({ fullScenePrompt: 'Edited FLUX scene' });
+    await vi.advanceTimersByTimeAsync(500);
+
+    const saved = loadCanvasDocument();
+    expect(saved?.activeJsonScheme).toBe('flux3-layout');
+    expect(saved?.flux3Globals?.fullScenePrompt).toBe('Edited FLUX scene');
   });
 
   it('启动时应把 IndexedDB 中的图像合并回 boxes 与画布背景', async () => {

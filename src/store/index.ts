@@ -4,6 +4,7 @@ import type { CanvasChatRequestLogDetail, CanvasChatRequestLogStep, CanvasChatSe
 import type { PromptPreset } from '../types/presets';
 import type { CanvasFavorite, CanvasSnapshotLite, PersistedCanvasChatStateV1, PersistedCanvasDocumentV1, WorkspaceBackupSettings } from '../types/workspace';
 import type { SkillAdapterId, SkillPrefs, SkillRecord } from '../types/skill';
+import type { Flux3Globals, JsonScheme, MossGlobals } from '../types/scheme';
 import {
   DEFAULT_SKILL_ID,
   MAX_TOTAL_SKILL_BYTES,
@@ -21,6 +22,15 @@ import { MODE_ARTSTYLE, MODE_PHOTO } from '../types';
 import { computeCanvasDims, inferCanvasControlsFromDimensions, type RatioKey } from '../utils/canvas-dims';
 import { detectBboxSystem, bboxToPixels } from '../utils/coordinates';
 import { generateJSON as serializeIdeogramJSON } from '../utils/json-serializer';
+import {
+  createEmptyFlux3Globals,
+  createEmptyMossGlobals,
+  createFlux3GlobalsFromIdeogram,
+  createMossGlobalsFromIdeogram,
+  DEFAULT_JSON_SCHEME,
+  readStoredJsonScheme,
+  writeStoredJsonScheme,
+} from '../utils/json-schemes';
 import type { LayoutQualityReport } from '../services/layout-validator';
 import {
   loadCanvasChatState,
@@ -175,6 +185,33 @@ function boxesFromSnapshot(snapshot: CanvasSnapshotLite): Box[] {
   });
 }
 
+interface SchemeGlobalSource {
+  highLevelDescription: string;
+  background: string;
+  aesthetics: string;
+  lighting: string;
+  medium: string;
+  artStyle: string;
+  globalPalette: string[];
+  activeJsonScheme?: JsonScheme;
+  flux3Globals?: Flux3Globals | null;
+  mossGlobals?: MossGlobals | null;
+}
+
+/** 旧文档/快照没有 scheme 字段时回退，并在首次激活时播种独立 profile。 */
+function schemeGlobalsFrom(source: SchemeGlobalSource, fallbackScheme: JsonScheme = readStoredJsonScheme()) {
+  const activeJsonScheme = source.activeJsonScheme ?? fallbackScheme;
+  return {
+    activeJsonScheme,
+    flux3Globals: source.flux3Globals
+      ? { ...source.flux3Globals, palette: [...source.flux3Globals.palette] }
+      : (activeJsonScheme === 'flux3-layout' ? createFlux3GlobalsFromIdeogram(source) : null),
+    mossGlobals: source.mossGlobals
+      ? { ...source.mossGlobals, meta: [...source.mossGlobals.meta], palette: [...source.mossGlobals.palette] }
+      : (activeJsonScheme === 'moss-layout' ? createMossGlobalsFromIdeogram(source) : null),
+  };
+}
+
 function canvasStateFromSnapshot(snapshot: CanvasSnapshotLite) {
   const boxes = boxesFromSnapshot(snapshot);
   return {
@@ -196,6 +233,7 @@ function canvasStateFromSnapshot(snapshot: CanvasSnapshotLite) {
     artStyle: snapshot.artStyle,
     background: snapshot.background,
     photoArtStyleMode: snapshot.photoArtStyleMode,
+    ...schemeGlobalsFrom(snapshot, DEFAULT_JSON_SCHEME),
   };
 }
 
@@ -221,6 +259,7 @@ function canvasStateFromDocument(document: PersistedCanvasDocumentV1) {
     background: document.background,
     photoArtStyleMode: document.photoArtStyleMode,
     canvasBackgroundUrl: document.canvasBackgroundUrl,
+    ...schemeGlobalsFrom(document),
   };
 }
 
@@ -243,6 +282,8 @@ const DEFAULT_CANVAS_DOCUMENT: PersistedCanvasDocumentV1 = {
   background: '',
   photoArtStyleMode: MODE_ARTSTYLE,
   canvasBackgroundUrl: null,
+  flux3Globals: null,
+  mossGlobals: null,
 };
 
 /** 上一次会话的画布文档（刷新前自动保存的内容）；首次访问时为默认空画布 */
@@ -269,6 +310,11 @@ function canvasDocumentFromState(state: EditorStore): PersistedCanvasDocumentV1 
     background: state.background,
     photoArtStyleMode: state.photoArtStyleMode,
     canvasBackgroundUrl: null,
+    activeJsonScheme: state.activeJsonScheme,
+    flux3Globals: state.flux3Globals ? { ...state.flux3Globals, palette: [...state.flux3Globals.palette] } : null,
+    mossGlobals: state.mossGlobals
+      ? { ...state.mossGlobals, meta: [...state.mossGlobals.meta], palette: [...state.mossGlobals.palette] }
+      : null,
   };
 }
 
@@ -534,6 +580,7 @@ const initialSkillMigration = (() => {
 
 // ─── Undo/Redo 快照 ────────────────────────────────────────────
 const MAX_UNDO_DEPTH = 50;
+const MAX_SCHEME_PALETTE = 16;
 
 interface EditorSnapshot {
   boxes: Box[];
@@ -560,6 +607,9 @@ interface EditorSnapshot {
   artStyle: string;
   background: string;
   photoArtStyleMode: PhotoArtStyleMode;
+  /** 各 scheme 的独立 global 配置（undo 时一并还原；active scheme 本身不进入 undo）。 */
+  flux3Globals: Flux3Globals | null;
+  mossGlobals: MossGlobals | null;
 }
 
 interface LayoutStreamTransaction {
@@ -615,6 +665,16 @@ interface EditorStore {
   artStyle: string;
   background: string;
   photoArtStyleMode: PhotoArtStyleMode;
+  activeJsonScheme: JsonScheme;
+  flux3Globals: Flux3Globals | null;
+  mossGlobals: MossGlobals | null;
+  setActiveJsonScheme: (scheme: JsonScheme) => void;
+  updateFlux3Globals: (updates: Partial<Flux3Globals>) => void;
+  updateMossGlobals: (updates: Partial<MossGlobals>) => void;
+  addFlux3Color: (hex: string) => boolean;
+  removeFlux3Color: (hex: string) => void;
+  addMossColor: (hex: string) => boolean;
+  removeMossColor: (hex: string) => void;
   setGlobalSetting: (key: string, value: string) => void;
   setPhotoArtStyleMode: (mode: PhotoArtStyleMode) => void;
   addGlobalColor: (hex: string) => boolean;
@@ -834,6 +894,10 @@ function takeSnapshot(state: EditorStore): EditorSnapshot {
     artStyle: state.artStyle,
     background: state.background,
     photoArtStyleMode: state.photoArtStyleMode,
+    flux3Globals: state.flux3Globals ? { ...state.flux3Globals, palette: [...state.flux3Globals.palette] } : null,
+    mossGlobals: state.mossGlobals
+      ? { ...state.mossGlobals, meta: [...state.mossGlobals.meta], palette: [...state.mossGlobals.palette] }
+      : null,
   };
 }
 
@@ -1197,16 +1261,76 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       // 同时清除全局设置，避免构建 LLM 上下文时仍携带旧值
       globalPalette: [],
       highLevelDescription: '',
-    aesthetics: '',
-    lighting: '',
-    medium: '',
-    artStyle: '',
-    background: '',
-    photoArtStyleMode: MODE_ARTSTYLE,
+      aesthetics: '',
+      lighting: '',
+      medium: '',
+      artStyle: '',
+      background: '',
+      photoArtStyleMode: MODE_ARTSTYLE,
+      flux3Globals: createEmptyFlux3Globals(),
+      mossGlobals: createEmptyMossGlobals(),
       undoStack: [...state.undoStack, snap].slice(-MAX_UNDO_DEPTH),
       redoStack: [],
     });
   },
+
+  setActiveJsonScheme: (scheme) => {
+    const state = get();
+    if (scheme === state.activeJsonScheme) return;
+    set({
+      activeJsonScheme: scheme,
+      ...(scheme === 'flux3-layout' && !state.flux3Globals
+        ? { flux3Globals: createFlux3GlobalsFromIdeogram(state) }
+        : {}),
+      ...(scheme === 'moss-layout' && !state.mossGlobals
+        ? { mossGlobals: createMossGlobalsFromIdeogram(state) }
+        : {}),
+    });
+    writeStoredJsonScheme(scheme);
+  },
+
+  updateFlux3Globals: (updates) => set(state => ({
+    flux3Globals: {
+      ...(state.flux3Globals ?? createFlux3GlobalsFromIdeogram(state)),
+      ...updates,
+      ...(updates.palette ? { palette: [...updates.palette] } : {}),
+    },
+  })),
+
+  updateMossGlobals: (updates) => set(state => ({
+    mossGlobals: {
+      ...(state.mossGlobals ?? createMossGlobalsFromIdeogram(state)),
+      ...updates,
+      ...(updates.meta ? { meta: [...updates.meta] } : {}),
+      ...(updates.palette ? { palette: [...updates.palette] } : {}),
+    },
+  })),
+
+  addFlux3Color: (hex) => {
+    const upper = hex.toUpperCase();
+    const state = get();
+    const current = state.flux3Globals ?? createFlux3GlobalsFromIdeogram(state);
+    if (current.palette.length >= MAX_SCHEME_PALETTE || current.palette.includes(upper)) return false;
+    set({ flux3Globals: { ...current, palette: [...current.palette, upper] } });
+    return true;
+  },
+
+  removeFlux3Color: (hex) => set(state => state.flux3Globals
+    ? { flux3Globals: { ...state.flux3Globals, palette: state.flux3Globals.palette.filter(color => color !== hex) } }
+    : {}),
+
+  addMossColor: (hex) => {
+    const upper = hex.toUpperCase();
+    const state = get();
+    const current = state.mossGlobals ?? createMossGlobalsFromIdeogram(state);
+    if (current.palette.length >= MAX_SCHEME_PALETTE || current.palette.includes(upper)) return false;
+    set({ mossGlobals: { ...current, palette: [...current.palette, upper] } });
+    return true;
+  },
+
+  removeMossColor: (hex) => set(state => state.mossGlobals
+    ? { mossGlobals: { ...state.mossGlobals, palette: state.mossGlobals.palette.filter(color => color !== hex) } }
+    : {}),
 
   setGlobalSetting: (key, value) => set({ [key]: value }),
 
@@ -2264,6 +2388,9 @@ const CANVAS_AUTOSAVE_FIELDS = [
   'artStyle',
   'background',
   'photoArtStyleMode',
+  'activeJsonScheme',
+  'flux3Globals',
+  'mossGlobals',
   'canvasBackgroundUrl',
   'isLayoutStreaming',
   'layoutStreamRecovery',

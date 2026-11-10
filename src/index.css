@@ -2958,6 +2958,50 @@ input[type="color"]::-webkit-color-swatch {
 
 /* ─── Right Panel Tab Container ──────────────────────────────────── */
 
+.right-panel-column {
+  width: 360px;
+  flex-shrink: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.right-panel-column > .right-panel-container {
+  flex: 1;
+  min-height: 0;
+}
+
+.scheme-switcher {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.scheme-global-hint {
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+
+.scheme-global-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin: -2px 0 12px;
+}
+
+.scheme-global-actions .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
 .right-panel-container {
   background: var(--surface);
   border: 1px solid var(--border);

@@ -163,6 +163,20 @@ export interface Translations {
       medium: string;
       background: string;
       globalColorPalette: string;
+      fullScenePrompt: string;
+      flux3Hint: string;
+      copyFullScenePrompt: string;
+      copied: string;
+      mossSummaryCaption: string;
+      mossHint: string;
+      mossMeta: string;
+      mossMetaHint: string;
+      mossCanvas: string;
+      mossCanvasKinds: {
+        single: string;
+        multi_panel: string;
+        collage: string;
+      };
     };
     boxProperties: {
       title: string;
@@ -708,6 +722,20 @@ const en: Translations = {
       medium: 'Medium',
       background: 'Background',
       globalColorPalette: 'Global Color Palette',
+      fullScenePrompt: 'Full Scene Prompt',
+      flux3Hint: 'FLUX 3 uses this paragraph as the full-scene prompt. The JSON output below remains a layout array.',
+      copyFullScenePrompt: 'Copy prompt',
+      copied: 'Copied',
+      mossSummaryCaption: 'Summary Caption',
+      mossHint: 'These values map to the MOSS-Image layout draft summary.',
+      mossMeta: 'Meta',
+      mossMetaHint: 'One item per line',
+      mossCanvas: 'Canvas Kind',
+      mossCanvasKinds: {
+        single: 'Single',
+        multi_panel: 'Multi panel',
+        collage: 'Collage',
+      },
     },
     boxProperties: {
       title: 'Box Properties',
@@ -1253,6 +1281,20 @@ const zh: Translations = {
       medium: '媒介',
       background: '背景',
       globalColorPalette: '全局调色板',
+      fullScenePrompt: '完整场景描述',
+      flux3Hint: 'FLUX 3 使用这段文字作为完整场景 prompt；下方 JSON 仍只输出布局数组。',
+      copyFullScenePrompt: '复制 Prompt',
+      copied: '已复制',
+      mossSummaryCaption: '摘要描述',
+      mossHint: '这些字段会映射到 MOSS-Image 布局草稿的 summary。',
+      mossMeta: '元信息',
+      mossMetaHint: '每行一条',
+      mossCanvas: '画布类型',
+      mossCanvasKinds: {
+        single: '单画布',
+        multi_panel: '多面板',
+        collage: '拼贴',
+      },
     },
     boxProperties: {
       title: '边界框属性',
