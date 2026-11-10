@@ -97,6 +97,15 @@ describe('loadGatewayConfig', () => {
     });
   });
 
+  it('normalizes trailing slashes on environment provider base URLs', () => {
+    const config = loadGatewayConfig({
+      OPENAI_API_KEY: 'secret',
+      OPENAI_BASE_URL: 'https://proxy.example.com/v1/',
+    });
+
+    expect(config.providers[0].baseUrl).toBe('https://proxy.example.com/v1');
+  });
+
   it('rejects malformed provider JSON and unsupported provider kinds', () => {
     expect(() => loadGatewayConfig({ AI_GATEWAY_PROVIDERS: '{not-json' }))
       .toThrow('AI_GATEWAY_PROVIDERS must be valid JSON');

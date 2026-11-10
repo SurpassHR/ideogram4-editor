@@ -115,7 +115,7 @@ function providerFromEnv(
 ): GatewayProviderConfig | null {
   const apiKey = env[options.keyEnv]?.trim();
   if (!apiKey) return null;
-  const baseUrl = env[options.baseUrlEnv]?.trim() || options.defaultBaseUrl;
+  const baseUrl = (env[options.baseUrlEnv]?.trim() || options.defaultBaseUrl).replace(/\/$/, '');
   return {
     id: (options.idEnv ? env[options.idEnv]?.trim() : '') || options.defaultId,
     name: (options.nameEnv ? env[options.nameEnv]?.trim() : '') || options.defaultName,
