@@ -259,7 +259,7 @@ Configure providers at `/#/settings` → LLM Providers panel.
 
 ### Optional AI Gateway
 
-The repository includes a local-first AI gateway foundation that keeps provider API keys server-side and normalizes OpenAI, Anthropic, and Gemini streaming. The existing static frontend remains the default path; see [`docs/ai-gateway.md`](docs/ai-gateway.md) for setup and the HTTP/SSE contract.
+The repository includes a **local-only** AI gateway foundation intended as the starting point for a future desktop sidecar. It keeps provider API keys server-side and normalizes OpenAI, Anthropic, and Gemini streaming. The existing static frontend remains the default path; see [`docs/ai-gateway.md`](docs/ai-gateway.md) for setup, the HTTP/SSE contract, and the desktop packaging direction.
 
 ### Output Formats
 

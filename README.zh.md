@@ -413,7 +413,7 @@ LLM 配置完全存储在浏览器本地（localStorage），包括：
 
 ### 可选 AI Gateway
 
-仓库新增了本地优先的 AI Gateway 基础服务，用于把 Provider API Key 留在服务端，并统一 OpenAI / Anthropic / Gemini 的流式协议。默认前端行为不变；运行方式和接口见 [`docs/ai-gateway.md`](docs/ai-gateway.md)。
+仓库新增了**仅本地运行**的 AI Gateway 基础服务，作为未来桌面应用 sidecar 的起点：把 Provider API Key 留在本地服务端，并统一 OpenAI / Anthropic / Gemini 的流式协议。默认前端行为不变；运行方式、接口和桌面打包方向见 [`docs/ai-gateway.md`](docs/ai-gateway.md)。
 
 
 ### 对话返回值格式

@@ -1,9 +1,10 @@
 # Optional AI Gateway
 
-This is the first backend slice: a local-first LLM gateway that keeps provider
-keys out of the browser and normalizes OpenAI, Anthropic, and Gemini streaming.
-It does not change the existing static app until the frontend is explicitly
-switched to the gateway.
+This is the first backend slice: a **local-only** LLM gateway intended to become
+the sidecar for a future desktop application. It keeps provider keys out of the
+browser and normalizes OpenAI, Anthropic, and Gemini streaming. It does not
+change the existing static app until the frontend is explicitly switched to the
+gateway.
 
 The gateway requires Node.js 22.18+ because it runs the TypeScript sources
 directly with Node's native type stripping. The static frontend still builds
@@ -102,6 +103,38 @@ data: {"type":"error","error":"..."}
 - `AI_GATEWAY_PROVIDERS`: JSON array for custom providers; overrides built-ins
   with the same `id`.
 
+## Desktop packaging direction
+
+The target topology is local-only:
+
+```text
+Electron main process
+  ├─ starts the Node gateway on 127.0.0.1:<ephemeral-port>
+  ├─ serves the built frontend and /v1 API from the same local origin
+  ├─ stores provider keys in the OS keychain / Electron safeStorage
+  └─ BrowserWindow loads http://127.0.0.1:<port>
+```
+
+Recommended packaging choices:
+
+- Use Electron first. Its main process is already Node, so the gateway can run
+  in-process or as a child process without packaging a second runtime.
+- Bind to loopback only and let the OS choose an ephemeral port (`port: 0`).
+  Pass the actual port to the renderer through the main process.
+- Serve the production `dist/` and `/v1` API from the same origin. This removes
+  CORS and custom-protocol edge cases from the packaged app.
+- Move provider secrets from `.env` into the OS keychain / Electron
+  `safeStorage` before shipping.
+- Store canvas images in the app data directory instead of IndexedDB in desktop
+  mode, while keeping IndexedDB as the browser fallback.
+- Keep ComfyUI local (`127.0.0.1:8188`); the local sidecar can proxy it without
+  browser CORS or HTTPS issues.
+- Treat GitHub Gist backup as optional. A desktop app should default to local
+  workspace files/zip exports, not cloud sync.
+
+Cloud hosting, multi-user auth, and public rate-limit infrastructure are
+explicit non-goals for this backend.
+
 ## Security boundary
 
 - Provider API keys remain in server environment variables.
@@ -114,16 +147,19 @@ data: {"type":"error","error":"..."}
 - Provider configuration rejects credential-bearing URLs, control characters in
   keys, and empty model allowlists. Upstream response bodies are not reflected
   in gateway errors.
-- Bind to `127.0.0.1` for local use. A public deployment needs real user auth,
-  production-grade rate limiting, request logging policy, and secret
-  management; the optional static bearer token and in-memory limiter are only a
-  development boundary.
+- Bind to `127.0.0.1`; public deployment is out of scope. The optional bearer
+  token and in-memory limiter remain useful local defenses, especially because
+  any local process can reach a loopback port.
 - The gateway currently forwards prompts and optional reference images to the
   configured provider. This is not a local-only inference path.
 
-## Next integration step
+## Next steps
 
-The frontend still uses the existing direct-provider path. A later task can
-add a runtime gateway URL setting, map `/v1/models` into the existing provider
-selector, and route `sendChatMessageWithOptions` through `/v1/chat/stream`
-while preserving direct mode as a fallback.
+1. Add a dynamic-port/per-launch-token startup path for the desktop main process.
+2. Add an optional static-file mode so the packaged app can load `dist/` and the
+   API from one origin.
+3. Add a runtime gateway URL setting and map `/v1/models` into the existing
+   provider selector.
+4. Route `sendChatMessageWithOptions` through `/v1/chat/stream` while preserving
+   direct mode as a fallback.
+5. Add the Electron shell and move secrets/assets to desktop-native storage.
