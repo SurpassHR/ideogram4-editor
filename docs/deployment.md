@@ -35,7 +35,7 @@
    base: process.env.GITHUB_ACTIONS ? '/<repo-name>/' : '/',
    ```
 2. 创建 `.github/workflows/deploy.yml`（见下方模板）
-3. push 到 `main` 分支，Actions 自动部署
+3. push 到 `gh-pages` 分支，Actions 自动部署；`main` 仅用于桌面版
 
 ## Workflow 模板
 
@@ -44,7 +44,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: ['main']
+    branches: ['gh-pages']
   workflow_dispatch:
 
 permissions:
