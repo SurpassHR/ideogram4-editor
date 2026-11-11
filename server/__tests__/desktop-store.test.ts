@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it } from 'vitest';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DesktopDataStore, type SecretStorage } from '../desktop-store.ts';
@@ -75,5 +75,15 @@ describe('DesktopDataStore', () => {
       data: Buffer.from([1, 2, 3]),
     });
     await expect(store.readAsset('../../secrets.json')).rejects.toThrow('Invalid asset id');
+    await expect(store.putAsset(Buffer.from('<svg/>'), 'image/svg+xml')).rejects.toThrow('Unsupported asset MIME type');
+  });
+
+  it('quarantines corrupted JSON files instead of bricking startup', async () => {
+    const { dataDir, store } = await createStore();
+    await writeFile(join(dataDir, 'workspace', 'canvas.json'), '{broken');
+
+    await expect(store.readCanvas()).resolves.toBeNull();
+    const files = await readdir(join(dataDir, 'workspace'));
+    expect(files.some(file => file.startsWith('canvas.json.corrupt-'))).toBe(true);
   });
 });

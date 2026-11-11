@@ -43,7 +43,7 @@ html {
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: 'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background-color: var(--bg);
   color: var(--text);
   margin: 0;
@@ -106,7 +106,7 @@ body {
   box-sizing: border-box;
   background: var(--surface-raised);
   color: var(--text);
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter Variable', 'Inter', sans-serif;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
@@ -166,7 +166,7 @@ body {
   cursor: pointer;
   white-space: nowrap;
   transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter Variable', 'Inter', sans-serif;
   letter-spacing: 0.01em;
 }
 
@@ -760,7 +760,7 @@ body {
 .json-textarea {
   width: 100%;
   min-height: 60px;
-  font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
+  font-family: 'JetBrains Mono Variable', 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
   font-size: 12px;
   padding: 12px;
   border: 1px solid var(--border);
@@ -930,7 +930,7 @@ body {
   border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 13px;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter Variable', 'Inter', sans-serif;
   background: var(--surface-raised);
   color: var(--text);
   text-align: center;
@@ -1381,7 +1381,7 @@ input[type="color"]::-webkit-color-swatch {
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter Variable', 'Inter', sans-serif;
   line-height: 1.4;
 }
 
@@ -1518,7 +1518,7 @@ input[type="color"]::-webkit-color-swatch {
   cursor: pointer;
   transition: all 0.15s;
   border: none;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter Variable', 'Inter', sans-serif;
 }
 
 .suggestion-btn.adopt {
@@ -2105,7 +2105,7 @@ input[type="color"]::-webkit-color-swatch {
   padding: 4px 12px;
   font-size: 10px;
   font-weight: 700;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter Variable', 'Inter', sans-serif;
   border-radius: 999px;
   border: none;
   background: rgba(0, 212, 170, 0.15);
@@ -2160,7 +2160,7 @@ input[type="color"]::-webkit-color-swatch {
   padding: 8px 10px;
   border-radius: 4px;
   font-size: 11px;
-  font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
+  font-family: 'JetBrains Mono Variable', 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
   overflow-x: auto;
   margin: 4px 0;
   line-height: 1.45;
@@ -2171,7 +2171,7 @@ input[type="color"]::-webkit-color-swatch {
   padding: 1px 5px;
   border-radius: 3px;
   font-size: 11px;
-  font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
+  font-family: 'JetBrains Mono Variable', 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
 }
 
 .chat-msg-card-body pre code {
@@ -2374,7 +2374,7 @@ input[type="color"]::-webkit-color-swatch {
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   font-size: 12px;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter Variable', 'Inter', sans-serif;
   background: rgba(255, 255, 255, 0.05);
   color: var(--text);
   resize: none;
@@ -2872,7 +2872,7 @@ input[type="color"]::-webkit-color-swatch {
   border-radius: 4px;
   padding: 8px 10px;
   font-size: 12px;
-  font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
+  font-family: 'JetBrains Mono Variable', 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
   resize: vertical;
   outline: none;
 }
@@ -2885,7 +2885,7 @@ input[type="color"]::-webkit-color-swatch {
   margin-top: 4px;
   font-size: 10px;
   color: var(--text-muted);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'JetBrains Mono Variable', 'JetBrains Mono', monospace;
 }
 
 .preset-tags-editor {
@@ -3173,7 +3173,7 @@ input[type="color"]::-webkit-color-swatch {
   overflow: hidden;
   font-size: 10px;
   line-height: 1;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter Variable', 'Inter', sans-serif;
   user-select: none;
   -webkit-user-select: none;
 }
@@ -3228,7 +3228,7 @@ input[type="color"]::-webkit-color-swatch {
   min-height: 60px;
   max-height: 70vh;
   flex: 1;
-  font-family: 'Inter', 'Noto Sans SC', system-ui, sans-serif;
+  font-family: 'Inter Variable', 'Inter', 'Noto Sans SC', system-ui, sans-serif;
   font-size: 12px;
   line-height: 1.7;
   padding: 12px;
@@ -3396,7 +3396,7 @@ input[type="color"]::-webkit-color-swatch {
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter Variable', 'Inter', sans-serif;
   white-space: nowrap;
 }
 
@@ -3615,7 +3615,7 @@ input[type="color"]::-webkit-color-swatch {
   background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter Variable', 'Inter', sans-serif;
   text-align: left;
   transition: background 0.16s, border-color 0.16s, color 0.16s;
 }
@@ -3663,7 +3663,7 @@ input[type="color"]::-webkit-color-swatch {
   border-radius: 8px;
   background: #1c1c1c;
   color: var(--text-muted);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'JetBrains Mono Variable', 'JetBrains Mono', monospace;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0;
@@ -3918,7 +3918,7 @@ input[type="color"]::-webkit-color-swatch {
   margin-top: 4px;
   overflow-wrap: anywhere;
   color: var(--text-secondary);
-  font-family: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+  font-family: 'JetBrains Mono Variable', 'JetBrains Mono', 'SF Mono', Consolas, monospace;
   font-size: 10px;
 }
 
@@ -4617,7 +4617,7 @@ input[type="color"]::-webkit-color-swatch {
 
 .llm-api-key-wrapper .llm-api-key-input {
   padding-right: 64px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'JetBrains Mono Variable', 'JetBrains Mono', monospace;
 }
 
 .llm-api-key-toggle {
@@ -4651,7 +4651,7 @@ input[type="color"]::-webkit-color-swatch {
   background: var(--surface-raised);
   border-radius: 6px;
   font-size: 13px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'JetBrains Mono Variable', 'JetBrains Mono', monospace;
   color: var(--text-secondary);
 }
 
@@ -4699,7 +4699,7 @@ input[type="color"]::-webkit-color-swatch {
   border-radius: 4px;
   cursor: pointer;
   font-size: 11px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'JetBrains Mono Variable', 'JetBrains Mono', monospace;
   border: 1px solid var(--border);
 }
 
@@ -4763,7 +4763,7 @@ input[type="color"]::-webkit-color-swatch {
   background: transparent;
   color: var(--text);
   font-size: 12px;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter Variable', 'Inter', sans-serif;
   cursor: pointer;
   text-align: left;
   transition: background 0.1s;
@@ -5338,7 +5338,7 @@ input[type="color"]::-webkit-color-swatch {
   background: rgba(255, 255, 255, 0.12);
   color: var(--text-secondary);
   cursor: pointer;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: 'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   transition: background 0.15s, color 0.15s;
 }
 
@@ -5513,7 +5513,7 @@ input[type="color"]::-webkit-color-swatch {
   font-weight: 700;
   cursor: pointer;
   transition: all 0.15s;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter Variable', 'Inter', sans-serif;
   white-space: nowrap;
 }
 
@@ -6066,7 +6066,7 @@ input[type="color"]::-webkit-color-swatch {
   backdrop-filter: blur(4px);
   cursor: pointer;
   font-size: 10px;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter Variable', 'Inter', sans-serif;
   line-height: 1;
   z-index: 2;
   user-select: none;
@@ -6130,7 +6130,7 @@ input[type="color"]::-webkit-color-swatch {
   overflow-x: auto;
   white-space: pre-wrap;
   word-break: break-word;
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: 'JetBrains Mono Variable', 'JetBrains Mono', 'Fira Code', monospace;
   font-size: 11px;
   line-height: 1.5;
   color: var(--text-secondary);
@@ -6192,6 +6192,11 @@ input[type="color"]::-webkit-color-swatch {
   min-height: 100vh;
   color: var(--text);
   text-align: center;
+}
+
+.desktop-fatal-actions {
+  display: flex;
+  gap: 8px;
 }
 
 .desktop-welcome-card {
@@ -6334,7 +6339,7 @@ input[type="color"]::-webkit-color-swatch {
   color: var(--text);
   border: 1px solid var(--border);
   box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.45);
-  font-family: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+  font-family: 'JetBrains Mono Variable', 'JetBrains Mono', 'SF Mono', Consolas, monospace;
   font-size: 12px;
   font-weight: 600;
   border-radius: 5px;
@@ -6361,7 +6366,7 @@ input[type="color"]::-webkit-color-swatch {
   line-height: 1.4;
   cursor: pointer;
   transition: all 0.15s;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter Variable', 'Inter', sans-serif;
 }
 
 .shortcuts-trigger-btn:hover {

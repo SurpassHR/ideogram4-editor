@@ -233,7 +233,7 @@ export default function LlmConfigPanel({ onClose, embedded }: Props) {
                           value={editing.id}
                           onChange={e => update('id', e.target.value)}
                           placeholder={t('llmConfig.idPlaceholder')}
-                          style={{ fontFamily: 'JetBrains Mono, monospace' }}
+                          style={{ fontFamily: 'JetBrains Mono Variable, JetBrains Mono, monospace' }}
                         />
                         <div className="llm-id-immutable-hint">{t('llmConfig.idImmutable')}</div>
                       </>
@@ -290,7 +290,7 @@ export default function LlmConfigPanel({ onClose, embedded }: Props) {
                         value={editing.base_url}
                         onChange={e => update('base_url', e.target.value)}
                         placeholder="https://api.openai.com/v1"
-                        style={{ fontFamily: 'JetBrains Mono, monospace' }}
+                        style={{ fontFamily: 'JetBrains Mono Variable, JetBrains Mono, monospace' }}
                       />
                     </div>
                   )}

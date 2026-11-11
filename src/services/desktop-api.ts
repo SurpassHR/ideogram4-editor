@@ -18,7 +18,9 @@ export function desktopAssetUrl(value: string): string {
   const bridge = getDesktopBridge();
   if (!bridge) return value;
   if (value.startsWith('/v1/assets/')) {
-    return `${bridge.apiBaseUrl}${value}?token=${encodeURIComponent(bridge.apiToken)}`;
+    const absolute = `${bridge.apiBaseUrl}${value}`;
+    if (typeof window !== 'undefined' && window.location.origin === bridge.apiBaseUrl) return absolute;
+    return `${absolute}?token=${encodeURIComponent(bridge.apiToken)}`;
   }
   return value;
 }
@@ -63,6 +65,18 @@ export async function getDesktopSettings(): Promise<DesktopSettings> {
   return desktopJson<DesktopSettings>('/v1/settings');
 }
 
+let workspaceWriteChain: Promise<void> = Promise.resolve();
+
+function enqueueWorkspaceWrite(task: () => Promise<void>): Promise<void> {
+  const next = workspaceWriteChain.catch(() => undefined).then(task);
+  workspaceWriteChain = next;
+  return next;
+}
+
+export async function flushDesktopWrites(): Promise<void> {
+  await workspaceWriteChain.catch(() => undefined);
+}
+
 export async function saveDesktopSettings(patch: Partial<DesktopSettings>): Promise<DesktopSettings> {
   return desktopJson<DesktopSettings>('/v1/settings', {
     method: 'PUT',
@@ -96,11 +110,13 @@ export async function refreshDesktopProviderModels(id: string): Promise<string[]
 }
 
 async function saveWorkspaceModule(module: 'canvas' | 'chat' | 'favorites', value: unknown): Promise<void> {
-  await desktopJson(`/v1/workspace/${module}`, {
+  const body = JSON.stringify(value);
+  await enqueueWorkspaceWrite(() => desktopJson(`/v1/workspace/${module}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(value),
-  });
+    body,
+    ...(body.length < 60_000 ? { keepalive: true } : {}),
+  }));
 }
 
 export function saveDesktopCanvas(value: unknown): Promise<void> {
@@ -121,6 +137,7 @@ export async function exportDesktopWorkspace(): Promise<Blob> {
     const key = localStorage.key(index);
     if (!key || !key.startsWith('ideogram4-')) continue;
     if (key === 'ideogram4-workspace-backup-settings:v1') continue;
+    if (key === 'ideogram4-llm-providers') continue;
     localStorageData[key] = localStorage.getItem(key) ?? '';
   }
   const response = await desktopFetch('/v1/workspace/export', {

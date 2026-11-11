@@ -41,7 +41,6 @@ const MIME_EXTENSION: Record<string, string> = {
   'image/jpeg': '.jpg',
   'image/webp': '.webp',
   'image/gif': '.gif',
-  'image/svg+xml': '.svg',
 };
 
 async function readJson<T>(path: string, fallback: T): Promise<T> {
@@ -49,7 +48,12 @@ async function readJson<T>(path: string, fallback: T): Promise<T> {
     return JSON.parse(await readFile(path, 'utf8')) as T;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return fallback;
-    throw error;
+    try {
+      await rename(path, `${path}.corrupt-${Date.now()}`);
+    } catch {
+      // Keep the original error if quarantine also fails.
+    }
+    return fallback;
   }
 }
 
@@ -135,10 +139,18 @@ export class DesktopDataStore {
   async listProviders(): Promise<ProviderSummary[]> {
     const providers = await this.readProviders();
     const secrets = await this.readSecrets();
-    return providers.map(provider => ({
-      ...provider,
-      hasApiKey: Boolean(secrets[provider.id]),
-    }));
+    return providers.map(provider => {
+      let hasApiKey = false;
+      if (secrets[provider.id]) {
+        try {
+          this.secretStorage.decrypt(secrets[provider.id]);
+          hasApiKey = true;
+        } catch {
+          hasApiKey = false;
+        }
+      }
+      return { ...provider, hasApiKey };
+    });
   }
 
   async getProviderConfigs(): Promise<GatewayProviderConfig[]> {
@@ -218,6 +230,9 @@ export class DesktopDataStore {
         models: provider.models.map(model => String(model).trim()).filter(Boolean),
       };
     });
+    if (providers.some(provider => provider.models.length === 0)) {
+      throw new Error('At least one model is required per provider');
+    }
     const secrets = await this.readSecrets();
     const validIds = new Set(providers.map(provider => provider.id));
     for (const id of Object.keys(secrets)) {
@@ -225,6 +240,10 @@ export class DesktopDataStore {
     }
     await writeJsonAtomic(this.secretsPath, secrets);
     await writeJsonAtomic(this.providersPath, providers);
+  }
+
+  async clearAllProviderSecrets(): Promise<void> {
+    await writeJsonAtomic(this.secretsPath, {});
   }
 
   async putAsset(data: Buffer, mimeType: string): Promise<AssetManifestEntry> {

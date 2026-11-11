@@ -83,6 +83,8 @@ describe('desktop API', () => {
     expect(Buffer.from(await asset.arrayBuffer())).toEqual(Buffer.from([1, 2, 3]));
     const queryTokenAsset = await realFetch(`${assetUrl}?token=test-token`);
     expect(queryTokenAsset.status).toBe(200);
+    const cookieAsset = await realFetch(assetUrl, { headers: { Cookie: 'ideogram4_session=test-token' } });
+    expect(cookieAsset.status).toBe(200);
 
     const exported = await realFetch(`${baseUrl}/v1/workspace/export`, { headers: headers() });
     expect(exported.status).toBe(200);
@@ -124,6 +126,7 @@ describe('desktop API', () => {
     const { baseUrl } = await startDesktopServer();
     const response = await realFetch(`${baseUrl}/`);
     expect(response.status).toBe(200);
+    expect(response.headers.get('set-cookie')).toContain('ideogram4_session=test-token');
     expect(await response.text()).toContain('desktop shell');
     const traversal = await realFetch(`${baseUrl}/%2e%2e%2fpackage.json`);
     expect(traversal.status).toBe(403);
@@ -131,16 +134,31 @@ describe('desktop API', () => {
 
   it('round-trips a workspace archive through import and export', async () => {
     const { baseUrl } = await startDesktopServer();
+    await realFetch(`${baseUrl}/v1/providers/openai`, {
+      method: 'PUT',
+      headers: headers({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({
+        name: 'OpenAI', kind: 'openai', baseUrl: 'https://api.openai.com/v1', models: ['gpt-5.1'], apiKey: 'must-clear',
+      }),
+    });
     await realFetch(`${baseUrl}/v1/workspace/canvas`, {
       method: 'PUT',
       headers: headers({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ schemaVersion: 1, boxes: [{ id: 'box_original' }] }),
+      body: JSON.stringify({
+        schemaVersion: 1,
+        canvasW: 1024,
+        canvasH: 1024,
+        boxes: [{
+          id: 'box_original', x: 10, y: 10, w: 100, h: 100,
+          mode: 'obj', text: '', desc: '', colors: [], imageDataUrl: null, imageRole: 'both',
+        }],
+      }),
     });
     const exported = Buffer.from(await (await realFetch(`${baseUrl}/v1/workspace/export`, { headers: headers() })).arrayBuffer());
     await realFetch(`${baseUrl}/v1/workspace/canvas`, {
       method: 'PUT',
       headers: headers({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ schemaVersion: 1, boxes: [] }),
+      body: JSON.stringify({ schemaVersion: 1, canvasW: 1024, canvasH: 1024, boxes: [] }),
     });
     const imported = await realFetch(`${baseUrl}/v1/workspace/import`, {
       method: 'POST',
@@ -152,6 +170,10 @@ describe('desktop API', () => {
       canvas: { boxes: Array<{ id: string }> };
     };
     expect(after.canvas.boxes[0].id).toBe('box_original');
+    const providers = await (await realFetch(`${baseUrl}/v1/providers`, { headers: headers() })).json() as {
+      providers: Array<{ hasApiKey: boolean }>;
+    };
+    expect(providers.providers[0].hasApiKey).toBe(false);
   });
 
   it('proxies ComfyUI prompt, history, and image requests through the backend setting', async () => {

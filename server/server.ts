@@ -82,13 +82,25 @@ function sendJson(
 
 function authorized(config: GatewayConfig, request: IncomingMessage, url: URL): boolean {
   if (!config.authToken) return isLoopbackAddress(request.socket.remoteAddress);
-  const queryToken = url.pathname.startsWith('/v1/assets/') ? url.searchParams.get('token') : null;
-  const provided = request.headers.authorization ?? (queryToken ? `Bearer ${queryToken}` : '');
+  const assetRequest = url.pathname.startsWith('/v1/assets/');
+  const queryToken = assetRequest ? url.searchParams.get('token') : null;
+  const cookieToken = assetRequest ? readCookie(request.headers.cookie, 'ideogram4_session') : null;
+  const scopedToken = queryToken ?? cookieToken;
+  const provided = request.headers.authorization ?? (scopedToken ? `Bearer ${scopedToken}` : '');
   const expected = `Bearer ${config.authToken}`;
   const providedBuffer = Buffer.from(provided);
   const expectedBuffer = Buffer.from(expected);
   return providedBuffer.length === expectedBuffer.length
     && timingSafeEqual(providedBuffer, expectedBuffer);
+}
+
+function readCookie(header: string | undefined, name: string): string | null {
+  if (!header) return null;
+  for (const part of header.split(';')) {
+    const [key, ...value] = part.trim().split('=');
+    if (key === name) return value.join('=');
+  }
+  return null;
 }
 
 function isLoopbackAddress(address: string | undefined): boolean {
@@ -238,6 +250,26 @@ async function comfyuiBaseUrl(services: GatewayServices): Promise<string> {
   return settings.comfyuiUrl;
 }
 
+async function fetchWithTimeout(
+  config: GatewayConfig,
+  url: string,
+  init: RequestInit = {},
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), config.requestTimeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function readLimitedBody(response: Response, maxBytes: number): Promise<Buffer> {
+  const data = Buffer.from(await response.arrayBuffer());
+  if (data.byteLength > maxBytes) throw new Error('Upstream response exceeds the size limit');
+  return data;
+}
+
 function writeSseEvent(response: ServerResponse, event: string, payload: unknown): void {
   if (response.writableEnded || response.destroyed) return;
   response.write(`event: ${event}\n`);
@@ -327,6 +359,12 @@ async function requestHandler(
   }
 
   if (!url.pathname.startsWith('/v1/') && services.staticDir) {
+    if (config.authToken && (url.pathname === '/' || url.pathname === '/index.html')) {
+      response.setHeader(
+        'Set-Cookie',
+        `ideogram4_session=${encodeURIComponent(config.authToken)}; HttpOnly; SameSite=Strict; Path=/`,
+      );
+    }
     if (await serveStaticFile(services.staticDir, url.pathname, request, response)) return;
   }
 
@@ -545,12 +583,12 @@ async function requestHandler(
       try {
         const baseUrl = await comfyuiBaseUrl(services);
         const body = await readJsonBody(config, request);
-        const upstream = await fetch(`${baseUrl}/api/prompt`, {
+        const upstream = await fetchWithTimeout(config, `${baseUrl}/api/prompt`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', accept: '*/*' },
           body: JSON.stringify(body),
         });
-        const text = await upstream.text();
+        const text = (await readLimitedBody(upstream, 10 * 1024 * 1024)).toString('utf8');
         response.writeHead(upstream.status, {
           ...corsHeaders(config, request),
           'Content-Type': upstream.headers.get('content-type') ?? 'application/json',
@@ -566,8 +604,8 @@ async function requestHandler(
     if (historyMatch && method === 'GET') {
       try {
         const baseUrl = await comfyuiBaseUrl(services);
-        const upstream = await fetch(`${baseUrl}/history/${encodeURIComponent(decodeURIComponent(historyMatch[1]))}`);
-        const text = await upstream.text();
+        const upstream = await fetchWithTimeout(config, `${baseUrl}/history/${encodeURIComponent(decodeURIComponent(historyMatch[1]))}`);
+        const text = (await readLimitedBody(upstream, 10 * 1024 * 1024)).toString('utf8');
         response.writeHead(upstream.status, {
           ...corsHeaders(config, request),
           'Content-Type': upstream.headers.get('content-type') ?? 'application/json',
@@ -582,9 +620,9 @@ async function requestHandler(
     if (url.pathname === '/v1/comfyui/view' && method === 'GET') {
       try {
         const baseUrl = await comfyuiBaseUrl(services);
-        const upstream = await fetch(`${baseUrl}/view${url.search}`);
+        const upstream = await fetchWithTimeout(config, `${baseUrl}/view${url.search}`);
         if (!upstream.ok) throw new Error(`ComfyUI returned ${upstream.status}`);
-        const data = Buffer.from(await upstream.arrayBuffer());
+        const data = await readLimitedBody(upstream, 50 * 1024 * 1024);
         response.writeHead(200, {
           ...corsHeaders(config, request),
           'Content-Type': upstream.headers.get('content-type') ?? 'application/octet-stream',

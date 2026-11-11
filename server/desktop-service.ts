@@ -18,6 +18,10 @@ const assetSchema = z.object({
   mimeType: z.string(),
   size: z.number().int().nonnegative(),
 });
+const MAX_MANIFEST_BYTES = 2 * 1024 * 1024;
+const MAX_ASSET_BYTES = 50 * 1024 * 1024;
+const MAX_TOTAL_UNCOMPRESSED_BYTES = 500 * 1024 * 1024;
+const MAX_ARCHIVE_ENTRIES = 10_000;
 
 const providerSchema = z.object({
   id: z.string(),
@@ -26,6 +30,32 @@ const providerSchema = z.object({
   baseUrl: z.string(),
   models: z.array(z.string()),
 });
+
+const boxSchema = z.object({
+  id: z.string().min(1),
+  x: z.number(),
+  y: z.number(),
+  w: z.number(),
+  h: z.number(),
+  mode: z.enum(['obj', 'text']),
+  text: z.string(),
+  desc: z.string(),
+  colors: z.array(z.string()),
+  imageDataUrl: z.string().nullable().optional(),
+  imageRole: z.enum(['background', 'reference', 'both']).optional(),
+}).passthrough();
+
+const canvasArchiveSchema = z.object({
+  canvasW: z.number(),
+  canvasH: z.number(),
+  boxes: z.array(boxSchema),
+}).passthrough();
+
+const chatArchiveSchema = z.object({
+  sessions: z.array(z.object({
+    messages: z.array(z.unknown()),
+  }).passthrough()),
+}).passthrough();
 
 const manifestSchema: z.ZodType<WorkspaceArchiveManifestV2> = z.object({
   app: z.literal('ideogram4-editor'),
@@ -195,9 +225,29 @@ export class DesktopService {
   async importWorkspace(archive: Uint8Array): Promise<WorkspaceArchiveManifestV2> {
     let files: Record<string, Uint8Array>;
     try {
-      files = unzipSync(archive);
-    } catch {
-      throw new Error('Migration archive is not a valid zip file');
+      let entries = 0;
+      let totalBytes = 0;
+      files = unzipSync(archive, {
+        filter: file => {
+          entries += 1;
+          if (entries > MAX_ARCHIVE_ENTRIES) throw new Error('Migration archive contains too many files');
+          if (file.name === 'manifest.json') {
+            if (file.originalSize > MAX_MANIFEST_BYTES) throw new Error('Migration manifest is too large');
+          } else if (!/^assets\/asset_[a-f0-9-]+$/.test(file.name)) {
+            throw new Error('Migration archive contains an invalid path');
+          } else if (file.originalSize > MAX_ASSET_BYTES) {
+            throw new Error('Migration asset exceeds the size limit');
+          }
+          totalBytes += file.originalSize;
+          if (totalBytes > MAX_TOTAL_UNCOMPRESSED_BYTES) throw new Error('Migration archive expands beyond the size limit');
+          return true;
+        },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '';
+      throw new Error(message.startsWith('Migration')
+        ? message
+        : 'Migration archive is not a valid zip file');
     }
     const manifestBytes = files['manifest.json'];
     if (!manifestBytes) throw new Error('Migration archive is missing manifest.json');
@@ -214,6 +264,18 @@ export class DesktopService {
       }
     }
 
+    if (manifest.modules.canvas !== null) {
+      const result = canvasArchiveSchema.safeParse(manifest.modules.canvas);
+      if (!result.success) throw new Error(`Migration canvas data is invalid: ${result.error.message}`);
+    }
+    if (manifest.modules.chat !== null) {
+      const result = chatArchiveSchema.safeParse(manifest.modules.chat);
+      if (!result.success) throw new Error(`Migration chat data is invalid: ${result.error.message}`);
+    }
+    if (manifest.modules.favorites.some(item => !item || typeof item !== 'object')) {
+      throw new Error('Migration favorites data is invalid');
+    }
+
     const existing = await this.bootstrap();
     if (!existing.firstRun) await this.createAutoBackup();
 
@@ -228,6 +290,7 @@ export class DesktopService {
     await this.store.writeFavorites(manifest.modules.favorites);
     await this.store.writeSettings({ ...manifest.modules.settings, onboardingCompleted: true });
     await this.store.replaceProviderMetadata(manifest.modules.providers);
+    await this.store.clearAllProviderSecrets();
     return manifest;
   }
 

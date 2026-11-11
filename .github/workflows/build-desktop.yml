@@ -42,6 +42,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run test
+      - if: matrix.os == 'macos-latest'
+        run: npm run test:e2e
       - run: npm run ${{ matrix.script }}
         env:
           GH_TOKEN: ''
