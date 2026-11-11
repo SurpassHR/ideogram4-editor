@@ -40,6 +40,14 @@ const storeState = {
   artStyle: 'flat',
   background: 'studio',
   photoArtStyleMode: 1 as const,
+  activeJsonScheme: 'moss-layout' as const,
+  flux3Globals: null,
+  mossGlobals: {
+    summaryCaption: 'MOSS poster',
+    meta: ['clean'],
+    canvas: 'single' as const,
+    palette: ['#FFFFFF'],
+  },
   canvasChatSessions: [],
   activeCanvasChatSessionId: 'session_1',
   canvasFavorites: [],
@@ -52,6 +60,8 @@ describe('workspace-backup', () => {
     expect(snapshot.boxes[0].imageDataUrl).toBeNull();
     expect(JSON.stringify(snapshot)).not.toContain('data:image');
     expect('canvasBackgroundUrl' in snapshot).toBe(false);
+    expect(snapshot.activeJsonScheme).toBe('moss-layout');
+    expect(snapshot.mossGlobals?.summaryCaption).toBe('MOSS poster');
   });
 
   it('组包应包含所有模块且保留 LLM provider API key', () => {
@@ -78,6 +88,8 @@ describe('workspace-backup', () => {
 
     expect(backup.app).toBe('ideogram4-editor');
     expect(backup.modules.currentCanvas.highLevelDescription).toBe('品牌海报');
+    expect(backup.modules.currentCanvas.activeJsonScheme).toBe('moss-layout');
+    expect(backup.modules.currentCanvas.mossGlobals?.canvas).toBe('single');
     expect(backup.modules.llmProviders[0].api_key).toBe('sk-secret');
     expect(backup.modules.uiPreferences.lang).toBe('zh');
   });

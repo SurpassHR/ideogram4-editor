@@ -4,6 +4,7 @@ import type { CanvasChatRequestLogDetail, CanvasChatRequestLogStep, CanvasChatSe
 import type { PromptPreset } from '../types/presets';
 import type { CanvasFavorite, CanvasSnapshotLite, PersistedCanvasChatStateV1, PersistedCanvasDocumentV1, WorkspaceBackupSettings } from '../types/workspace';
 import type { SkillAdapterId, SkillPrefs, SkillRecord } from '../types/skill';
+import type { Flux3Globals, JsonScheme, MossGlobals } from '../types/scheme';
 import {
   DEFAULT_SKILL_ID,
   MAX_TOTAL_SKILL_BYTES,
@@ -21,7 +22,17 @@ import { MODE_ARTSTYLE, MODE_PHOTO } from '../types';
 import { computeCanvasDims, inferCanvasControlsFromDimensions, type RatioKey } from '../utils/canvas-dims';
 import { detectBboxSystem, bboxToPixels } from '../utils/coordinates';
 import { generateJSON as serializeIdeogramJSON } from '../utils/json-serializer';
+import {
+  createEmptyFlux3Globals,
+  createEmptyMossGlobals,
+  createFlux3GlobalsFromIdeogram,
+  createMossGlobalsFromIdeogram,
+  DEFAULT_JSON_SCHEME,
+  readStoredJsonScheme,
+  writeStoredJsonScheme,
+} from '../utils/json-schemes';
 import type { LayoutQualityReport } from '../services/layout-validator';
+import type { DesktopBootstrap, DesktopSettings } from '../../shared/desktop-contract';
 import {
   loadCanvasChatState,
   loadCanvasDocument,
@@ -38,6 +49,7 @@ import {
   saveCanvasImages,
   type CanvasImageSnapshot,
 } from '../services/canvas-image-store';
+import { isDesktopRuntime } from '../services/desktop-api';
 
 // ─── 内部剪贴板（模块级变量，非 OS 剪贴板）──────────────────────────
 let internalClipboard: Box[] = [];
@@ -175,6 +187,33 @@ function boxesFromSnapshot(snapshot: CanvasSnapshotLite): Box[] {
   });
 }
 
+interface SchemeGlobalSource {
+  highLevelDescription: string;
+  background: string;
+  aesthetics: string;
+  lighting: string;
+  medium: string;
+  artStyle: string;
+  globalPalette: string[];
+  activeJsonScheme?: JsonScheme;
+  flux3Globals?: Flux3Globals | null;
+  mossGlobals?: MossGlobals | null;
+}
+
+/** 旧文档/快照没有 scheme 字段时回退，并在首次激活时播种独立 profile。 */
+function schemeGlobalsFrom(source: SchemeGlobalSource, fallbackScheme: JsonScheme = readStoredJsonScheme()) {
+  const activeJsonScheme = source.activeJsonScheme ?? fallbackScheme;
+  return {
+    activeJsonScheme,
+    flux3Globals: source.flux3Globals
+      ? { ...source.flux3Globals, palette: [...source.flux3Globals.palette] }
+      : (activeJsonScheme === 'flux3-layout' ? createFlux3GlobalsFromIdeogram(source) : null),
+    mossGlobals: source.mossGlobals
+      ? { ...source.mossGlobals, meta: [...source.mossGlobals.meta], palette: [...source.mossGlobals.palette] }
+      : (activeJsonScheme === 'moss-layout' ? createMossGlobalsFromIdeogram(source) : null),
+  };
+}
+
 function canvasStateFromSnapshot(snapshot: CanvasSnapshotLite) {
   const boxes = boxesFromSnapshot(snapshot);
   return {
@@ -196,6 +235,7 @@ function canvasStateFromSnapshot(snapshot: CanvasSnapshotLite) {
     artStyle: snapshot.artStyle,
     background: snapshot.background,
     photoArtStyleMode: snapshot.photoArtStyleMode,
+    ...schemeGlobalsFrom(snapshot, DEFAULT_JSON_SCHEME),
   };
 }
 
@@ -221,6 +261,7 @@ function canvasStateFromDocument(document: PersistedCanvasDocumentV1) {
     background: document.background,
     photoArtStyleMode: document.photoArtStyleMode,
     canvasBackgroundUrl: document.canvasBackgroundUrl,
+    ...schemeGlobalsFrom(document),
   };
 }
 
@@ -243,6 +284,8 @@ const DEFAULT_CANVAS_DOCUMENT: PersistedCanvasDocumentV1 = {
   background: '',
   photoArtStyleMode: MODE_ARTSTYLE,
   canvasBackgroundUrl: null,
+  flux3Globals: null,
+  mossGlobals: null,
 };
 
 /** 上一次会话的画布文档（刷新前自动保存的内容）；首次访问时为默认空画布 */
@@ -258,8 +301,10 @@ function canvasDocumentFromState(state: EditorStore): PersistedCanvasDocumentV1 
     canvasScale: state.canvasScale,
     canvasCustomW: state.canvasCustomW,
     canvasCustomH: state.canvasCustomH,
-    // 图像走 IndexedDB，localStorage 只留结构化字段
-    boxes: state.boxes.map(box => ({ ...box, imageDataUrl: null })),
+    // 浏览器模式图像走 IndexedDB；桌面模式交给内置后端转存资产。
+    boxes: isDesktopRuntime()
+      ? state.boxes.map(box => ({ ...box }))
+      : state.boxes.map(box => ({ ...box, imageDataUrl: null })),
     globalPalette: state.globalPalette,
     highLevelDescription: state.highLevelDescription,
     aesthetics: state.aesthetics,
@@ -268,7 +313,12 @@ function canvasDocumentFromState(state: EditorStore): PersistedCanvasDocumentV1 
     artStyle: state.artStyle,
     background: state.background,
     photoArtStyleMode: state.photoArtStyleMode,
-    canvasBackgroundUrl: null,
+    canvasBackgroundUrl: isDesktopRuntime() ? state.canvasBackgroundUrl : null,
+    activeJsonScheme: state.activeJsonScheme,
+    flux3Globals: state.flux3Globals ? { ...state.flux3Globals, palette: [...state.flux3Globals.palette] } : null,
+    mossGlobals: state.mossGlobals
+      ? { ...state.mossGlobals, meta: [...state.mossGlobals.meta], palette: [...state.mossGlobals.palette] }
+      : null,
   };
 }
 
@@ -534,6 +584,7 @@ const initialSkillMigration = (() => {
 
 // ─── Undo/Redo 快照 ────────────────────────────────────────────
 const MAX_UNDO_DEPTH = 50;
+const MAX_SCHEME_PALETTE = 16;
 
 interface EditorSnapshot {
   boxes: Box[];
@@ -560,6 +611,9 @@ interface EditorSnapshot {
   artStyle: string;
   background: string;
   photoArtStyleMode: PhotoArtStyleMode;
+  /** 各 scheme 的独立 global 配置（undo 时一并还原；active scheme 本身不进入 undo）。 */
+  flux3Globals: Flux3Globals | null;
+  mossGlobals: MossGlobals | null;
 }
 
 interface LayoutStreamTransaction {
@@ -615,6 +669,16 @@ interface EditorStore {
   artStyle: string;
   background: string;
   photoArtStyleMode: PhotoArtStyleMode;
+  activeJsonScheme: JsonScheme;
+  flux3Globals: Flux3Globals | null;
+  mossGlobals: MossGlobals | null;
+  setActiveJsonScheme: (scheme: JsonScheme) => void;
+  updateFlux3Globals: (updates: Partial<Flux3Globals>) => void;
+  updateMossGlobals: (updates: Partial<MossGlobals>) => void;
+  addFlux3Color: (hex: string) => boolean;
+  removeFlux3Color: (hex: string) => void;
+  addMossColor: (hex: string) => boolean;
+  removeMossColor: (hex: string) => void;
   setGlobalSetting: (key: string, value: string) => void;
   setPhotoArtStyleMode: (mode: PhotoArtStyleMode) => void;
   addGlobalColor: (hex: string) => boolean;
@@ -626,6 +690,10 @@ interface EditorStore {
   seed: number;
   setApiUrl: (url: string) => void;
   setSeed: (seed: number) => void;
+  desktopFirstRun: boolean;
+  desktopSettings: DesktopSettings | null;
+  hydrateDesktop: (bootstrap: DesktopBootstrap) => void;
+  setDesktopSettings: (settings: DesktopSettings) => void;
 
   generationStatus: GenerationStatus;
   generatedImageUrl: string | null;
@@ -834,6 +902,10 @@ function takeSnapshot(state: EditorStore): EditorSnapshot {
     artStyle: state.artStyle,
     background: state.background,
     photoArtStyleMode: state.photoArtStyleMode,
+    flux3Globals: state.flux3Globals ? { ...state.flux3Globals, palette: [...state.flux3Globals.palette] } : null,
+    mossGlobals: state.mossGlobals
+      ? { ...state.mossGlobals, meta: [...state.mossGlobals.meta], palette: [...state.mossGlobals.palette] }
+      : null,
   };
 }
 
@@ -1197,16 +1269,76 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       // 同时清除全局设置，避免构建 LLM 上下文时仍携带旧值
       globalPalette: [],
       highLevelDescription: '',
-    aesthetics: '',
-    lighting: '',
-    medium: '',
-    artStyle: '',
-    background: '',
-    photoArtStyleMode: MODE_ARTSTYLE,
+      aesthetics: '',
+      lighting: '',
+      medium: '',
+      artStyle: '',
+      background: '',
+      photoArtStyleMode: MODE_ARTSTYLE,
+      flux3Globals: createEmptyFlux3Globals(),
+      mossGlobals: createEmptyMossGlobals(),
       undoStack: [...state.undoStack, snap].slice(-MAX_UNDO_DEPTH),
       redoStack: [],
     });
   },
+
+  setActiveJsonScheme: (scheme) => {
+    const state = get();
+    if (scheme === state.activeJsonScheme) return;
+    set({
+      activeJsonScheme: scheme,
+      ...(scheme === 'flux3-layout' && !state.flux3Globals
+        ? { flux3Globals: createFlux3GlobalsFromIdeogram(state) }
+        : {}),
+      ...(scheme === 'moss-layout' && !state.mossGlobals
+        ? { mossGlobals: createMossGlobalsFromIdeogram(state) }
+        : {}),
+    });
+    writeStoredJsonScheme(scheme);
+  },
+
+  updateFlux3Globals: (updates) => set(state => ({
+    flux3Globals: {
+      ...(state.flux3Globals ?? createFlux3GlobalsFromIdeogram(state)),
+      ...updates,
+      ...(updates.palette ? { palette: [...updates.palette] } : {}),
+    },
+  })),
+
+  updateMossGlobals: (updates) => set(state => ({
+    mossGlobals: {
+      ...(state.mossGlobals ?? createMossGlobalsFromIdeogram(state)),
+      ...updates,
+      ...(updates.meta ? { meta: [...updates.meta] } : {}),
+      ...(updates.palette ? { palette: [...updates.palette] } : {}),
+    },
+  })),
+
+  addFlux3Color: (hex) => {
+    const upper = hex.toUpperCase();
+    const state = get();
+    const current = state.flux3Globals ?? createFlux3GlobalsFromIdeogram(state);
+    if (current.palette.length >= MAX_SCHEME_PALETTE || current.palette.includes(upper)) return false;
+    set({ flux3Globals: { ...current, palette: [...current.palette, upper] } });
+    return true;
+  },
+
+  removeFlux3Color: (hex) => set(state => state.flux3Globals
+    ? { flux3Globals: { ...state.flux3Globals, palette: state.flux3Globals.palette.filter(color => color !== hex) } }
+    : {}),
+
+  addMossColor: (hex) => {
+    const upper = hex.toUpperCase();
+    const state = get();
+    const current = state.mossGlobals ?? createMossGlobalsFromIdeogram(state);
+    if (current.palette.length >= MAX_SCHEME_PALETTE || current.palette.includes(upper)) return false;
+    set({ mossGlobals: { ...current, palette: [...current.palette, upper] } });
+    return true;
+  },
+
+  removeMossColor: (hex) => set(state => state.mossGlobals
+    ? { mossGlobals: { ...state.mossGlobals, palette: state.mossGlobals.palette.filter(color => color !== hex) } }
+    : {}),
 
   setGlobalSetting: (key, value) => set({ [key]: value }),
 
@@ -1263,10 +1395,31 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     }));
   },
 
-  apiUrl: 'http://localhost:8188',
+  apiUrl: '',
   seed: 42,
   setApiUrl: (url) => set({ apiUrl: url }),
   setSeed: (seed) => set({ seed }),
+  desktopFirstRun: false,
+  desktopSettings: null,
+  hydrateDesktop: (bootstrap) => {
+    const canvasState = bootstrap.canvas
+      ? canvasStateFromDocument(bootstrap.canvas as PersistedCanvasDocumentV1)
+      : {};
+    set({
+      ...canvasState,
+      ...(bootstrap.chat ? {} : {}),
+      desktopFirstRun: bootstrap.firstRun,
+      desktopSettings: bootstrap.settings,
+      apiUrl: bootstrap.settings.comfyuiUrl,
+    });
+    if (bootstrap.chat) {
+      get().replaceCanvasChatState(bootstrap.chat as PersistedCanvasChatStateV1);
+    }
+    if (bootstrap.favorites.length > 0) {
+      get().replaceCanvasFavorites(bootstrap.favorites as CanvasFavorite[]);
+    }
+  },
+  setDesktopSettings: (settings) => set({ desktopSettings: settings, apiUrl: settings.comfyuiUrl }),
 
   generationStatus: 'idle',
   generatedImageUrl: null,
@@ -2264,6 +2417,9 @@ const CANVAS_AUTOSAVE_FIELDS = [
   'artStyle',
   'background',
   'photoArtStyleMode',
+  'activeJsonScheme',
+  'flux3Globals',
+  'mossGlobals',
   'canvasBackgroundUrl',
   'isLayoutStreaming',
   'layoutStreamRecovery',

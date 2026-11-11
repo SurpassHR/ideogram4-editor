@@ -15,6 +15,8 @@ import {
   parseWorkspaceBackupPackage,
 } from '../../services/workspace-backup';
 import { createBackupGist, findBackupGist, loadBackupGist, updateBackupGist } from '../../services/gist-backup';
+import DesktopWorkspaceActions from './DesktopWorkspaceActions';
+import { isDesktopRuntime } from '../../services/desktop-api';
 
 const RESTORE_MODULES: WorkspaceRestoreModule[] = [
   'currentCanvas',
@@ -81,6 +83,7 @@ export default function WorkspacePanel({ embedded = false }: WorkspacePanelProps
   const [isBusy, setIsBusy] = useState(false);
   const [restorePackage, setRestorePackage] = useState<WorkspaceBackupPackageV1 | null>(null);
   const [restoreSelections, setRestoreSelections] = useState<WorkspaceRestoreSelections>(createEmptySelections);
+  const desktop = isDesktopRuntime();
 
   useEffect(() => {
     setGithubToken(backupSettings.githubToken);
@@ -286,6 +289,7 @@ export default function WorkspacePanel({ embedded = false }: WorkspacePanelProps
     <section className={`settings-page-workspace ${embedded ? 'workspace-panel-embedded' : ''}`}>
       {!embedded && <h2 className="settings-section-title">{t('settings.workspace.heading')}</h2>}
 
+      <DesktopWorkspaceActions />
       <div className="workspace-panel-body">
         <div className="workspace-pane workspace-favorites-pane">
           <div className="workspace-pane-header">
@@ -326,7 +330,7 @@ export default function WorkspacePanel({ embedded = false }: WorkspacePanelProps
           )}
         </div>
 
-        <div className="workspace-pane workspace-backup-pane">
+        <div className="workspace-pane workspace-backup-pane" style={desktop ? { display: 'none' } : undefined}>
           <div className="workspace-pane-header">
             <h3 className="workspace-pane-title">{t('settings.workspace.backup')}</h3>
             <span className="workspace-pane-meta">{t('settings.workspace.fixedGist')}</span>

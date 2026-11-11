@@ -259,5 +259,31 @@ describe('workspace-persistence', () => {
       expect(loadCanvasDocument()).toBeNull();
     });
 
+    it('应保存并恢复 active scheme 与独立 global profile', () => {
+      const withScheme: PersistedCanvasDocumentV1 = {
+        ...document,
+        activeJsonScheme: 'moss-layout',
+        flux3Globals: { fullScenePrompt: 'FLUX scene', palette: ['#123456'] },
+        mossGlobals: {
+          summaryCaption: 'MOSS scene',
+          meta: ['poster', 'soft light'],
+          canvas: 'multi_panel',
+          palette: ['#ABCDEF'],
+        },
+      };
+
+      expect(saveCanvasDocument(withScheme).ok).toBe(true);
+      const loaded = loadCanvasDocument();
+
+      expect(loaded?.activeJsonScheme).toBe('moss-layout');
+      expect(loaded?.flux3Globals).toEqual({ fullScenePrompt: 'FLUX scene', palette: ['#123456'] });
+      expect(loaded?.mossGlobals).toEqual({
+        summaryCaption: 'MOSS scene',
+        meta: ['poster', 'soft light'],
+        canvas: 'multi_panel',
+        palette: ['#ABCDEF'],
+      });
+    });
+
   });
 });

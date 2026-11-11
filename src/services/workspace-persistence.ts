@@ -9,6 +9,7 @@ import type {
 } from '../types/chat';
 import type { LayoutQualityReport } from './layout-validator';
 import type { Box } from '../types';
+import type { Flux3Globals, JsonScheme, MossCanvasKind, MossGlobals } from '../types/scheme';
 import type {
   CanvasFavorite,
   CanvasSnapshotLite,
@@ -17,6 +18,13 @@ import type {
   StorageResult,
   WorkspaceBackupSettings,
 } from '../types/workspace';
+import {
+  isDesktopRuntime,
+  saveDesktopCanvas,
+  saveDesktopChat,
+  saveDesktopFavorites,
+} from './desktop-api';
+import { isJsonScheme } from '../utils/json-schemes';
 
 export const CANVAS_CHAT_STORAGE_KEY = 'ideogram4-canvas-chat-sessions:v1';
 export const CANVAS_FAVORITES_STORAGE_KEY = 'ideogram4-canvas-favorites:v1';
@@ -45,6 +53,40 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function safeString(value: unknown): string {
   return typeof value === 'string' ? value : '';
+}
+
+function safePalette(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((color): color is string => typeof color === 'string')
+    : [];
+}
+
+function sanitizeJsonScheme(value: unknown): JsonScheme | undefined {
+  return isJsonScheme(value) ? value : undefined;
+}
+
+function sanitizeFlux3Globals(value: unknown): Flux3Globals | null {
+  if (!isRecord(value)) return null;
+  return {
+    fullScenePrompt: safeString(value.fullScenePrompt),
+    palette: safePalette(value.palette),
+  };
+}
+
+function sanitizeMossCanvas(value: unknown): MossCanvasKind {
+  return value === 'multi_panel' || value === 'collage' ? value : 'single';
+}
+
+function sanitizeMossGlobals(value: unknown): MossGlobals | null {
+  if (!isRecord(value)) return null;
+  return {
+    summaryCaption: safeString(value.summaryCaption),
+    meta: Array.isArray(value.meta)
+      ? value.meta.filter((entry): entry is string => typeof entry === 'string')
+      : [],
+    canvas: sanitizeMossCanvas(value.canvas),
+    palette: safePalette(value.palette),
+  };
 }
 
 function safeNumber(value: unknown, fallback = 0): number {
@@ -263,6 +305,12 @@ export function loadCanvasChatState(): PersistedCanvasChatStateV1 | null {
 }
 
 export function saveCanvasChatState(state: PersistedCanvasChatStateV1): StorageResult {
+  if (isDesktopRuntime()) {
+    void saveDesktopChat({ ...state, schemaVersion: 1 }).catch(error => {
+      console.warn('[desktop] chat save failed', error);
+    });
+    return { ok: true };
+  }
   const storage = getStorage();
   if (!storage) return { ok: false, error: 'localStorage 不可用' };
   try {
@@ -275,6 +323,9 @@ export function saveCanvasChatState(state: PersistedCanvasChatStateV1): StorageR
 
 function sanitizeSnapshot(value: unknown): CanvasSnapshotLite | null {
   if (!isRecord(value) || !Array.isArray(value.boxes)) return null;
+  const activeJsonScheme = sanitizeJsonScheme(value.activeJsonScheme);
+  const flux3Globals = sanitizeFlux3Globals(value.flux3Globals);
+  const mossGlobals = sanitizeMossGlobals(value.mossGlobals);
   return {
     canvasW: safeNumber(value.canvasW, 1024),
     canvasH: safeNumber(value.canvasH, 1024),
@@ -307,6 +358,9 @@ function sanitizeSnapshot(value: unknown): CanvasSnapshotLite | null {
     artStyle: safeString(value.artStyle),
     background: safeString(value.background),
     photoArtStyleMode: value.photoArtStyleMode === 0 ? 0 : 1,
+    ...(activeJsonScheme ? { activeJsonScheme } : {}),
+    ...(flux3Globals ? { flux3Globals } : {}),
+    ...(mossGlobals ? { mossGlobals } : {}),
   };
 }
 
@@ -350,6 +404,9 @@ export function loadCanvasDocument(): PersistedCanvasDocumentV1 | null {
       .filter((box): box is Box => box !== null);
     const canvasW = safeNumber(parsed.canvasW, 1024);
     const canvasH = safeNumber(parsed.canvasH, 1024);
+    const activeJsonScheme = sanitizeJsonScheme(parsed.activeJsonScheme);
+    const flux3Globals = sanitizeFlux3Globals(parsed.flux3Globals);
+    const mossGlobals = sanitizeMossGlobals(parsed.mossGlobals);
     return {
       schemaVersion: 1,
       savedAt: safeNumber(parsed.savedAt, Date.now()),
@@ -373,6 +430,9 @@ export function loadCanvasDocument(): PersistedCanvasDocumentV1 | null {
       canvasBackgroundUrl: typeof parsed.canvasBackgroundUrl === 'string' && parsed.canvasBackgroundUrl
         ? parsed.canvasBackgroundUrl
         : null,
+      ...(activeJsonScheme ? { activeJsonScheme } : {}),
+      ...(flux3Globals ? { flux3Globals } : {}),
+      ...(mossGlobals ? { mossGlobals } : {}),
     };
   } catch {
     return null;
@@ -385,6 +445,12 @@ export function loadCanvasDocument(): PersistedCanvasDocumentV1 | null {
  * 避免 Data URL 把 localStorage（~5MB）撑爆。旧存档中的内联图像会在启动时迁移过去。
  */
 export function saveCanvasDocument(document: PersistedCanvasDocumentV1): StorageResult {
+  if (isDesktopRuntime()) {
+    void saveDesktopCanvas(document).catch(error => {
+      console.warn('[desktop] canvas save failed', error);
+    });
+    return { ok: true };
+  }
   const storage = getStorage();
   if (!storage) return { ok: false, error: 'localStorage 不可用' };
   try {
@@ -432,6 +498,12 @@ export function loadCanvasFavorites(): CanvasFavorite[] {
 }
 
 export function saveCanvasFavorites(favorites: CanvasFavorite[]): StorageResult {
+  if (isDesktopRuntime()) {
+    void saveDesktopFavorites(favorites).catch(error => {
+      console.warn('[desktop] favorites save failed', error);
+    });
+    return { ok: true };
+  }
   const storage = getStorage();
   if (!storage) return { ok: false, error: 'localStorage 不可用' };
   try {

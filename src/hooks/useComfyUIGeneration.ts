@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { useEditorStore } from '../store';
 import { buildWorkflowPayload } from '../workflow/workflow-mutator';
 import { waitForComfyUIResult } from '../utils/comfyui-api';
+import { isDesktopRuntime, submitDesktopComfyPrompt } from '../services/desktop-api';
 
 export function useComfyUIGeneration() {
   const apiUrl = useEditorStore(s => s.apiUrl);
@@ -27,17 +28,22 @@ export function useComfyUIGeneration() {
         seed,
       });
 
-      const postResp = await fetch(`${apiUrl}/api/prompt`, {
-        method: 'POST',
-        headers: { 'accept': '*/*', 'content-type': 'application/json' },
-        body: JSON.stringify(workflowPayload),
-      });
+      let prompt_id: string;
+      if (isDesktopRuntime()) {
+        ({ prompt_id } = await submitDesktopComfyPrompt(workflowPayload));
+      } else {
+        const postResp = await fetch(`${apiUrl}/api/prompt`, {
+          method: 'POST',
+          headers: { 'accept': '*/*', 'content-type': 'application/json' },
+          body: JSON.stringify(workflowPayload),
+        });
 
-      if (!postResp.ok) {
-        throw new Error(`Failed to submit prompt: ${postResp.status}`);
+        if (!postResp.ok) {
+          throw new Error(`Failed to submit prompt: ${postResp.status}`);
+        }
+
+        ({ prompt_id } = await postResp.json());
       }
-
-      const { prompt_id } = await postResp.json();
 
       setGenerationStatus('polling');
       const results = await waitForComfyUIResult(prompt_id, apiUrl);

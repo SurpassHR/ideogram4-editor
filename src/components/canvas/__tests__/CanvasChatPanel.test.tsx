@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, fireEvent, act, within } from '@testing-library/react';
+import { render, fireEvent, act, within, waitFor } from '@testing-library/react';
 import CanvasChatPanel from '../CanvasChatPanel';
 import { useEditorStore } from '../../../store';
 import { I18nProvider } from '../../../i18n/context';
@@ -91,6 +91,64 @@ describe('CanvasChatPanel', () => {
     });
     await renderWithPending();
     expect(document.querySelector('.chat-loading')?.textContent).toContain('Live layout · 3');
+  });
+
+  it('思考/正文增长时在底部自动跟随，用户上滚后暂停自动滚动', async () => {
+    const assistant = {
+      id: 'msg_streaming',
+      role: 'assistant' as const,
+      content: '',
+      thinking: 'a',
+      timestamp: 1000,
+    };
+    useEditorStore.setState({
+      isCanvasChatOpen: true,
+      isCanvasChatLoading: true,
+      canvasChatMessages: [assistant],
+      canvasChatSessions: [{
+        id: 'session_1',
+        title: '新会话',
+        createdAt: 1000,
+        updatedAt: 1000,
+        messages: [assistant],
+        pendingIdeogramOutput: null,
+        pendingQualityReport: null,
+        requestLogs: [],
+      }],
+      activeCanvasChatSessionId: 'session_1',
+    });
+
+    await renderWithPending();
+    const messages = document.querySelector('.chat-messages') as HTMLDivElement;
+    expect(messages).not.toBeNull();
+    let scrollHeight = 1000;
+    Object.defineProperty(messages, 'scrollHeight', { configurable: true, get: () => scrollHeight });
+    Object.defineProperty(messages, 'clientHeight', { configurable: true, get: () => 200 });
+
+    messages.scrollTop = 800;
+    fireEvent.scroll(messages);
+    scrollHeight = 1500;
+    act(() => {
+      useEditorStore.getState().updateCanvasChatMessage('msg_streaming', { thinking: 'a'.repeat(1000) });
+    });
+    await waitFor(() => expect(messages.scrollTop).toBe(1500));
+
+    messages.scrollTop = 100;
+    fireEvent.scroll(messages);
+    scrollHeight = 2000;
+    act(() => {
+      useEditorStore.getState().updateCanvasChatMessage('msg_streaming', { content: 'streamed content '.repeat(100) });
+    });
+    await act(() => new Promise(resolve => setTimeout(resolve, 50)));
+    expect(messages.scrollTop).toBe(100);
+
+    messages.scrollTop = 1800;
+    fireEvent.scroll(messages);
+    scrollHeight = 2500;
+    act(() => {
+      useEditorStore.getState().updateCanvasChatMessage('msg_streaming', { content: 'streamed content '.repeat(200) });
+    });
+    await waitFor(() => expect(messages.scrollTop).toBe(2500));
   });
 
   // ─── 面板内容 ────────────────────────────────────────────────────

@@ -1,3 +1,5 @@
+import { fetchDesktopComfyImage, getDesktopComfyHistory, isDesktopRuntime } from '../services/desktop-api';
+
 export async function waitForComfyUIResult(
   promptId: string,
   serverUrl: string,
@@ -5,6 +7,9 @@ export async function waitForComfyUIResult(
   timeout = 300000,
   fetchImages = true,
 ): Promise<Array<{ nodeId: string; imageUrl: string; filename: string; subfolder: string; type: string; blob?: Blob }>> {
+  if (isDesktopRuntime()) {
+    return waitForDesktopComfyUIResult(promptId, pollInterval, timeout);
+  }
   const startTime = Date.now();
 
   while (true) {
@@ -56,6 +61,43 @@ export async function waitForComfyUIResult(
       return results;
     }
 
+    await new Promise(resolve => setTimeout(resolve, pollInterval));
+  }
+}
+
+async function waitForDesktopComfyUIResult(
+  promptId: string,
+  pollInterval: number,
+  timeout: number,
+): Promise<Array<{ nodeId: string; imageUrl: string; filename: string; subfolder: string; type: string; blob?: Blob }>> {
+  const startTime = Date.now();
+  while (true) {
+    if (Date.now() - startTime > timeout) throw new Error(`Timed out waiting for prompt ${promptId}`);
+    const history = await getDesktopComfyHistory(promptId) as Record<string, {
+      outputs?: Record<string, { images?: Array<{ filename: string; subfolder?: string; type?: string }> }>;
+    }>;
+    if (history[promptId]) {
+      const results: Array<{ nodeId: string; imageUrl: string; filename: string; subfolder: string; type: string; blob?: Blob }> = [];
+      for (const [nodeId, nodeOutput] of Object.entries(history[promptId].outputs ?? {})) {
+        for (const image of nodeOutput.images ?? []) {
+          const params = new URLSearchParams({
+            filename: image.filename,
+            subfolder: image.subfolder || '',
+            type: image.type || 'output',
+          });
+          const blob = await fetchDesktopComfyImage(params);
+          results.push({
+            nodeId,
+            imageUrl: URL.createObjectURL(blob),
+            filename: image.filename,
+            subfolder: image.subfolder || '',
+            type: image.type || 'output',
+            blob,
+          });
+        }
+      }
+      return results;
+    }
     await new Promise(resolve => setTimeout(resolve, pollInterval));
   }
 }

@@ -7,9 +7,30 @@ export default function GeneralSettingsPanel() {
   const setMockTestMode = useEditorStore(s => s.setMockTestMode);
   const setShowDeveloperTools = useEditorStore(s => s.setShowDeveloperTools);
   const { t } = useI18n();
+  const desktop = window.desktop;
 
   return (
     <section className="settings-page-general">
+      {desktop && (
+        <div className="settings-general-item settings-desktop-info">
+          <div className="settings-general-info">
+            <span className="settings-general-label">Desktop</span>
+            <span className="settings-general-desc">
+              v{desktop.appVersion} · {desktop.platform}
+              <br />
+              <code>{desktop.dataDir}</code>
+            </span>
+          </div>
+          <div className="desktop-workspace-action-buttons">
+            <button className="btn btn-small" type="button" onClick={() => void desktop.openDataDir?.()}>
+              Data Folder
+            </button>
+            <button className="btn btn-small" type="button" onClick={() => void desktop.openLogs?.()}>
+              Logs
+            </button>
+          </div>
+        </div>
+      )}
       <div className="settings-general-item">
         <div className="settings-general-info">
           <span className="settings-general-label">测试打桩模式 (Mock Test Mode)</span>

@@ -32,6 +32,7 @@ import {
 import { useCanvasChat } from '../../hooks/useCanvasChat';
 import ChatMessage from '../chat/ChatMessage';
 import { useAutoGrowTextarea } from '../../hooks/useAutoGrowTextarea';
+import { useStickyAutoScroll } from '../../hooks/useStickyAutoScroll';
 import { getPresetDescription, getPresetName } from '../../utils/preset-display';
 import type { LlmProvider } from '../llm/types';
 
@@ -85,6 +86,11 @@ export const BottomCommandBar: React.FC = () => {
   const activeSession =
     canvasChatSessions.find((s) => s.id === activeCanvasChatSessionId) ??
     canvasChatSessions[0];
+  const historyMessagesScroll = useStickyAutoScroll({
+    active: showHistory && !!activeSession,
+    resetKey: activeSession?.id ?? '',
+    messageCount: activeSession?.messages.length ?? 0,
+  });
   const totalMessageCount = canvasChatSessions.reduce(
     (acc, s) => acc + s.messages.length,
     0
@@ -540,7 +546,12 @@ export const BottomCommandBar: React.FC = () => {
               </div>
             </div>
 
-            <div style={{ flex: 1, overflowY: 'auto', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }} className="chat-messages">
+            <div
+              ref={historyMessagesScroll.ref}
+              onScroll={historyMessagesScroll.onScroll}
+              style={{ flex: 1, overflowY: 'auto', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}
+              className="chat-messages"
+            >
               {!activeSession || activeSession.messages.length === 0 ? (
                 <div style={{ textAlign: 'center', color: '#737373', fontSize: '12px', padding: '36px 0' }}>
                   No messages in this session. Type in the command bar below to chat.

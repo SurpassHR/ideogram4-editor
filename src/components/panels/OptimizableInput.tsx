@@ -16,6 +16,7 @@ interface OptimizableInputProps {
   value: string;
   onChange: (value: string) => void;
   multiline?: boolean;
+  rows?: number;
   disabled?: boolean;
   placeholder?: string;
 }
@@ -32,6 +33,7 @@ export default function OptimizableInput({
   value,
   onChange,
   multiline,
+  rows,
   disabled,
   placeholder,
 }: OptimizableInputProps) {
@@ -114,7 +116,7 @@ export default function OptimizableInput({
       <label>{label}</label>
       <div className="optimizable-input-wrapper">
         {multiline ? (
-          <textarea {...inputProps} />
+          <textarea {...inputProps} rows={rows} />
         ) : (
           <input type="text" {...inputProps} />
         )}

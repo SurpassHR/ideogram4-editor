@@ -24,6 +24,12 @@
 - 快照 commit：`c1355e6b1986dfe8fba3c0455783a05899212342`（2026-10-16）
 - 许可证：Apache-2.0
 
+## Local font assets
+
+- Inter: https://github.com/rsms/inter — SIL Open Font License 1.1
+- JetBrains Mono: https://github.com/JetBrains/JetBrainsMono — SIL Open Font License 1.1
+- 通过 `@fontsource-variable/inter` 与 `@fontsource-variable/jetbrains-mono` 打包，用于桌面应用离线显示。
+
 ## 注意事项
 
 - Ideogram 4 的**模型权重**为非商用许可（见上游 `SKILL.md` 的 license gate），本仓库仅内置其提示词格式文档。

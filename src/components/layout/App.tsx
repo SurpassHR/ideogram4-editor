@@ -6,6 +6,7 @@ import SettingsPage from './SettingsPage';
 import BottomBar from './BottomBar';
 import ShortcutsModal from '../shortcuts/ShortcutsModal';
 import StreamingLayoutRecoveryDialog from '../canvas/StreamingLayoutRecoveryDialog';
+import DesktopWelcome from './DesktopWelcome';
 import { useEditorStore } from '../../store';
 
 const SHORTCUTS_SEEN_KEY = 'ideogram4-shortcuts-seen';
@@ -15,19 +16,21 @@ export default function App() {
   const isCanvas = hash !== '#/settings';
   const setShortcutsModalOpen = useEditorStore(s => s.setShortcutsModalOpen);
   const hydrateCanvasImages = useEditorStore(s => s.hydrateCanvasImages);
+  const desktopFirstRun = useEditorStore(s => s.desktopFirstRun);
 
   // 启动时从 IndexedDB 读回 box 参考图 / 画布背景图（localStorage 只存结构化文档）
   useEffect(() => {
-    void hydrateCanvasImages();
+    if (!window.desktop) void hydrateCanvasImages();
   }, [hydrateCanvasImages]);
 
   // 首次进入应用：自动弹出一次快捷键引导（localStorage 标记，一次性）
   useEffect(() => {
+    if (desktopFirstRun) return;
     if (!localStorage.getItem(SHORTCUTS_SEEN_KEY)) {
       setShortcutsModalOpen(true);
       localStorage.setItem(SHORTCUTS_SEEN_KEY, '1');
     }
-  }, [setShortcutsModalOpen]);
+  }, [desktopFirstRun, setShortcutsModalOpen]);
 
   return (
     <>
@@ -38,6 +41,7 @@ export default function App() {
       </div>
       <ShortcutsModal />
       <StreamingLayoutRecoveryDialog />
+      <DesktopWelcome />
     </>
   );
 }

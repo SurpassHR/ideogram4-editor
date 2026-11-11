@@ -134,6 +134,7 @@ function fromStoredEntry(value: unknown): string | null {
 }
 
 export async function loadCanvasImages(): Promise<CanvasImageSnapshot> {
+  if (typeof window !== 'undefined' && window.desktop) return { boxes: {}, background: null };
   if (!getIndexedDb()) return { boxes: {}, background: null };
   try {
     const db = await openDatabase();
@@ -166,6 +167,7 @@ export async function loadCanvasImages(): Promise<CanvasImageSnapshot> {
 
 /** 整份覆盖写入：先清空再写入，已删除的 box 图像不会残留 */
 export async function saveCanvasImages(snapshot: CanvasImageSnapshot): Promise<void> {
+  if (typeof window !== 'undefined' && window.desktop) return;
   if (!getIndexedDb()) return;
 
   const boxEntries = await Promise.all(
@@ -192,6 +194,7 @@ export async function saveCanvasImages(snapshot: CanvasImageSnapshot): Promise<v
 }
 
 export async function clearCanvasImages(): Promise<void> {
+  if (typeof window !== 'undefined' && window.desktop) return;
   if (!getIndexedDb()) return;
   const db = await openDatabase();
   const tx = db.transaction(STORE_NAME, 'readwrite');

@@ -39,6 +39,9 @@ describe('JsonToolbar', () => {
       medium: '',
       artStyle: '',
       background: '',
+      activeJsonScheme: 'ideogram4',
+      flux3Globals: null,
+      mossGlobals: null,
     });
   });
 
@@ -109,13 +112,13 @@ describe('JsonToolbar', () => {
     const textarea = screen.getByPlaceholderText('JSON output will appear here...') as HTMLTextAreaElement;
     expect(JSON.parse(textarea.value).compositional_deconstruction).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('radio', { name: 'FLUX 3' }));
+    act(() => useEditorStore.getState().setActiveJsonScheme('flux3-layout'));
     const flux3 = JSON.parse(textarea.value) as Array<Record<string, unknown>>;
     expect(Array.isArray(flux3)).toBe(true);
     expect(flux3[0]).toMatchObject({ id: 'obj_1', bbox: [125, 125, 375, 375] });
     expect(localStorage.getItem('ideogram4-json-scheme')).toBe('flux3-layout');
 
-    fireEvent.click(screen.getByRole('radio', { name: 'MOSS-Image' }));
+    act(() => useEditorStore.getState().setActiveJsonScheme('moss-layout'));
     const moss = JSON.parse(textarea.value) as Record<string, unknown>;
     expect(moss).toMatchObject({
       width: 1024,
@@ -125,14 +128,14 @@ describe('JsonToolbar', () => {
     });
     expect(Array.isArray(moss.items)).toBe(true);
 
-    fireEvent.click(screen.getByRole('radio', { name: 'Ideogram 4' }));
+    act(() => useEditorStore.getState().setActiveJsonScheme('ideogram4'));
     expect(JSON.parse(textarea.value).compositional_deconstruction).toBeTruthy();
   });
 
   it('Preview 跟随所选 scheme 解析对应结构', () => {
     renderToolbar();
 
-    fireEvent.click(screen.getByRole('radio', { name: 'FLUX 3' }));
+    act(() => useEditorStore.getState().setActiveJsonScheme('flux3-layout'));
     fireEvent.click(screen.getByRole('tab', { name: 'Preview' }));
 
     expect(screen.getByText('Hero object')).toBeInTheDocument();
@@ -141,7 +144,7 @@ describe('JsonToolbar', () => {
 
   it('FLUX 3 scheme 可从粘贴的布局行加载画布', () => {
     renderToolbar();
-    fireEvent.click(screen.getByRole('radio', { name: 'FLUX 3' }));
+    act(() => useEditorStore.getState().setActiveJsonScheme('flux3-layout'));
 
     const textarea = screen.getByPlaceholderText('JSON output will appear here...');
     fireEvent.focus(textarea);
@@ -165,7 +168,7 @@ describe('JsonToolbar', () => {
   it('MOSS-Image caption 草稿加载时只更新场景描述', () => {
     renderToolbar();
     const before = useEditorStore.getState().boxes;
-    fireEvent.click(screen.getByRole('radio', { name: 'MOSS-Image' }));
+    act(() => useEditorStore.getState().setActiveJsonScheme('moss-layout'));
 
     const textarea = screen.getByPlaceholderText('JSON output will appear here...');
     fireEvent.focus(textarea);
@@ -173,8 +176,41 @@ describe('JsonToolbar', () => {
     fireEvent.blur(textarea);
     fireEvent.click(screen.getByRole('button', { name: 'Load From Pasted JSON' }));
 
-    expect(useEditorStore.getState().highLevelDescription).toBe('Loaded MOSS scene');
+    expect(useEditorStore.getState().highLevelDescription).toBe('Poster scene');
+    expect(useEditorStore.getState().mossGlobals?.summaryCaption).toBe('Loaded MOSS scene');
     expect(useEditorStore.getState().boxes).toEqual(before);
+  });
+
+  it('MOSS-Image layout 加载时恢复 summary 到独立 profile', () => {
+    renderToolbar();
+    act(() => useEditorStore.getState().setActiveJsonScheme('moss-layout'));
+
+    const textarea = screen.getByPlaceholderText('JSON output will appear here...');
+    const draft = {
+      width: 1024,
+      height: 1024,
+      bbox_coord_space: 'abs',
+      bbox_format: 'xyxy',
+      summary: {
+        caption: 'Loaded MOSS layout',
+        meta: ['poster'],
+        canvas: 'collage',
+        palette: ['#123456'],
+      },
+      items: [{ label: 'object', caption: 'Hero', bbox: [0, 0, 500, 500] }],
+    };
+    fireEvent.focus(textarea);
+    fireEvent.change(textarea, { target: { value: JSON.stringify(draft) } });
+    fireEvent.blur(textarea);
+    fireEvent.click(screen.getByRole('button', { name: 'Load From Pasted JSON' }));
+
+    expect(useEditorStore.getState().mossGlobals).toEqual({
+      summaryCaption: 'Loaded MOSS layout',
+      meta: ['poster'],
+      canvas: 'collage',
+      palette: ['#123456'],
+    });
+    expect(useEditorStore.getState().boxes).toHaveLength(1);
   });
 
   it('用户编辑 textarea 时自动同步暂停', () => {

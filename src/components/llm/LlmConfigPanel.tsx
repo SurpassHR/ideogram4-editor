@@ -4,6 +4,7 @@ import { KIND_LABELS, DEFAULT_BASE_URLS, createEmptyProvider } from './types';
 import { getLlmProviders, saveLlmProvider, deleteLlmProvider, fetchModels } from './api';
 import { useI18n } from '../../i18n/context';
 import { IconClose, IconGear } from '../ui/icons';
+import { isDesktopRuntime } from '../../services/desktop-api';
 
 interface Props {
   onClose?: () => void;
@@ -108,14 +109,14 @@ export default function LlmConfigPanel({ onClose, embedded }: Props) {
       showToast(t('llmConfig.toast.fillBaseUrl'));
       return;
     }
-    if (!apiKey || isKeyMasked(apiKey)) {
+    if ((!apiKey || isKeyMasked(apiKey)) && !isDesktopRuntime()) {
       showToast(t('llmConfig.toast.fillApiKey'));
       return;
     }
 
     setFetchingModels(true);
     try {
-      const models = await fetchModels(editing.kind, baseUrl, apiKey);
+      const models = await fetchModels(editing.kind, baseUrl, apiKey, editing.id || undefined);
       const merged = [...new Set([...editing.models, ...models])].sort();
       setEditing(prev => ({ ...prev, models: merged }));
       showToast(t('llmConfig.toast.fetchedModels', { count: models.length }));
@@ -232,7 +233,7 @@ export default function LlmConfigPanel({ onClose, embedded }: Props) {
                           value={editing.id}
                           onChange={e => update('id', e.target.value)}
                           placeholder={t('llmConfig.idPlaceholder')}
-                          style={{ fontFamily: 'JetBrains Mono, monospace' }}
+                          style={{ fontFamily: 'JetBrains Mono Variable, JetBrains Mono, monospace' }}
                         />
                         <div className="llm-id-immutable-hint">{t('llmConfig.idImmutable')}</div>
                       </>
@@ -289,7 +290,7 @@ export default function LlmConfigPanel({ onClose, embedded }: Props) {
                         value={editing.base_url}
                         onChange={e => update('base_url', e.target.value)}
                         placeholder="https://api.openai.com/v1"
-                        style={{ fontFamily: 'JetBrains Mono, monospace' }}
+                        style={{ fontFamily: 'JetBrains Mono Variable, JetBrains Mono, monospace' }}
                       />
                     </div>
                   )}

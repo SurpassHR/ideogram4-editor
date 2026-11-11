@@ -11,6 +11,7 @@ import { DEFAULT_BASE_URLS } from '../components/llm/types';
 import type { ChatMessage } from '../types/chat';
 import { messagesToApiFormat } from '../types/chat';
 import type { Box } from '../types';
+import { desktopChat, isDesktopRuntime } from './desktop-api';
 
 // ─── 多模态辅助函数 ─────────────────────────────────────────────────
 
@@ -267,6 +268,8 @@ export const OPTIMIZE_PROMPTS: Record<string, string> = {
   medium: `You are an expert prompt writer for the Ideogram 4 image generation model. The user has written a brief medium description. Refine it into a precise medium specification (e.g., "high-resolution digital photograph shot on a Canon EOS R5 with a 85mm f/1.4 lens"). Output only the improved description, nothing else.`,
   artStyle: `You are an expert prompt writer for the Ideogram 4 image generation model. The user has written a brief art style description. Expand it into a rich art style specification (e.g., "impressionist oil painting style with visible brushstrokes, influenced by Claude Monet's water lilies series"). Output only the improved description, nothing else.`,
   background: `You are an expert prompt writer for the Ideogram 4 image generation model. The user has written a brief background description. Expand it into a detailed environment description with atmosphere and depth (e.g., "a serene misty forest clearing with towering ancient oaks, moss-covered stones, and a gentle stream winding through fern-lined banks"). Output only the improved description, nothing else.`,
+  flux3FullScenePrompt: `You are an expert prompt writer for the FLUX 3 Image Klein model. Rewrite the user's scene description as one complete, vivid English paragraph that describes the full final image, including subjects, spatial relationships, medium, lighting, and mood. Output only the improved paragraph, nothing else.`,
+  mossSummaryCaption: `You are an expert prompt writer for the MOSS-Image model. Rewrite the user's scene description as cohesive prose with spatial relationships in words and any exact visible wording quoted. Output only the improved caption, nothing else.`,
 };
 
 const DEFAULT_OPTIMIZE_PROMPT =
@@ -475,6 +478,20 @@ export async function sendChatMessage(
   imageDataUrl?: string,
 ): Promise<ChatResult> {
   const rawApiMessages = messagesToApiFormat(messages);
+  if (isDesktopRuntime()) {
+    try {
+      const result = await desktopChat({
+        providerId: provider.id,
+        model,
+        messages: rawApiMessages,
+        systemPrompt,
+        ...(imageDataUrl ? { imageDataUrl } : {}),
+      });
+      return { ok: true, content: result.content };
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  }
   // 当有参考图时，构造多模态消息格式（先确保 blob: URL 转为 data: URL）
   const safeImageUrl = imageDataUrl ? await ensureDataUrl(imageDataUrl) : undefined;
   const apiMessages = safeImageUrl
