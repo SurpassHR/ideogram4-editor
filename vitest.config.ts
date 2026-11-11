@@ -9,5 +9,8 @@ export default defineConfig({
     globals: true,
     include: ['src/**/*.{test,spec}.{ts,tsx}', 'server/**/*.{test,spec}.ts'],
     exclude: ['e2e/**'],
+    environmentOptions: {
+      jsdom: { url: 'http://localhost:3000/' },
+    },
   },
 });
