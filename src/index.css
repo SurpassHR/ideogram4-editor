@@ -35,6 +35,13 @@
   --box-obj-fill: rgba(245, 158, 11, 0.06);
   --box-obj-tag-bg: #292524;
   --box-obj-tag-text: #fef3c7;
+  /* 边缘浮层统一开关动画 */
+  --dock-reveal-duration: 0.2s;
+  --dock-reveal-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --dock-reveal-offset: 16px;
+  --dock-edge-gap: 8px;
+  --dock-trigger-length: 120px;
+  --dock-trigger-depth: 40px;
 }
 
 html {
@@ -2961,18 +2968,98 @@ input[type="color"]::-webkit-color-swatch {
 
 /* ─── Right Panel Tab Container ──────────────────────────────────── */
 
-.right-panel-column {
-  width: 360px;
-  flex-shrink: 0;
+.canvas-workspace {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.canvas-workspace-main {
+  flex: 1;
+  min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
 }
 
-.right-panel-column > .right-panel-container {
+/* 右侧边缘触发浮层：不占画布宽度，滑入后悬浮在画布上方 */
+.right-panel-dock {
+  --right-panel-width: min(360px, calc(100vw - 56px));
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: calc(var(--right-panel-width) + var(--dock-edge-gap));
+  z-index: 80;
+  pointer-events: none;
+}
+
+.right-panel-hover-zone {
+  /* fixed 让热区越过工作区裁切，一直命中到窗口右边缘 */
+  position: fixed;
+  top: 50%;
+  right: 0;
+  width: calc(var(--dock-trigger-depth) + 20px);
+  height: var(--dock-trigger-length);
+  z-index: 0;
+  pointer-events: auto;
+  transform: translateY(-50%);
+}
+
+/* 竖向 Home Indicator：收起时提示右侧可滑出面板 */
+.right-panel-dock-hint {
+  position: absolute;
+  top: 50%;
+  right: var(--dock-edge-gap);
+  z-index: 2;
+  width: 5px;
+  height: 64px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.36);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.12);
+  pointer-events: none;
+  transform: translateY(-50%);
+  transition: opacity var(--dock-reveal-duration) ease;
+}
+
+.right-panel-dock.is-visible .right-panel-dock-hint {
+  opacity: 0;
+}
+
+.right-panel-float {
+  position: absolute;
+  top: var(--dock-edge-gap);
+  right: var(--dock-edge-gap);
+  bottom: var(--dock-edge-gap);
+  width: var(--right-panel-width);
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(var(--dock-reveal-offset));
+  transition:
+    opacity var(--dock-reveal-duration) var(--dock-reveal-ease),
+    transform var(--dock-reveal-duration) var(--dock-reveal-ease);
+}
+
+.right-panel-dock.is-visible .right-panel-float {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
+}
+
+.right-panel-float > .right-panel-container {
   flex: 1;
   min-height: 0;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+}
+
+.right-panel-float > .scheme-switcher {
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.42);
 }
 
 .scheme-switcher {
@@ -3018,9 +3105,11 @@ input[type="color"]::-webkit-color-swatch {
 .panel-tab-bar {
   display: flex;
   position: relative;
+  align-items: stretch;
   border-bottom: 1px solid var(--border);
   background: var(--surface-raised);
-  padding: 0 4px;
+  border-radius: 9px 9px 0 0;
+  overflow: hidden;
 }
 
 .panel-tab {
@@ -3047,6 +3136,35 @@ input[type="color"]::-webkit-color-swatch {
 
 .panel-tab.active {
   color: var(--primary);
+}
+
+/* 固定侧边栏：关闭后恢复右边缘悬停自动收起 */
+.panel-tab-pin {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  margin: 4px 5px 4px 2px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.panel-tab-pin:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.panel-tab-pin.active {
+  color: var(--primary);
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.18);
 }
 
 .panel-tab-icon {
@@ -6875,12 +6993,54 @@ input[type="color"]::-webkit-color-swatch {
 
 
 /* Bottom Command Bar */
-.bottom-command-bar {
+.bottom-command-bar-dock {
   position: absolute;
-  bottom: 24px;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
+  right: 0;
+  bottom: 0;
   z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+}
+
+/* 画板底边热区：鼠标进入后浮出聊天岛 */
+.bottom-command-bar-hover-zone {
+  /* fixed 让热区越过画板与状态栏，一直命中到窗口底边 */
+  position: fixed;
+  left: 50%;
+  bottom: 0;
+  width: var(--dock-trigger-length);
+  height: calc(var(--dock-trigger-depth) + 64px);
+  z-index: 0;
+  pointer-events: auto;
+  transform: translateX(-50%);
+}
+
+/* iPhone Home Indicator 式底边提示：提醒用户向上移动可唤出聊天岛 */
+.bottom-command-bar-hint {
+  position: absolute;
+  left: 50%;
+  bottom: var(--dock-edge-gap);
+  z-index: 2;
+  width: 56px;
+  height: 5px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.36);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.12);
+  pointer-events: none;
+  transform: translateX(-50%);
+  transition: opacity var(--dock-reveal-duration) ease;
+}
+
+.bottom-command-bar-dock.is-visible .bottom-command-bar-hint {
+  opacity: 0;
+}
+
+.bottom-command-bar {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   background: rgba(24, 24, 27, 0.95);
@@ -6891,11 +7051,25 @@ input[type="color"]::-webkit-color-swatch {
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65);
   width: calc(100% - 32px);
   max-width: 680px;
+  margin-bottom: var(--dock-edge-gap);
   box-sizing: border-box;
   padding: 12px 14px 10px 14px;
   gap: 10px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(var(--dock-reveal-offset));
+  transition:
+    opacity var(--dock-reveal-duration) var(--dock-reveal-ease),
+    transform var(--dock-reveal-duration) var(--dock-reveal-ease),
+    border-color var(--dock-reveal-duration) ease,
+    background var(--dock-reveal-duration) ease,
+    box-shadow var(--dock-reveal-duration) ease;
+}
+
+.bottom-command-bar-dock.is-visible .bottom-command-bar {
+  opacity: 1;
   pointer-events: auto;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transform: translateY(0);
 }
 
 .bottom-command-bar:focus-within {

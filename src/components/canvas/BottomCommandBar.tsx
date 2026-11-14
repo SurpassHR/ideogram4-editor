@@ -42,9 +42,13 @@ export const BottomCommandBar: React.FC = () => {
   const [showHistory, setShowHistory] = useState(false);
   const [showConfig, setShowConfig] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
+  const [isPointerInsideDock, setIsPointerInsideDock] = useState(false);
+  const [isFocusInsideDock, setIsFocusInsideDock] = useState(false);
+  const [isBottomEdgeSticky, setIsBottomEdgeSticky] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const historyPopupRef = useRef<HTMLDivElement>(null);
   const configPopupRef = useRef<HTMLDivElement>(null);
+  const lastPointerRef = useRef({ x: 0, y: 0 });
 
   const {
     boxes,
@@ -85,6 +89,45 @@ export const BottomCommandBar: React.FC = () => {
     : -1;
   const hasBoxSelection = selectedBoxIds.length > 0;
   const isBusy = isGeneratingScene || isExtractingImage || isChatStreaming;
+  const isDockVisible = isPointerInsideDock || isFocusInsideDock || showHistory || showConfig || isBusy || isBottomEdgeSticky;
+
+  // 底部边缘为安全区：离开热区后只要指针还在窗口底部附近，就保持聊天岛打开。
+  useEffect(() => {
+    const handlePointerMove = (e: PointerEvent) => {
+      lastPointerRef.current = { x: e.clientX, y: e.clientY };
+      if (e.clientY < window.innerHeight - 80) {
+        setIsBottomEdgeSticky(false);
+      }
+    };
+    const handleWindowBlur = () => {
+      setIsPointerInsideDock(false);
+      setIsBottomEdgeSticky(false);
+    };
+
+    window.addEventListener('pointermove', handlePointerMove, { passive: true, capture: true });
+    window.addEventListener('pointerover', handlePointerMove, { passive: true, capture: true });
+    window.addEventListener('blur', handleWindowBlur);
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove, true);
+      window.removeEventListener('pointerover', handlePointerMove, true);
+      window.removeEventListener('blur', handleWindowBlur);
+    };
+  }, []);
+
+  const handleDockMouseLeave = (e: React.MouseEvent<HTMLDivElement>) => {
+    const nextTarget = e.relatedTarget;
+    if (!(nextTarget instanceof Node) || !e.currentTarget.contains(nextTarget)) {
+      setIsPointerInsideDock(false);
+      setIsBottomEdgeSticky(lastPointerRef.current.y >= window.innerHeight - 80);
+    }
+  };
+
+  const handleDockBlur = (e: React.FocusEvent<HTMLDivElement>) => {
+    const nextTarget = e.relatedTarget;
+    if (!(nextTarget instanceof Node) || !e.currentTarget.contains(nextTarget)) {
+      setIsFocusInsideDock(false);
+    }
+  };
 
   const activeSession =
     canvasChatSessions.find((s) => s.id === activeCanvasChatSessionId) ??
@@ -581,8 +624,25 @@ export const BottomCommandBar: React.FC = () => {
         </div>
       )}
 
-      {/* 常驻指令岛核心：Codex 式多行两层结构 */}
-      <div data-testid="bottom-command-bar" className="bottom-command-bar">
+      {/* 底部悬浮指令岛：靠近画板底边时浮现，离开后自动收起 */}
+      <div
+        data-testid="bottom-command-bar-dock"
+        className={`bottom-command-bar-dock${isDockVisible ? ' is-visible' : ''}`}
+        onMouseEnter={() => {
+          setIsPointerInsideDock(true);
+          setIsBottomEdgeSticky(false);
+        }}
+        onMouseLeave={handleDockMouseLeave}
+        onFocusCapture={() => setIsFocusInsideDock(true)}
+        onBlurCapture={handleDockBlur}
+      >
+        <div className="bottom-command-bar-hover-zone" aria-hidden="true" />
+        <span
+          data-testid="bottom-command-bar-hint"
+          className="bottom-command-bar-hint"
+          aria-hidden="true"
+        />
+        <div data-testid="bottom-command-bar" className="bottom-command-bar">
         {chatPresets.length > 0 && (
           <div
             className="bottom-command-bar-presets"
@@ -746,6 +806,7 @@ export const BottomCommandBar: React.FC = () => {
               </button>
             )}
           </div>
+        </div>
         </div>
       </div>
     </>

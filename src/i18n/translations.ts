@@ -154,6 +154,8 @@ export interface Translations {
     objectMode: string;
   };
   panels: {
+    pinSidebar: string;
+    unpinSidebar: string;
     globalSettings: {
       title: string;
       photo: string;
@@ -734,6 +736,8 @@ const en: Translations = {
     objectMode: 'Object',
   },
   panels: {
+    pinSidebar: 'Pin sidebar',
+    unpinSidebar: 'Unpin sidebar',
     globalSettings: {
       title: 'Global Settings',
       photo: 'Photo',
@@ -1314,6 +1318,8 @@ const zh: Translations = {
     objectMode: '对象',
   },
   panels: {
+    pinSidebar: '固定侧边栏',
+    unpinSidebar: '取消固定侧边栏',
     globalSettings: {
       title: '全局设置',
       photo: '照片',

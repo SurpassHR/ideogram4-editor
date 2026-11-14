@@ -7,7 +7,7 @@ import ComfyUIControls from '../comfyui/ComfyUIControls';
 import ImagePreview from '../comfyui/ImagePreview';
 import { useI18n } from '../../i18n/context';
 import { useEditorStore } from '../../store';
-import { IconGear, IconBox, IconFile, IconZap, IconSparkle } from '../ui/icons';
+import { IconGear, IconBox, IconFile, IconZap, IconSparkle, IconPin } from '../ui/icons';
 
 type TabId = 'global' | 'box' | 'json' | 'natural' | 'generate';
 
@@ -17,7 +17,12 @@ interface Tab {
   icon: React.ReactNode;
 }
 
-export default function RightPanelContainer() {
+interface RightPanelContainerProps {
+  isPinned?: boolean;
+  onTogglePin?: () => void;
+}
+
+export default function RightPanelContainer({ isPinned = false, onTogglePin }: RightPanelContainerProps) {
   const [activeTab, setActiveTab] = useState<TabId>('global');
   const selectedBoxId = useEditorStore(s => s.selectedBoxId);
   const { t } = useI18n();
@@ -61,6 +66,21 @@ export default function RightPanelContainer() {
           </button>
         ))}
         <div className="panel-tab-indicator" style={{ '--tab-index': tabs.findIndex(t => t.id === activeTab) } as React.CSSProperties} />
+        {onTogglePin && (
+          <button
+            type="button"
+            className={`panel-tab-pin${isPinned ? ' active' : ''}`}
+            onClick={e => {
+              e.currentTarget.blur();
+              onTogglePin();
+            }}
+            title={isPinned ? t('panels.unpinSidebar') : t('panels.pinSidebar')}
+            aria-label={isPinned ? t('panels.unpinSidebar') : t('panels.pinSidebar')}
+            aria-pressed={isPinned}
+          >
+            <IconPin size={13} />
+          </button>
+        )}
       </div>
 
       {/* Content */}

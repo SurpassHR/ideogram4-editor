@@ -61,6 +61,11 @@ export const IconStar = createIcon(
   <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />,
 );
 
+/** 图钉 — 固定侧边栏 */
+export const IconPin = createIcon(
+  <><path d="M12 17v5" /><path d="M9 4h6l-1 7 3 3v2H7v-2l3-3-1-7Z" /></>,
+);
+
 /** ✕ 关闭 — 关闭按钮 */
 export const IconClose = createIcon(
   <><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></>,
