@@ -138,6 +138,34 @@ describe('streaming layout store transaction', () => {
     expect(state.isLayoutStreaming).toBe(false);
   });
 
+  it('supports multi-region preview and commits all targets with one undo step', () => {
+    const store = useEditorStore.getState();
+    store.updateStreamingLayout(
+      'req_multi_region',
+      [makePreviewBox('first region'), makePreviewBox('second region')],
+      ['box_0', 'box_1'],
+    );
+
+    let state = useEditorStore.getState();
+    expect(state.boxes.map(box => box.desc)).toEqual(['first region', 'second region']);
+    expect(state.streamingLayoutBoxCount).toBe(2);
+    expect(state.undoStack).toHaveLength(1);
+    expect(state.isLayoutStreaming).toBe(true);
+
+    expect(state.commitStreamingRegions('req_multi_region', [
+      { boxId: 'box_1', box: makePreviewBox('second final') },
+      { boxId: 'box_0', box: makePreviewBox('first final') },
+    ])).toBe(true);
+
+    state = useEditorStore.getState();
+    expect(state.boxes.map(box => box.desc)).toEqual(['first final', 'second final']);
+    expect(state.isLayoutStreaming).toBe(false);
+    expect(state.undoStack).toHaveLength(1);
+
+    state.undo();
+    expect(useEditorStore.getState().boxes.map(box => box.desc)).toEqual(['old', 'old2']);
+  });
+
   it('discard recovery restores boxes and the previous undo/redo stacks exactly', () => {
     const oldUndo = useEditorStore.getState().undoStack;
     const store = useEditorStore.getState();

@@ -362,6 +362,7 @@ export interface Translations {
     parseFailedHint: string;
     showRawOutput: string;
     regionTarget: string;
+    regionTargetMultiple: string;
     regionTargetDismiss: string;
     regionTargetReenable: string;
     regionApplyHint: string;
@@ -517,6 +518,8 @@ export interface Translations {
     invertImageLoading: string;
     scopeGlobal: string;
     scopeBox: string;
+    scopeBoxes: string;
+    scopePlaceholder: string;
     clearScope: string;
     aiModel: string;
     activeModel: string;
@@ -939,6 +942,7 @@ const en: Translations = {
     parseFailedHint: 'The AI reply could not be turned into a layout. Try rephrasing your request.',
     showRawOutput: 'Show raw output',
     regionTarget: 'Region {index}: {label}',
+    regionTargetMultiple: '{count} regions: {labels}',
     regionTargetDismiss: 'Ask about the whole canvas instead',
     regionTargetReenable: 'Ask about the selected region',
     regionApplyHint: 'Applies to this region only',
@@ -1094,6 +1098,8 @@ const en: Translations = {
     invertImageLoading: 'Extracting...',
     scopeGlobal: 'Full Scene',
     scopeBox: 'Box #{idx}',
+    scopeBoxes: '{count} boxes',
+    scopePlaceholder: 'Type to instruct the selected region(s)...',
     clearScope: 'Clear selection',
     aiModel: 'AI Model',
     activeModel: 'Active LLM Model',
@@ -1516,6 +1522,7 @@ const zh: Translations = {
     parseFailedHint: 'AI 回复没能转换成布局，试着换种说法再问一次。',
     showRawOutput: '查看原始输出',
     regionTarget: '区域 {index}：{label}',
+    regionTargetMultiple: '{count} 个区域：{labels}',
     regionTargetDismiss: '改为针对整张画布提问',
     regionTargetReenable: '针对选中区域提问',
     regionApplyHint: '只作用于该区域',
@@ -1671,6 +1678,8 @@ const zh: Translations = {
     invertImageLoading: '提取中...',
     scopeGlobal: '全场景',
     scopeBox: '选区 #{idx}',
+    scopeBoxes: '{count} 个选区',
+    scopePlaceholder: '输入指令来修改选中区域...',
     clearScope: '取消选中',
     aiModel: 'AI 模型',
     activeModel: '当前 LLM 模型',

@@ -6,15 +6,20 @@ import type { LayoutQualityReport } from '../services/layout-validator';
 /** Chat 请求的显式思考强度设置 */
 export type ChatThinkingLevel = 'off' | 'low' | 'medium' | 'high';
 
-/**
- * 区域目标（Canvas Chat 的「针对某个边界框提问」）。
- * boxId 为目标边界框 ID，index 为其 1 起始序号（与画布 tag 条 / LayerPanel 一致）。
- */
-export interface RegionTarget {
+/** Canvas Chat 区域上下文中的单个边界框。 */
+export interface RegionTargetItem {
   boxId: string;
   index: number;
   /** 人类可读的短标签（desc / text / 类型） */
   label: string;
+}
+
+/**
+ * 区域目标（Canvas Chat 的「针对选中边界框提问」）。
+ * 单选框沿用 boxId/index/label；多选框额外提供 targets，第一项仍放在顶层字段以兼容旧消息。
+ */
+export interface RegionTarget extends RegionTargetItem {
+  targets?: RegionTargetItem[];
 }
 
 export interface ChatMessage {

@@ -621,7 +621,8 @@ interface LayoutStreamTransaction {
   baseSnapshot: EditorSnapshot;
   baseUndoStack: EditorSnapshot[];
   baseRedoStack: EditorSnapshot[];
-  regionBoxId?: string;
+  /** 空数组表示整画布替换；非空表示按顺序替换这些 box。 */
+  regionBoxIds: string[];
 }
 
 interface EditorStore {
@@ -658,6 +659,8 @@ interface EditorStore {
   applyCanvasReplacement: (replacement: CanvasReplacement) => void;
   /** 替换单个 box（区域 Apply 用） */
   replaceBox: (id: string, box: Omit<Box, 'id'>) => void;
+  /** 一次替换多个 box（多区域 Apply 用；只压一次撤销快照） */
+  replaceBoxes: (updates: Array<{ boxId: string; box: Omit<Box, 'id'> }>) => void;
   /** 判断 box 是否存在（区域 Apply 前置检查） */
   hasBox: (id: string) => boolean;
 
@@ -739,9 +742,18 @@ interface EditorStore {
   streamingLayoutBoxCount: number;
   /** 内部事务：保存生成前状态、撤销栈与区域目标。 */
   layoutStreamTransaction: LayoutStreamTransaction | null;
-  updateStreamingLayout: (requestId: string, boxes: Array<Omit<Box, 'id'>>, regionBoxId?: string) => void;
+  updateStreamingLayout: (
+    requestId: string,
+    boxes: Array<Omit<Box, 'id'>>,
+    regionBoxIds?: string | string[],
+  ) => void;
   commitStreamingLayout: (requestId: string, replacement: CanvasReplacement) => boolean;
   commitStreamingRegion: (requestId: string, boxId: string, box: Omit<Box, 'id'>) => boolean;
+  /** 提交多区域预览；只更新事务中记录过的 box，保持其余画布不变。 */
+  commitStreamingRegions: (
+    requestId: string,
+    updates: Array<{ boxId: string; box: Omit<Box, 'id'> }>,
+  ) => boolean;
   requestStreamingLayoutRecovery: (requestId: string, reason: string) => boolean;
   resolveStreamingLayoutRecovery: (action: 'keep' | 'discard') => void;
   createCanvasChatSession: (title?: string) => string;
@@ -1102,36 +1114,64 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     });
   },
 
+  replaceBoxes: (updates) => {
+    if (updates.length === 0) return;
+    const state = get();
+    if (isLayoutEditLocked(state)) return;
+    const updateMap = new Map(updates.map(update => [update.boxId, update.box]));
+    if (updateMap.size === 0) return;
+    const snap = takeSnapshot(state);
+    set({
+      boxes: state.boxes.map(box => {
+        const replacement = updateMap.get(box.id);
+        return replacement ? { ...replacement, id: box.id } : box;
+      }),
+      undoStack: [...state.undoStack, snap].slice(-MAX_UNDO_DEPTH),
+      redoStack: [],
+    });
+  },
+
   // ─── 流式布局事务：实时写入、原子收尾与失败恢复 ──────────────────
-  updateStreamingLayout: (requestId, previewBoxes, regionBoxId) => {
+  updateStreamingLayout: (requestId, previewBoxes, regionBoxInput) => {
     if (previewBoxes.length === 0) return;
+    const requestedRegionBoxIds = regionBoxInput === undefined
+      ? []
+      : Array.isArray(regionBoxInput)
+        ? regionBoxInput
+        : [regionBoxInput];
 
     set(state => {
+      const regionBoxIds = requestedRegionBoxIds.filter(id => state.boxes.some(box => box.id === id));
+      if (requestedRegionBoxIds.length > 0 && regionBoxIds.length === 0) return {};
       if (state.layoutStreamRecovery) return {};
       const existing = state.layoutStreamTransaction;
       if (existing && existing.requestId !== requestId) return {};
       if (!existing && state.isLayoutStreaming) return {};
-      if (existing && (existing.regionBoxId ?? undefined) !== regionBoxId) return {};
-      if (regionBoxId && !state.boxes.some(box => box.id === regionBoxId)) return {};
+      if (existing && existing.regionBoxIds.join('\u0000') !== regionBoxIds.join('\u0000')) return {};
 
       const transaction: LayoutStreamTransaction = existing ?? {
         requestId,
         baseSnapshot: takeSnapshot(state),
         baseUndoStack: [...state.undoStack],
         baseRedoStack: [...state.redoStack],
-        regionBoxId,
+        regionBoxIds,
       };
 
-      if (transaction.regionBoxId) {
-        const replacement = previewBoxes[0];
+      if (transaction.regionBoxIds.length > 0) {
+        const replacements = new Map(
+          transaction.regionBoxIds
+            .slice(0, previewBoxes.length)
+            .map((boxId, index) => [boxId, previewBoxes[index]] as const),
+        );
+        if (replacements.size === 0) return {};
         return {
           layoutStreamTransaction: transaction,
           isLayoutStreaming: true,
           layoutStreamRecovery: null,
-          streamingLayoutBoxCount: 1,
+          streamingLayoutBoxCount: replacements.size,
           editingBoxId: null,
           boxes: state.boxes.map(box => (
-            box.id === transaction.regionBoxId ? { ...replacement, id: box.id } : box
+            replacements.has(box.id) ? { ...replacements.get(box.id)!, id: box.id } : box
           )),
           ...(!existing ? {
             undoStack: [...state.undoStack, transaction.baseSnapshot].slice(-MAX_UNDO_DEPTH),
@@ -1165,7 +1205,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   commitStreamingLayout: (requestId, replacement) => {
     const state = get();
     const transaction = state.layoutStreamTransaction;
-    if (!transaction || transaction.requestId !== requestId || transaction.regionBoxId) return false;
+    if (!transaction || transaction.requestId !== requestId || transaction.regionBoxIds.length > 0) return false;
 
     const boxes = boxesFromReplacement(replacement);
     set({
@@ -1195,16 +1235,29 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   },
 
   commitStreamingRegion: (requestId, boxId, box) => {
+    return get().commitStreamingRegions(requestId, [{ boxId, box }]);
+  },
+
+  commitStreamingRegions: (requestId, updates) => {
+    if (updates.length === 0) return false;
     const state = get();
     const transaction = state.layoutStreamTransaction;
-    if (!transaction || transaction.requestId !== requestId || transaction.regionBoxId !== boxId) {
+    if (!transaction || transaction.requestId !== requestId || transaction.regionBoxIds.length === 0) {
       return false;
     }
+    const allowedIds = new Set(transaction.regionBoxIds);
+    const updateMap = new Map(
+      updates
+        .filter(update => allowedIds.has(update.boxId))
+        .map(update => [update.boxId, update.box] as const),
+    );
+    if (updateMap.size === 0) return false;
 
     set({
-      boxes: state.boxes.map(existing => (
-        existing.id === boxId ? { ...box, id: boxId } : existing
-      )),
+      boxes: state.boxes.map(existing => {
+        const replacement = updateMap.get(existing.id);
+        return replacement ? { ...replacement, id: existing.id } : existing;
+      }),
       redoStack: [],
       layoutStreamTransaction: null,
       isLayoutStreaming: false,

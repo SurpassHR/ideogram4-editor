@@ -52,6 +52,55 @@ test('desktop app starts hidden, persists canvas, and keeps a stable local origi
   }
 });
 
+test('box clicks drive Canvas Chat region context without opening per-box chat', async () => {
+  const userData = await mkdtemp(join(tmpdir(), 'ideogram4-selection-e2e-'));
+  let app: Awaited<ReturnType<typeof electron.launch>> | null = null;
+  try {
+    app = await electron.launch({
+      args: ['.'],
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        IDEOGRAM4_USER_DATA_DIR: userData,
+        IDEOGRAM4_TEST_HEADLESS: '1',
+        IDEOGRAM4_BACKEND_PORT: '47833',
+      },
+      timeout: 30_000,
+    });
+    const page = await app.firstWindow();
+    await page.locator('button', { hasText: 'Start Fresh' }).click();
+    await page.locator('.desktop-welcome-overlay').waitFor({ state: 'hidden' });
+    await page.keyboard.press('Escape');
+
+    const canvas = page.locator('#canvas-wrapper');
+    const bounds = await canvas.boundingBox();
+    expect(bounds).not.toBeNull();
+    for (const [offsetX, offsetY] of [[80, 80], [360, 80]]) {
+      await page.mouse.move(bounds!.x + offsetX, bounds!.y + offsetY);
+      await page.mouse.down();
+      await page.mouse.move(bounds!.x + offsetX + 160, bounds!.y + offsetY + 120, { steps: 6 });
+      await page.mouse.up();
+    }
+    await expect(page.locator('.bounding-box:not(.drawing-ghost)')).toHaveCount(2);
+
+    const boxes = page.locator('.bounding-box:not(.drawing-ghost)');
+    await boxes.nth(0).click();
+    await expect(page.locator('.bottom-command-bar-scope-pill.is-box')).toContainText('Box #1');
+    await expect(page.locator('.chat-panel')).toHaveCount(0);
+    await expect(page.locator('.chat-bubble-btn')).toHaveCount(0);
+
+    // macOS 上 Control+click 会触发右键菜单；应用同时支持 Meta/Cmd 多选。
+    await boxes.nth(1).click({ modifiers: ['Meta'] });
+    await expect(page.locator('.bottom-command-bar-scope-pill.is-box')).toContainText('2 boxes');
+
+    await page.mouse.click(bounds!.x + bounds!.width - 24, bounds!.y + bounds!.height - 24);
+    await expect(page.locator('.bottom-command-bar-scope-pill.is-global')).toBeVisible();
+  } finally {
+    if (app) await app.close();
+    await rm(userData, { recursive: true, force: true });
+  }
+});
+
 test('canvas image assets load through the authenticated same-origin cookie', async () => {
   const userData = await mkdtemp(join(tmpdir(), 'ideogram4-assets-e2e-'));
   let app: Awaited<ReturnType<typeof electron.launch>> | null = null;

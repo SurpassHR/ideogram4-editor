@@ -45,11 +45,16 @@ export default function CanvasChatRegionBar({
 
   if (!region) return null;
 
+  const targets = region.targets?.length ? region.targets : [region];
+  const labels = targets.map(target => `#${target.index} ${target.label}`).join(', ');
+
   return (
     <div className="canvas-chat-region-bar">
       <IconBox size={12} />
       <span className="canvas-chat-region-bar-text">
-        {t('chat.regionTarget', { index: region.index, label: region.label })}
+        {targets.length > 1
+          ? t('chat.regionTargetMultiple', { count: targets.length, labels })
+          : t('chat.regionTarget', { index: region.index, label: region.label })}
       </span>
       <button
         type="button"

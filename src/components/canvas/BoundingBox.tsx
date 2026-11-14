@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useRef, useMemo } from 'react';
 import { IconClose } from '../ui/icons';
 import type { Box } from '../../types';
-import type { InteractionMode } from '../../types';
 import { useEditorStore } from '../../store';
 import { useI18n } from '../../i18n/context';
-import ChatBubbleButton from './ChatBubbleButton';
 
 interface BoundingBoxProps {
   box: Box;
@@ -14,11 +12,10 @@ interface BoundingBoxProps {
   zoom: number;
   isSelected: boolean;
   boxRef: (el: HTMLDivElement | null) => void;
-  interactionMode: InteractionMode;
   onContextMenu?: (e: React.MouseEvent, boxId: string) => void;
 }
 
-export default function BoundingBox({ box, index, zoom, isSelected, boxRef, interactionMode, onContextMenu }: BoundingBoxProps) {
+export default function BoundingBox({ box, index, zoom, isSelected, boxRef, onContextMenu }: BoundingBoxProps) {
   const editingBoxId = useEditorStore(s => s.editingBoxId);
   const setEditingBoxId = useEditorStore(s => s.setEditingBoxId);
   const updateBox = useEditorStore(s => s.updateBox);
@@ -152,7 +149,7 @@ export default function BoundingBox({ box, index, zoom, isSelected, boxRef, inte
 
       {/* 框上方 tag 条：序号 + 类型 + 文字 */}
       <div
-        className={`bounding-box-tag${tagInside ? ' inside' : ''}${isEditing ? ' editing' : ''}${isSelected ? ' has-action' : ''}`}
+        className={`bounding-box-tag${tagInside ? ' inside' : ''}${isEditing ? ' editing' : ''}`}
         title={displayText || undefined}
       >
         <span className="bounding-box-tag-index">{index}</span>
@@ -168,9 +165,6 @@ export default function BoundingBox({ box, index, zoom, isSelected, boxRef, inte
         >
           {displayText}
         </div>
-        {isSelected && !layoutLocked && (
-          <ChatBubbleButton boxId={box.id} interactionMode={interactionMode} />
-        )}
       </div>
 
       {/* 4 角缩放手柄（Krea 式）：仅选中时显示；右下角保持既有语义 */}

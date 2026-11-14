@@ -38,6 +38,18 @@ export interface SkillApplyTarget {
   applyCanvasReplacement: (replacement: CanvasReplacement) => void;
 }
 
+/** 多区域 Apply 的目标能力。`replaceBoxes` 用于把多个更新合并成一次撤销步骤。 */
+export interface RegionApplyTarget extends SkillApplyTarget {
+  replaceBox: (id: string, box: Omit<Box, 'id'>) => void;
+  replaceBoxes?: (updates: BoxReplacementUpdate[]) => void;
+  hasBox: (id: string) => boolean;
+}
+
+export interface BoxReplacementUpdate {
+  boxId: string;
+  box: Omit<Box, 'id'>;
+}
+
 /** 按 store 的规则归一化调色板（大写、去重、封顶） */
 function normalizePalette(colors: readonly string[] | undefined): string[] {
   if (!colors) return [];
@@ -70,6 +82,36 @@ function elementToBox(
     imageDataUrl: null,
     imageRole: 'both' as const,
   };
+}
+
+/**
+ * 把 extraction.elements 按顺序映射到选中的 box。
+ * 区域输出与选区数量不等时，只应用双方都存在的部分。
+ */
+export function buildRegionBoxUpdates(
+  extraction: SkillExtraction,
+  target: Pick<SkillApplyTarget, 'canvasW' | 'canvasH'> & { hasBox: (id: string) => boolean },
+  regionBoxIds: readonly string[],
+): BoxReplacementUpdate[] {
+  if (extraction.elements.length === 0 || regionBoxIds.length === 0) return [];
+
+  const size = extraction.canvas
+    ? normalizeCanvasSize(extraction.canvas.width, extraction.canvas.height)
+    : null;
+  const canvasW = size ? size.width : target.canvasW;
+  const canvasH = size ? size.height : target.canvasH;
+  const updates: BoxReplacementUpdate[] = [];
+  const count = Math.min(extraction.elements.length, regionBoxIds.length);
+
+  for (let index = 0; index < count; index++) {
+    const boxId = regionBoxIds[index];
+    if (!target.hasBox(boxId)) continue;
+    updates.push({
+      boxId,
+      box: elementToBox(extraction.elements[index], canvasW, canvasH),
+    });
+  }
+  return updates;
 }
 
 /**
@@ -133,24 +175,29 @@ export function applyExtractionToStore(extraction: SkillExtraction, target: Skil
  */
 export function applyRegionExtractionToStore(
   extraction: SkillExtraction,
-  target: SkillApplyTarget & {
-    replaceBox: (id: string, box: Omit<Box, 'id'>) => void;
-    hasBox: (id: string) => boolean;
-  },
+  target: RegionApplyTarget,
   regionBoxId: string,
 ): number {
-  if (extraction.elements.length === 0) return 0;
-  if (!target.hasBox(regionBoxId)) return 0;
+  return applyRegionExtractionsToStore(extraction, target, [regionBoxId]);
+}
 
-  const size = extraction.canvas
-    ? normalizeCanvasSize(extraction.canvas.width, extraction.canvas.height)
-    : null;
-  const canvasW = size ? size.width : target.canvasW;
-  const canvasH = size ? size.height : target.canvasH;
+/**
+ * 多区域 Apply：按顺序把 elements 映射到 regionBoxIds。
+ * 多个 box 的更新合并为一次 store 写入（一次撤销）。
+ */
+export function applyRegionExtractionsToStore(
+  extraction: SkillExtraction,
+  target: RegionApplyTarget,
+  regionBoxIds: readonly string[],
+): number {
+  const updates = buildRegionBoxUpdates(extraction, target, regionBoxIds);
+  if (updates.length === 0) return 0;
 
-  // 区域模式下只取第一个元素落到目标 box（区域语义是「这一块换成什么」）
-  const box = elementToBox(extraction.elements[0], canvasW, canvasH);
-  target.replaceBox(regionBoxId, box);
-  return 1;
+  if (target.replaceBoxes) {
+    target.replaceBoxes(updates);
+  } else {
+    updates.forEach(update => target.replaceBox(update.boxId, update.box));
+  }
+  return updates.length;
 }
 

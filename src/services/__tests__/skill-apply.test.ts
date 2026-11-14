@@ -3,6 +3,8 @@ import { describe, it, expect, vi } from 'vitest';
 import {
   applyExtractionToStore,
   applyRegionExtractionToStore,
+  applyRegionExtractionsToStore,
+  buildRegionBoxUpdates,
   buildCanvasReplacement,
   type CanvasReplacement,
   type SkillApplyTarget,
@@ -175,6 +177,68 @@ describe('applyRegionExtractionToStore', () => {
     const { target, replaced } = makeRegionTarget();
     expect(applyRegionExtractionToStore(extraction, target, 'missing')).toBe(0);
     expect(replaced).toHaveLength(0);
+  });
+});
+
+describe('多区域 Apply', () => {
+  function makeMultiRegionTarget(ids: string[]) {
+    const replaced: Array<{ id: string; box: Record<string, unknown> }> = [];
+    const batch = vi.fn((updates: Array<{ boxId: string; box: Record<string, unknown> }>) => {
+      updates.forEach(update => replaced.push({ id: update.boxId, box: update.box }));
+    });
+    return {
+      replaced,
+      batch,
+      target: {
+        canvasW: 1000,
+        canvasH: 2000,
+        applyCanvasReplacement: vi.fn(),
+        hasBox: (id: string) => ids.includes(id),
+        replaceBox: (id: string, box: Record<string, unknown>) => { replaced.push({ id, box }); },
+        replaceBoxes: batch,
+      },
+    };
+  }
+
+  it('按选区顺序把元素映射到多个 box，并合并为一次写入', () => {
+    const { target, replaced, batch } = makeMultiRegionTarget(['box_0', 'box_1', 'box_2']);
+    const count = applyRegionExtractionsToStore(extraction, target, ['box_2', 'box_0']);
+
+    expect(count).toBe(2);
+    expect(batch).toHaveBeenCalledTimes(1);
+    expect(replaced).toHaveLength(2);
+    expect(replaced[0].id).toBe('box_2');
+    expect(replaced[0].box).toMatchObject({ x: 200, y: 200, w: 600, h: 800, desc: 'a cat' });
+    expect(replaced[1].id).toBe('box_0');
+    expect(replaced[1].box).toMatchObject({ mode: 'text', text: 'HELLO', desc: 'title' });
+  });
+
+  it('缺失的 box 会被跳过，元素与选区数量不一致时只应用可配对部分', () => {
+    const { target, replaced } = makeMultiRegionTarget(['box_0']);
+    const count = applyRegionExtractionsToStore(extraction, target, ['missing', 'box_0']);
+
+    expect(count).toBe(1);
+    expect(replaced).toEqual([
+      expect.objectContaining({ id: 'box_0' }),
+    ]);
+    expect(replaced[0].box).toMatchObject({ mode: 'text', text: 'HELLO', desc: 'title' });
+  });
+
+  it('buildRegionBoxUpdates 只返回存在的目标，并保留选区顺序', () => {
+    const ids = ['box_0', 'box_1'];
+    const updates = buildRegionBoxUpdates(
+      extraction,
+      {
+        canvasW: 1000,
+        canvasH: 2000,
+        hasBox: id => ids.includes(id),
+      },
+      ['box_1', 'missing'],
+    );
+
+    expect(updates).toHaveLength(1);
+    expect(updates[0].boxId).toBe('box_1');
+    expect(updates[0].box.desc).toBe('a cat');
   });
 });
 

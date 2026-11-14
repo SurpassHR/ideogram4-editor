@@ -506,5 +506,126 @@ describe('useCanvasChat', () => {
       // 全局设置未被区域 Apply 清空
       expect(state.highLevelDescription).toBe('');
     });
+
+    it('多选时 currentRegionTarget 按选择顺序包含所有区域', () => {
+      useEditorStore.setState({
+        selectedBoxId: null,
+        selectedBoxIds: ['box_0', 'box_1'],
+      });
+      const { result } = renderHook(() => useCanvasChat());
+
+      expect(result.current.currentRegionTarget).toEqual({
+        boxId: 'box_0',
+        index: 1,
+        label: '背景',
+        targets: [
+          { boxId: 'box_0', index: 1, label: '背景' },
+          { boxId: 'box_1', index: 2, label: '主体' },
+        ],
+      });
+    });
+
+    it('多选发送时 prompt 与 user 消息都包含完整区域列表', async () => {
+      useEditorStore.setState({
+        selectedBoxId: null,
+        selectedBoxIds: ['box_0', 'box_1'],
+      });
+      const { result } = renderHook(() => useCanvasChat());
+      await waitFor(() => expect(result.current.hasProviders).toBe(true));
+
+      await act(async () => {
+        await result.current.sendMessage('把这两个区域都换成暖色');
+      });
+
+      const [, , apiMessages] = vi.mocked(sendChatMessageWithOptions).mock.calls[0];
+      const lastUserMessage = apiMessages[apiMessages.length - 1];
+      expect(lastUserMessage.content).toContain('Target regions: 2 selected regions');
+      expect(lastUserMessage.content).toContain('### Region 1 ("背景")');
+      expect(lastUserMessage.content).toContain('### Region 2 ("主体")');
+      expect(lastUserMessage.content).toContain('in the same region order');
+
+      const userMsg = useEditorStore.getState().canvasChatMessages.find(m => m.role === 'user');
+      expect(userMsg?.regionTarget).toEqual({
+        boxId: 'box_0',
+        index: 1,
+        label: '背景',
+        targets: [
+          { boxId: 'box_0', index: 1, label: '背景' },
+          { boxId: 'box_1', index: 2, label: '主体' },
+        ],
+      });
+    });
+
+    it('清空选择后回落为整画布提问', async () => {
+      useEditorStore.setState({ selectedBoxId: null, selectedBoxIds: [] });
+      const { result } = renderHook(() => useCanvasChat());
+      await waitFor(() => expect(result.current.hasProviders).toBe(true));
+
+      await act(async () => {
+        await result.current.sendMessage('重新构图');
+      });
+
+      const [, , apiMessages] = vi.mocked(sendChatMessageWithOptions).mock.calls[0];
+      expect(apiMessages.at(-1)?.content).not.toContain('Target regions:');
+      expect(apiMessages.at(-1)?.content).not.toContain('Target region:');
+    });
+
+    it('多区域 Apply 按顺序替换所有目标 box，其余内容保持不变', () => {
+      useEditorStore.setState({
+        boxes: [
+          ...boxes,
+          { id: 'box_2', x: 500, y: 500, w: 100, h: 100, mode: 'obj' as const, text: '', desc: '不相关', colors: [], imageDataUrl: null, imageRole: 'both' as const },
+        ],
+        selectedBoxId: null,
+        selectedBoxIds: ['box_0', 'box_1'],
+      });
+      const { result } = renderHook(() => useCanvasChat());
+      const message = {
+        id: 'msg_multi_region',
+        role: 'assistant' as const,
+        content: `\`\`\`json
+{
+  "high_level_description": "多区域局部更新",
+  "style_description": {
+    "aesthetics": "a",
+    "lighting": "l",
+    "medium": "m",
+    "art_style": "s",
+    "color_palette": []
+  },
+  "compositional_deconstruction": {
+    "background": "b",
+    "elements": [
+      { "type": "obj", "bbox": [10, 10, 300, 300], "desc": "背景更新", "color_palette": [] },
+      { "type": "obj", "bbox": [200, 200, 700, 700], "desc": "主体更新", "color_palette": [] }
+    ]
+  }
+}
+\`\`\``,
+        timestamp: 1000,
+        regionTarget: {
+          boxId: 'box_0',
+          index: 1,
+          label: '背景',
+          targets: [
+            { boxId: 'box_0', index: 1, label: '背景' },
+            { boxId: 'box_1', index: 2, label: '主体' },
+          ],
+        },
+      };
+
+      act(() => {
+        const outcome = result.current.applyMessageOutput(message);
+        expect(outcome.ok).toBe(true);
+        if (!outcome.ok) return;
+        expect(outcome.count).toBe(2);
+      });
+
+      const state = useEditorStore.getState();
+      expect(state.boxes.find(box => box.id === 'box_0')?.desc).toBe('背景更新');
+      expect(state.boxes.find(box => box.id === 'box_1')?.desc).toBe('主体更新');
+      expect(state.boxes.find(box => box.id === 'box_2')?.desc).toBe('不相关');
+      expect(state.highLevelDescription).toBe('');
+    });
   });
 });

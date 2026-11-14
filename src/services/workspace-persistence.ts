@@ -105,14 +105,25 @@ function sanitizeMessage(value: unknown): ChatMessage | null {
   if (!isRecord(value)) return null;
   const role = value.role === 'user' || value.role === 'assistant' ? value.role : null;
   if (!role || typeof value.id !== 'string' || typeof value.content !== 'string') return null;
+  const sanitizeTargetItem = (item: unknown) => (
+    isRecord(item)
+      && typeof item.boxId === 'string'
+      && typeof item.index === 'number'
+      && typeof item.label === 'string'
+      ? { boxId: item.boxId, index: item.index, label: item.label }
+      : null
+  );
+  const regionTargetItem = sanitizeTargetItem(value.regionTarget);
+  const regionTargets = isRecord(value.regionTarget) && Array.isArray(value.regionTarget.targets)
+    ? value.regionTarget.targets
+        .map(sanitizeTargetItem)
+        .filter((item): item is NonNullable<typeof item> => item !== null)
+    : [];
   const regionTarget = isRecord(value.regionTarget)
-    && typeof value.regionTarget.boxId === 'string'
-    && typeof value.regionTarget.index === 'number'
-    && typeof value.regionTarget.label === 'string'
+    && regionTargetItem
     ? {
-      boxId: value.regionTarget.boxId,
-      index: value.regionTarget.index,
-      label: value.regionTarget.label,
+      ...regionTargetItem,
+      ...(regionTargets.length > 0 ? { targets: regionTargets } : {}),
     }
     : undefined;
   return {

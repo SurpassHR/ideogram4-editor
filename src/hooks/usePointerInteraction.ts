@@ -60,7 +60,6 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
 
   const addBox = useEditorStore(s => s.addBox);
   const selectBox = useEditorStore(s => s.selectBox);
-  const openChat = useEditorStore(s => s.openChat);
   const selectBoxes = useEditorStore(s => s.selectBoxes);
   const toggleBoxSelection = useEditorStore(s => s.toggleBoxSelection);
   const clearSelection = useEditorStore(s => s.clearSelection);
@@ -426,8 +425,7 @@ export function usePointerInteraction({ canvasRef, screenToCanvas }: UsePointerI
             ir.lastClickTime = 0;
             ir.lastClickBoxId = null;
           } else {
-            // 单击：选中并呼出针对该 box 的对话框
-            openChat(el.id);
+            // 单击：仅选中 box；Canvas Chat 会自动把它加入区域上下文。
             ir.lastClickTime = now;
             ir.lastClickBoxId = el.id;
           }

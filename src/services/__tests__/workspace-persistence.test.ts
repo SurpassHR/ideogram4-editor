@@ -43,6 +43,54 @@ describe('workspace-persistence', () => {
     });
   });
 
+  it('应保留多区域上下文，并过滤损坏的 targets 项', () => {
+    const target = {
+      boxId: 'box_1',
+      index: 1,
+      label: '主体',
+      targets: [
+        { boxId: 'box_1', index: 1, label: '主体' },
+        { boxId: 123, index: 2, label: '背景' },
+        { boxId: 'box_2', index: 2, label: '背景' },
+      ],
+    };
+    localStorage.setItem(CANVAS_CHAT_STORAGE_KEY, JSON.stringify({
+      schemaVersion: 1,
+      activeSessionId: 'session_1',
+      savedAt: 1000,
+      sessions: [
+        {
+          id: 'session_1',
+          title: '多区域会话',
+          createdAt: 1000,
+          updatedAt: 1000,
+          messages: [
+            {
+              id: 'msg_1',
+              role: 'user',
+              content: '把这两个区域都改成暖色',
+              timestamp: 1000,
+              regionTarget: target,
+            },
+          ],
+          pendingIdeogramOutput: null,
+          pendingQualityReport: null,
+          requestLogs: [],
+        },
+      ],
+    }));
+
+    expect(loadCanvasChatState()?.sessions[0].messages[0].regionTarget).toEqual({
+      boxId: 'box_1',
+      index: 1,
+      label: '主体',
+      targets: [
+        { boxId: 'box_1', index: 1, label: '主体' },
+        { boxId: 'box_2', index: 2, label: '背景' },
+      ],
+    });
+  });
+
   it('损坏的 Canvas Chat JSON 应回退为 null', () => {
     localStorage.setItem(CANVAS_CHAT_STORAGE_KEY, '{bad json');
 

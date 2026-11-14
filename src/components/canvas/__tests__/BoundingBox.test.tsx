@@ -3,7 +3,7 @@ import { render, fireEvent } from '@testing-library/react';
 import BoundingBox from '../BoundingBox';
 import { useEditorStore } from '../../../store';
 import { I18nProvider } from '../../../i18n/context';
-import type { Box, InteractionMode } from '../../../types';
+import type { Box } from '../../../types';
 
 describe('BoundingBox', () => {
   const baseBox: Box = {
@@ -36,7 +36,6 @@ describe('BoundingBox', () => {
     isSelected?: boolean;
     index?: number;
     zoom?: number;
-    interactionMode?: InteractionMode;
   } = {}) {
     const box: Box = { ...baseBox, ...opts.box };
     return render(
@@ -47,7 +46,6 @@ describe('BoundingBox', () => {
           zoom={opts.zoom ?? 1}
           isSelected={opts.isSelected ?? true}
           boxRef={() => {}}
-          interactionMode={opts.interactionMode ?? 'idle'}
         />
       </I18nProvider>,
     );
@@ -147,26 +145,10 @@ describe('BoundingBox', () => {
     expect(state.boxes[0].text).toBe('Hello World');
   });
 
-  it('当 box 被选中且 interactionMode 为 idle 时，应显示 sparkle 按钮', () => {
+  it('选中 box 时不再显示 per-box chat 入口', () => {
     renderBox();
-
-    expect(document.querySelector('.bounding-box-tag .chat-bubble-btn')).not.toBeNull();
-  });
-
-  it('当 interactionMode 不为 idle 时，应隐藏 sparkle 按钮', () => {
-    renderBox({ interactionMode: 'dragging' });
 
     expect(document.querySelector('.chat-bubble-btn')).toBeNull();
-  });
-
-  it('当编辑模式时，sparkle 按钮应可见', () => {
-    useEditorStore.setState({ editingBoxId: 'box_0' });
-
-    renderBox();
-
-    expect(document.querySelector('.chat-bubble-btn')).not.toBeNull();
-    // 不再有 input wrapper
-    expect(document.querySelector('.bounding-box-input-wrapper')).toBeNull();
   });
 
   describe('background image', () => {

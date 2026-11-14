@@ -51,8 +51,8 @@ export const BottomCommandBar: React.FC = () => {
     canvasW,
     canvasH,
     canvasBackgroundUrl,
-    selectedBoxId,
-    selectBox,
+    selectedBoxIds,
+    clearSelection,
     setCanvasDimensions,
     chatModel,
     setChatModel,
@@ -80,7 +80,10 @@ export const BottomCommandBar: React.FC = () => {
   } = useCanvasChat();
 
   const registerAutoGrowTextarea = useAutoGrowTextarea(input, 180);
-  const selectedBoxIndex = boxes.findIndex((b) => b.id === selectedBoxId);
+  const selectedBoxIndex = selectedBoxIds.length === 1
+    ? boxes.findIndex((b) => b.id === selectedBoxIds[0])
+    : -1;
+  const hasBoxSelection = selectedBoxIds.length > 0;
   const isBusy = isGeneratingScene || isExtractingImage || isChatStreaming;
 
   const activeSession =
@@ -267,9 +270,7 @@ export const BottomCommandBar: React.FC = () => {
       e.preventDefault();
       handleSubmitOrAutoComplete();
     } else if (e.key === 'Escape') {
-      if (selectedBoxId) {
-        selectBox(null);
-      }
+      if (hasBoxSelection) clearSelection();
     }
   };
 
@@ -617,8 +618,8 @@ export const BottomCommandBar: React.FC = () => {
             onKeyDown={handleKeyDown}
             disabled={isBusy}
             placeholder={
-              selectedBoxId
-                ? t('commandBar.scopeBox', { idx: selectedBoxIndex + 1 }) + ' selected. Type to instruct...'
+              hasBoxSelection
+                ? t('commandBar.scopePlaceholder')
                 : t('commandBar.placeholder')
             }
             className="bottom-command-bar-input"
@@ -644,12 +645,16 @@ export const BottomCommandBar: React.FC = () => {
               ))}
             </select>
 
-            {selectedBoxId ? (
+            {hasBoxSelection ? (
               <span className="bottom-command-bar-scope-pill is-box">
                 <IconBox size={11} />
-                <span>{t('commandBar.scopeBox', { idx: selectedBoxIndex + 1 })}</span>
+                <span>
+                  {selectedBoxIds.length === 1
+                    ? t('commandBar.scopeBox', { idx: selectedBoxIndex + 1 })
+                    : t('commandBar.scopeBoxes', { count: selectedBoxIds.length })}
+                </span>
                 <button
-                  onClick={() => selectBox(null)}
+                  onClick={clearSelection}
                   title={t('commandBar.clearScope')}
                   style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 0 }}
                 >

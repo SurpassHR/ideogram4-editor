@@ -5,7 +5,6 @@ import { useI18n } from '../../i18n/context';
 import BoundingBox from './BoundingBox';
 import ContextMenu from './ContextMenu';
 import type { ContextMenuItem } from './ContextMenu';
-import ChatPanel from '../chat/ChatPanel';
 
 const SELECTED_BOUNDS_PADDING = 10;
 
@@ -159,7 +158,6 @@ export default function CanvasArea({ zoom, panX, panY, screenToCanvas, onFitToAr
   const clearBoxes = useEditorStore(s => s.clearBoxes);
   const bringToFront = useEditorStore(s => s.bringToFront);
   const sendToBack = useEditorStore(s => s.sendToBack);
-  const openChat = useEditorStore(s => s.openChat);
   const selectBox = useEditorStore(s => s.selectBox);
   const importImageToBox = useEditorStore(s => s.importImageToBox);
   const clearBoxImage = useEditorStore(s => s.clearBoxImage);
@@ -170,7 +168,6 @@ export default function CanvasArea({ zoom, panX, panY, screenToCanvas, onFitToAr
     drawingGhost,
     marqueeGhost,
     dragPreviewOffset,
-    interactionMode,
     altPressed,
     handleCanvasPointerDown,
     handleCanvasPointerMove,
@@ -334,11 +331,9 @@ export default function CanvasArea({ zoom, panX, panY, screenToCanvas, onFitToAr
           if (dataUrl) importImageToBox(boxId, dataUrl);
         }},
         { label: t('contextMenu.clearReferenceImage'), danger: true, onClick: () => clearBoxImage(boxId) },
-        'divider',
-        { label: t('contextMenu.openAiChat'), onClick: () => openChat(boxId) },
       ],
     });
-  }, [selectedBoxIds, selectBox, duplicateBox, cutBox, copyBox, removeBox, bringToFront, sendToBack, importImageToBox, clearBoxImage, openChat, t, layoutLocked]);
+  }, [selectedBoxIds, selectBox, duplicateBox, cutBox, copyBox, removeBox, bringToFront, sendToBack, importImageToBox, clearBoxImage, t, layoutLocked]);
 
   // ─── 画布空白右键菜单 ────────────────────────────────────────
   const handleCanvasContextMenu = useCallback((e: React.MouseEvent) => {
@@ -451,7 +446,6 @@ export default function CanvasArea({ zoom, panX, panY, screenToCanvas, onFitToAr
             zoom={zoom}
             isSelected={selectedBoxIds.includes(box.id)}
             boxRef={registerBoxRef(box.id)}
-            interactionMode={interactionMode}
             onContextMenu={handleBoxContextMenu}
           />
         ))}
@@ -529,8 +523,6 @@ export default function CanvasArea({ zoom, panX, panY, screenToCanvas, onFitToAr
           )}
         </div>
       </div>
-      <ChatPanel />
-
       {/* 右键上下文菜单 */}
       {contextMenu && (
         <ContextMenu

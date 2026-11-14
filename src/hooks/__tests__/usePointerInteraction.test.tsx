@@ -102,7 +102,7 @@ describe('usePointerInteraction - click vs drag', () => {
     });
   });
 
-  it('单击 box（无位移）应选中 box 并打开针对该 box 的 Chat', () => {
+  it('单击 box（无位移）应选中 box，但不打开 per-box Chat', () => {
     render(<TestCanvasWithBox />);
 
     const box = document.getElementById('box_test')!;
@@ -114,11 +114,12 @@ describe('usePointerInteraction - click vs drag', () => {
     // 模拟 pointerup 在 window 上（无位移）
     fireEvent.pointerUp(window, { clientX: 100, clientY: 90 });
 
-    // 验证：box 被选中，但 chat 未打开
+    // 验证：box 被选中，Canvas Chat 会从 selectedBoxIds 读取区域上下文
     const state = useEditorStore.getState();
     expect(state.selectedBoxId).toBe('box_test');
-    expect(state.activeChatBoxId).toBe('box_test');
-    expect(state.isChatOpen).toBe(true);
+    expect(state.selectedBoxIds).toEqual(['box_test']);
+    expect(state.activeChatBoxId).toBeNull();
+    expect(state.isChatOpen).toBe(false);
   });
 
   it('拖拽 bounding box（有位移）应更新位置，不打开 Chat', () => {
