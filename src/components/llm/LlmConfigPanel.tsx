@@ -271,7 +271,7 @@ export default function LlmConfigPanel({ onClose, embedded }: Props) {
                             padding: '5px 12px',
                             fontSize: 12,
                             background: editing.kind === kind ? 'var(--primary)' : 'var(--surface-raised)',
-                            color: editing.kind === kind ? '#111111' : 'var(--text-secondary)',
+                            color: editing.kind === kind ? 'var(--primary-contrast)' : 'var(--text-secondary)',
                             border: editing.kind === kind ? 'none' : '1px solid var(--border)',
                             fontWeight: editing.kind === kind ? 700 : 600,
                             boxShadow: editing.kind === kind ? '0 2px 8px rgba(0, 0, 0, 0.25)' : 'none',
