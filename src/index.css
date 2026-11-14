@@ -9,6 +9,7 @@
   --border: rgba(255, 255, 255, 0.08);
   --border-focus: rgba(255, 255, 255, 0.25);
   --primary: #fafafa;
+  --primary-contrast: #111111;
   --primary-hover: #ffffff;
   --primary-muted: rgba(255, 255, 255, 0.1);
   --accent: #00d4aa;
@@ -156,7 +157,7 @@ body {
 
 .btn {
   background: #fafafa;
-  color: #111111;
+  color: var(--primary-contrast);
   font-weight: 600;
   border: none;
   padding: 8px 18px;
@@ -196,7 +197,7 @@ body {
 
 .btn-primary {
   background: #fafafa;
-  color: #111111;
+  color: var(--primary-contrast);
   font-weight: 600;
   border: none;
 }
@@ -245,7 +246,7 @@ body {
 
 .pill-group input:checked + .pill-label {
   background: #fafafa;
-  color: #111111;
+  color: var(--primary-contrast);
   font-weight: 600;
   border-color: #fafafa;
 }
@@ -594,7 +595,7 @@ body {
   height: calc(24px / var(--box-zoom, 1));
   border-radius: 50%;
   background: #fafafa;
-  color: white;
+  color: var(--primary-contrast);
   border-width: calc(2px / var(--box-zoom, 1));
   border-style: solid;
   border-color: var(--bg);
@@ -1391,7 +1392,7 @@ input[type="color"]::-webkit-color-swatch {
 
 .lang-btn.active {
   background: #fafafa;
-  color: #111111;
+  color: var(--primary-contrast);
   font-weight: 700;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
@@ -1525,7 +1526,7 @@ input[type="color"]::-webkit-color-swatch {
 
 .suggestion-btn.adopt {
   background: #fafafa;
-  color: white;
+  color: var(--primary-contrast);
 }
 
 .suggestion-btn.adopt:hover {
@@ -2071,7 +2072,7 @@ input[type="color"]::-webkit-color-swatch {
 
 .chat-msg-card.user .chat-msg-card-avatar {
   background: #fafafa;
-  color: #fff;
+  color: var(--primary-contrast);
 }
 
 .chat-msg-card.assistant .chat-msg-card-avatar {
@@ -2409,7 +2410,7 @@ input[type="color"]::-webkit-color-swatch {
   border: none;
   border-radius: 8px;
   background: #fafafa;
-  color: white;
+  color: var(--primary-contrast);
   cursor: pointer;
   transition: all 0.15s;
   font-size: 14px;
@@ -2683,7 +2684,7 @@ input[type="color"]::-webkit-color-swatch {
 .toast {
   padding: 8px 14px;
   background: #fafafa;
-  color: #fff;
+  color: var(--primary-contrast);
   font-size: 12px;
   text-align: center;
   flex-shrink: 0;
@@ -3409,7 +3410,7 @@ input[type="color"]::-webkit-color-swatch {
 
 .app-header-nav-btn.active {
   background: #fafafa;
-  color: #111111;
+  color: var(--primary-contrast);
   font-weight: 600;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
@@ -4571,7 +4572,7 @@ input[type="color"]::-webkit-color-swatch {
   left: 50%;
   transform: translateX(-50%);
   background: #fafafa;
-  color: white;
+  color: var(--primary-contrast);
   padding: 8px 20px;
   border-radius: 6px;
   font-size: 13px;
@@ -7128,7 +7129,7 @@ input[type="color"]::-webkit-color-swatch {
   padding: 5px 14px;
   font-size: 12px;
   font-weight: 600;
-  color: #111111;
+  color: var(--primary-contrast);
   border: none;
   border-radius: 9999px;
   background: #fafafa;
