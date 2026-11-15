@@ -5816,70 +5816,6 @@ input[type="color"]::-webkit-color-swatch {
   margin-top: 18px;
 }
 
-/* Layout Quality Dialog */
-.layout-quality-dialog {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  z-index: 150;
-  background: var(--surface-raised);
-  border: 1px solid var(--border, #2a2a4a);
-  border-radius: 12px;
-  padding: 16px;
-  min-width: 320px;
-  max-width: 420px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-}
-
-.layout-quality-dialog-content h3 {
-  margin: 0 0 12px;
-  font-size: 14px;
-  color: var(--accent);
-}
-
-.layout-quality-dialog-summary {
-  margin: -4px 0 12px;
-  color: var(--text-secondary);
-  font-size: 12px;
-  line-height: 1.5;
-}
-
-.layout-quality-dialog-body {
-  margin-bottom: 16px;
-}
-
-.layout-quality-metric {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 6px 0;
-  border-bottom: 1px solid var(--border, #2a2a4a);
-}
-
-.layout-quality-metric:last-child {
-  border-bottom: none;
-}
-
-.metric-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.metric-value {
-  font-size: 13px;
-  color: var(--text);
-  line-height: 1.4;
-}
-
-.layout-quality-dialog-actions {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-}
-
 /* ─── 模型思维链折叠块 ────────────────────────────────── */
 .chat-thinking-block {
   margin: 8px 0;
@@ -6098,57 +6034,6 @@ input[type="color"]::-webkit-color-swatch {
 .canvas-chat-region-bar-dismiss:hover,
 .canvas-chat-region-bar-action:hover {
   border-color: currentColor;
-}
-
-/* ─── 布局质量弹窗：人话 + 可选技术明细 ─────────────────── */
-.layout-quality-dialog-summary {
-  margin: -4px 0 12px;
-  color: var(--text-secondary);
-  font-size: 12px;
-  line-height: 1.5;
-}
-
-.layout-quality-issue-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-bottom: 16px;
-}
-
-.layout-quality-issue {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  padding: 6px 8px;
-  border-radius: 6px;
-  background: rgba(255, 82, 82, 0.08);
-  color: var(--text);
-  font-size: 12px;
-  line-height: 1.5;
-}
-
-.layout-quality-issue-dot {
-  flex-shrink: 0;
-  width: 5px;
-  height: 5px;
-  margin-top: 6px;
-  border-radius: 50%;
-  background: var(--danger, #ff5252);
-}
-
-.layout-quality-issue-detail {
-  margin-top: 2px;
-  color: var(--text-muted, #5a5a7a);
-  font-size: 10px;
-  line-height: 1.4;
-}
-
-.layout-quality-dialog.tech-visible .layout-quality-metric {
-  display: block;
-}
-
-.layout-quality-dialog:not(.tech-visible) .layout-quality-metric {
-  display: none;
 }
 
 /* ─── JsonCodeBlock：json/预览切换 ─────────────────── */
@@ -6508,21 +6393,37 @@ input[type="color"]::-webkit-color-swatch {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
+  gap: 6px;
+  width: auto;
+  min-width: 32px;
   height: 32px;
+  padding: 0 10px;
   border-radius: 6px;
   background: rgba(20, 20, 20, 0.85);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 255, 255, 0.2);
   color: var(--text);
-  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 
 .layer-panel-toggle:hover {
   background: rgba(26, 26, 26, 0.9);
   border-color: rgba(255, 255, 255, 0.4);
+}
+
+.layer-panel-wrapper.is-dragging .layer-panel-toggle {
+  cursor: grabbing;
+}
+
+.layer-panel-toggle-label {
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .layer-panel-toggle.disabled {

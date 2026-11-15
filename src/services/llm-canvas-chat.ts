@@ -165,15 +165,6 @@ Use both the aspect ratio AND the pixel dimensions to calculate bbox coordinates
 Always verify that (ymax - ymin) / 1000 × height_px gives sufficient vertical pixels for the subject before finalizing bbox values.
 `;
 
-// ─── Layout Feedback ─────────────────────────────────────────────────
-
-/**
- * 构建布局反馈提示文本，追加到 user message 中用于重试。
- */
-export function buildLayoutFeedbackPrompt(feedback: string): string {
-  return `\n\n[Layout Feedback]\nThe previous composition had layout quality issues. Please generate an improved version addressing each point:\n\n${feedback}\n\nReturn your complete revised composition as a new \`\`\`json code block.`;
-}
-
 // ─── 上下文构建 ─────────────────────────────────────────────────────
 
 /** 构造画布级 Chat 所需的状态片段 */

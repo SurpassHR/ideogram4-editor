@@ -7,7 +7,6 @@ import type {
   ChatMessageForApi,
   ChatThinkingLevel,
 } from '../types/chat';
-import type { LayoutQualityReport } from './layout-validator';
 import type { Box } from '../types';
 import type { Flux3Globals, JsonScheme, MossCanvasKind, MossGlobals } from '../types/scheme';
 import type {
@@ -242,31 +241,6 @@ function sanitizeRequestLog(value: unknown): CanvasChatRequestLog | null {
   };
 }
 
-function sanitizeQualityReport(value: unknown): CanvasChatSession['pendingQualityReport'] {
-  if (!isRecord(value)) return null;
-  const overallPass = typeof value.overallPass === 'boolean' ? value.overallPass : false;
-  const metrics = Array.isArray(value.metrics) ? (value.metrics as LayoutQualityReport['metrics']) : [];
-  const summaryText = typeof value.summaryText === 'string' ? value.summaryText : '';
-  const userSummary = typeof value.userSummary === 'string' ? value.userSummary : '';
-  const issues: LayoutQualityReport['issues'] = Array.isArray(value.issues)
-    ? (value.issues as LayoutQualityReport['issues'])
-    : metrics
-        .filter(m => !m.passed)
-        .map(m => ({
-          field: m.field,
-          severity: 'error' as const,
-          message: m.message,
-          detail: m.detail,
-        }));
-  return {
-    overallPass,
-    metrics,
-    summaryText,
-    userSummary,
-    issues,
-  };
-}
-
 function sanitizeSession(value: unknown): CanvasChatSession | null {
   if (!isRecord(value)) return null;
   if (typeof value.id !== 'string') return null;
@@ -283,7 +257,6 @@ function sanitizeSession(value: unknown): CanvasChatSession | null {
     updatedAt: safeNumber(value.updatedAt, Date.now()),
     messages,
     pendingIdeogramOutput: isRecord(value.pendingIdeogramOutput) ? value.pendingIdeogramOutput as unknown as CanvasChatSession['pendingIdeogramOutput'] : null,
-    pendingQualityReport: sanitizeQualityReport(value.pendingQualityReport),
     requestLogs,
   };
 }

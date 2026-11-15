@@ -50,13 +50,11 @@ describe('CanvasChatPanel', () => {
         updatedAt: 1000,
         messages: [],
         pendingIdeogramOutput: null,
-        pendingQualityReport: null,
         requestLogs: [],
       }],
       activeCanvasChatSessionId: 'session_1',
       activeCanvasChatRequestId: null,
       pendingIdeogramOutput: null,
-      pendingQualityReport: null,
       isCanvasChatLoading: false,
       isLayoutStreaming: false,
       layoutStreamRecovery: null,
@@ -112,7 +110,6 @@ describe('CanvasChatPanel', () => {
         updatedAt: 1000,
         messages: [assistant],
         pendingIdeogramOutput: null,
-        pendingQualityReport: null,
         requestLogs: [],
       }],
       activeCanvasChatSessionId: 'session_1',
@@ -207,7 +204,6 @@ describe('CanvasChatPanel', () => {
           updatedAt: 1000,
           messages: [message],
           pendingIdeogramOutput: null,
-          pendingQualityReport: null,
           requestLogs: [],
         }],
       });
@@ -258,7 +254,6 @@ describe('CanvasChatPanel', () => {
           updatedAt: 1000,
           messages: [message],
           pendingIdeogramOutput: null,
-          pendingQualityReport: null,
           requestLogs: [],
         }],
       });
@@ -272,7 +267,6 @@ describe('CanvasChatPanel', () => {
       expect(state.boxes).toHaveLength(1);
       expect(state.highLevelDescription).toBe('Test scene');
       expect(state.globalPalette).toEqual(['#FF0000']);
-      expect(state.pendingQualityReport).not.toBeNull();
 
       // 应用后按钮文字变为 Re-Apply
       const reapplyBtn = document.querySelector('.chat-msg-card-apply-ghost.reapplied');
@@ -314,7 +308,6 @@ describe('CanvasChatPanel', () => {
           updatedAt: 1000,
           messages: [message],
           pendingIdeogramOutput: null,
-          pendingQualityReport: null,
           requestLogs: [],
         }],
       });
@@ -353,7 +346,6 @@ describe('CanvasChatPanel', () => {
           updatedAt: 1000,
           messages: [message],
           pendingIdeogramOutput: null,
-          pendingQualityReport: null,
           requestLogs: [],
         }],
       });
@@ -391,7 +383,7 @@ describe('CanvasChatPanel', () => {
       expect(sizeSlider.value).toBe('4096');
     });
 
-    it('点击 per-message Apply pill 应直接应用布局并生成布局质量诊断，不弹确认窗', async () => {
+    it('点击 per-message Apply pill 应直接应用布局，不弹确认窗', async () => {
       const message = {
         id: 'msg_poor',
         role: 'assistant' as const,
@@ -429,7 +421,6 @@ describe('CanvasChatPanel', () => {
           updatedAt: 1000,
           messages: [message],
           pendingIdeogramOutput: null,
-          pendingQualityReport: null,
           requestLogs: [],
         }],
       });
@@ -442,7 +433,6 @@ describe('CanvasChatPanel', () => {
       const dialog = document.querySelector('.canvas-chat-confirm');
       expect(dialog).toBeNull();
       expect(useEditorStore.getState().boxes).toHaveLength(1);
-      expect(useEditorStore.getState().pendingQualityReport).not.toBeNull();
       // 应用后按钮应带 reapplied 类
       expect(document.querySelector('.chat-msg-card-apply-ghost.reapplied')).not.toBeNull();
     });
@@ -489,7 +479,6 @@ describe('CanvasChatPanel', () => {
           updatedAt: 1000,
           messages: [],
           pendingIdeogramOutput: null,
-          pendingQualityReport: null,
           requestLogs: [{
             id: 'request_1',
             sessionId: 'session_1',
@@ -560,7 +549,6 @@ describe('CanvasChatPanel', () => {
           updatedAt: 1000,
           messages: [],
           pendingIdeogramOutput: null,
-          pendingQualityReport: null,
           requestLogs: [{
             id: 'request_1',
             sessionId: 'session_1',
@@ -629,7 +617,6 @@ describe('CanvasChatPanel', () => {
             updatedAt: 1000,
             messages: [message],
             pendingIdeogramOutput: null,
-            pendingQualityReport: null,
             requestLogs: [],
           },
           {
@@ -639,7 +626,6 @@ describe('CanvasChatPanel', () => {
             updatedAt: 1000,
             messages: [],
             pendingIdeogramOutput: null,
-            pendingQualityReport: null,
             requestLogs: [],
           },
         ],
@@ -726,7 +712,6 @@ describe('CanvasChatPanel', () => {
           updatedAt: 1000,
           messages: [],
           pendingIdeogramOutput: null,
-          pendingQualityReport: null,
           requestLogs: [{
             id: 'request_1',
             sessionId: 'session_1',
@@ -821,7 +806,6 @@ describe('CanvasChatPanel', () => {
           updatedAt: 1000,
           messages: [message],
           pendingIdeogramOutput: null,
-          pendingQualityReport: null,
           requestLogs: [],
         }],
       });
@@ -837,7 +821,6 @@ describe('CanvasChatPanel', () => {
       expect(state.boxes).toHaveLength(2);
       expect(state.highLevelDescription).toBe('Test scene');
       expect(state.aesthetics).toBe('Minimal');
-      expect(state.pendingQualityReport).not.toBeNull();
 
       // 应用后按钮文字变为 Re-Apply，带 reapplied 类
       const reapplyBtn = document.querySelector('.chat-msg-card-apply-ghost.reapplied');

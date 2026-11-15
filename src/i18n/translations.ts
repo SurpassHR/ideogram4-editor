@@ -488,30 +488,6 @@ export interface Translations {
     empty: string;
     askAboutRegion: string;
   };
-  layoutQuality: {
-    title: string;
-    passedTitle: string;
-    pass: string;
-    fail: string;
-    accept: string;
-    regenerate: string;
-    metric: {
-      element_area: string;
-      coverage: string;
-      spacing: string;
-      margin: string;
-      element_count: string;
-      aspect_ratio: string;
-    };
-    issue: {
-      element_area: string;
-      coverage: string;
-      spacing: string;
-      margin: string;
-      element_count: string;
-      aspect_ratio: string;
-    };
-  };
   commandBar: {
     placeholder: string;
     autoComplete: string;
@@ -1064,35 +1040,11 @@ const en: Translations = {
   },
 
   layerPanel: {
-    title: 'Layers',
-    toggle: 'Toggle Layer Panel',
+    title: 'Boxes',
+    toggle: 'Boxes',
     close: 'Close',
     empty: 'No boxes',
     askAboutRegion: 'Ask AI about region {index}',
-  },
-  layoutQuality: {
-    title: 'Layout Quality Check',
-    passedTitle: 'Layout Check Passed',
-    pass: 'Layout check passed.',
-    fail: 'Layout issues detected:',
-    accept: 'Accept Current Layout',
-    regenerate: 'Regenerate',
-    metric: {
-      element_area: 'Element Size',
-      coverage: 'Canvas Coverage',
-      spacing: 'Element Spacing',
-      margin: 'Canvas Margin',
-      element_count: 'Element Count',
-      aspect_ratio: 'Aspect Ratio',
-    },
-    issue: {
-      element_area: 'Some elements are very small — try making them bigger.',
-      coverage: 'The elements do not fill the frame well — spread them out or add more.',
-      spacing: 'Some elements are too close together or overlap.',
-      margin: 'Some elements are too close to the edge of the frame.',
-      element_count: 'The number of elements does not fit this composition.',
-      aspect_ratio: 'Some elements are very long and thin.',
-    },
   },
   commandBar: {
     placeholder: 'Describe scene or ask AI...',
@@ -1646,35 +1598,11 @@ const zh: Translations = {
   },
 
   layerPanel: {
-    title: '图层',
-    toggle: '图层面板',
+    title: '边界框',
+    toggle: '边界框',
     close: '关闭',
     empty: '暂无边界框',
     askAboutRegion: '针对区域 {index} 提问',
-  },
-  layoutQuality: {
-    title: '布局质量检测',
-    passedTitle: '布局检测通过',
-    pass: '布局质量检测通过。',
-    fail: '布局存在以下问题：',
-    accept: '接受当前布局',
-    regenerate: '重新生成',
-    metric: {
-      element_area: '元素大小',
-      coverage: '画布覆盖率',
-      spacing: '元素间距',
-      margin: '边缘距离',
-      element_count: '元素数量',
-      aspect_ratio: '宽高比',
-    },
-    issue: {
-      element_area: '有些元素太小了，试着放大一些。',
-      coverage: '元素没有很好地铺满画面，试着拉开距离或补几个元素。',
-      spacing: '有些元素靠得太近或者重叠了。',
-      margin: '有些元素太贴近画面边缘。',
-      element_count: '元素数量不太适合这个构图。',
-      aspect_ratio: '有些元素过于细长。',
-    },
   },
   commandBar: {
     placeholder: '描述画面或向 AI 提问...',

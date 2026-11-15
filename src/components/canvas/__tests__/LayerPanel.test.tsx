@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { render, fireEvent } from '@testing-library/react';
+import { render, fireEvent, screen } from '@testing-library/react';
 import LayerPanel from '../LayerPanel';
 import { I18nProvider } from '../../../i18n/context';
 import { useEditorStore } from '../../../store';
@@ -70,5 +70,18 @@ describe('LayerPanel 序号与 tag 条统一', () => {
     fireEvent.click(items[1]);
 
     expect(useEditorStore.getState().selectedBoxIds).toEqual(['box_0']);
+  });
+
+  it('按钮显示 Boxes，点击面板外部不会收起列表', () => {
+    renderPanel();
+
+    expect(screen.getByRole('button', { name: 'Boxes' }).textContent).toContain('Boxes');
+    expect(document.querySelector('.layer-panel')).not.toBeNull();
+
+    fireEvent.mouseDown(document.body);
+    fireEvent.pointerDown(document.body);
+
+    expect(useEditorStore.getState().isLayerPanelOpen).toBe(true);
+    expect(document.querySelector('.layer-panel')).not.toBeNull();
   });
 });

@@ -30,7 +30,6 @@ const makeCanvasSession = (
   updatedAt: 1000,
   messages,
   pendingIdeogramOutput: null,
-  pendingQualityReport: null,
   requestLogs: [],
 });
 
@@ -392,7 +391,6 @@ describe('EditorStore', () => {
         isCanvasChatOpen: false,
         canvasChatMessages: [],
         pendingIdeogramOutput: null,
-        pendingQualityReport: null,
         canvasChatSessions: [makeCanvasSession('session_1')],
         activeCanvasChatSessionId: 'session_1',
         activeCanvasChatRequestId: null,
@@ -645,35 +643,23 @@ describe('EditorStore', () => {
         });
       });
 
-      it('pending output 和质量报告应归属当前会话', () => {
+      it('pending output 应归属当前会话', () => {
         const output: IdeogramOutput = {
           high_level_description: 'Test scene',
           style_description: { aesthetics: '', lighting: '', color_palette: [] },
           compositional_deconstruction: { background: '', elements: [] },
         };
-        const report = {
-          overallPass: false,
-          metrics: [],
-          summaryText: 'layout feedback',
-          userSummary: '布局需要调整',
-          issues: [],
-        };
 
         useEditorStore.getState().setPendingIdeogramOutput(output);
-        useEditorStore.getState().setPendingQualityReport(report);
 
         const state = useEditorStore.getState() as unknown as {
           pendingIdeogramOutput: IdeogramOutput | null;
-          pendingQualityReport: typeof report | null;
           canvasChatSessions: Array<{
             pendingIdeogramOutput: IdeogramOutput | null;
-            pendingQualityReport: typeof report | null;
           }>;
         };
         expect(state.pendingIdeogramOutput).toBe(output);
-        expect(state.pendingQualityReport).toBe(report);
         expect(state.canvasChatSessions[0].pendingIdeogramOutput).toBe(output);
-        expect(state.canvasChatSessions[0].pendingQualityReport).toBe(report);
       });
 
       it('clearCanvasChat 应只清空当前会话并保留其他画布状态', () => {

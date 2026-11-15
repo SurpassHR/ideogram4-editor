@@ -2,7 +2,6 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useEditorStore } from '../store';
 import { getLlmProviders } from '../components/llm/api';
 import { sendChatMessageWithOptions, abortActiveRequest } from '../services/llm-stream';
-import { buildLayoutFeedbackPrompt } from '../services/llm-canvas-chat';
 import { getAdapter } from '../services/skill-adapters';
 import { isSkillExtractionError } from '../services/skill-adapters/types';
 import type { SkillExtraction } from '../services/skill-adapters/types';
@@ -17,7 +16,6 @@ import { getBuiltinSkills } from '../skills/builtin-skills';
 import { resolveActiveSkill } from '../types/skill';
 import { computeTargetCanvasSize, formatAspectRatio, normalizeCanvasSize } from '../utils/canvas-dims';
 import { buildMultimodalMessages } from '../services/llm-chat';
-import { validateLayout } from '../services/layout-validator';
 import { generateMessageId, createUserMessage, createAssistantMessage } from '../types/chat';
 import type { LlmProvider, ProviderKind } from '../components/llm/types';
 import { DEFAULT_BASE_URLS } from '../components/llm/types';
@@ -303,7 +301,6 @@ export function useCanvasChat() {
   const setCanvasChatOpen = useEditorStore(s => s.setCanvasChatOpen);
   const addCanvasChatMessage = useEditorStore(s => s.addCanvasChatMessage);
   const setPendingIdeogramOutput = useEditorStore(s => s.setPendingIdeogramOutput);
-  const setPendingQualityReport = useEditorStore(s => s.setPendingQualityReport);
   const clearCanvasChat = useEditorStore(s => s.clearCanvasChat);
   const startCanvasChatRequest = useEditorStore(s => s.startCanvasChatRequest);
   const appendCanvasChatRequestStep = useEditorStore(s => s.appendCanvasChatRequestStep);
@@ -321,7 +318,6 @@ export function useCanvasChat() {
   const setChatModel = useEditorStore(s => s.setChatModel);
   const setChatResponseLang = useEditorStore(s => s.setChatResponseLang);
   const setCanvasChatTargetSize = useEditorStore(s => s.setCanvasChatTargetSize);
-  const pendingQualityReport = useEditorStore(s => s.pendingQualityReport);
 
   // 画布状态（用于上下文构建）
   const boxes = useEditorStore(s => s.boxes);
@@ -423,10 +419,7 @@ export function useCanvasChat() {
     }
   }
 
-  /**
-   * 将给定的 skill 输出应用到画布，并基于已落地布局生成质量诊断。
-   * 返回落框数量；null 表示该消息无法按当前 skill 的格式解析。
-   */
+  /** 将给定的 skill 输出应用到画布。 */
   const applyExtraction = useCallback(
     (
       extraction: SkillExtraction,
@@ -479,25 +472,12 @@ export function useCanvasChat() {
         ? applyRegionExtractionsToStore(effective, store, normalizedRegionBoxIds)
         : applyExtractionToStore(effective, store);
     }
-    if (count === 0) {
-      store.setPendingQualityReport(null);
-      return { count: 0, warnings: effective.warnings };
-    }
-
-    if (isRegionApply) {
-      // 区域 Apply：只诊断受影响的元素
-      store.setPendingQualityReport(null);
-    } else {
-      // 画板可能已被 Apply 改尺寸，质量诊断使用最新尺寸
-      const after = useEditorStore.getState();
-      store.setPendingQualityReport(validateLayout(effective.elements, after.canvasW, after.canvasH));
-    }
     return { count, warnings: effective.warnings };
     },
     [setPendingApply, setPendingIdeogramOutput],
   );
 
-  const sendMessage = useCallback(async (content: string, retryContext?: { feedback?: string }) => {
+  const sendMessage = useCallback(async (content: string) => {
     const requestId = startCanvasChatRequest(content.slice(0, 80));
     const userMessage = createUserMessage(content);
     // 区域化提问：默认跟随画布当前选中的边界框（可被用户解除）
@@ -644,7 +624,6 @@ export function useCanvasChat() {
         : null;
       let enriched = `${targetHint}\n\nCurrent canvas state:\n\`\`\`json\n${contextJson}\n\`\`\`\n\nMy composition request: ${apiMessages[lastUserIdx].content}`;
       if (regionHint) enriched = `${regionHint}\n\n${enriched}`;
-      if (retryContext?.feedback) enriched += buildLayoutFeedbackPrompt(retryContext.feedback);
       apiMessages[lastUserIdx] = { role: 'user', content: enriched };
     }
     const systemPrompt = skillAdapter.buildSystemPrompt(activeSkill, {
@@ -873,7 +852,6 @@ export function useCanvasChat() {
               );
             }
 
-            setPendingQualityReport(null);
             appendCanvasChatRequestStep(requestId, {
               kind: 'done',
               status: 'success',
@@ -938,7 +916,7 @@ export function useCanvasChat() {
     aesthetics, lighting, medium, artStyle, background, photoArtStyleMode,
     canvasChatMessages, chatResponseLang, chatStreamEnabled, chatThinkingLevel, canvasChatTargetSize,
     activeSkill, skillAdapter, activeSkillReferencePaths, applyExtraction,
-    setPendingIdeogramOutput, setPendingQualityReport, canvasBackgroundUrl,
+    setPendingIdeogramOutput, canvasBackgroundUrl,
     regionTargetDismissed,
   ]);
 
@@ -1032,20 +1010,6 @@ export function useCanvasChat() {
     setSelectedPresetId(presetId);
   }, []);
 
-  /** 用户点击重新生成时的处理 */
-  const handleRegenerate = useCallback(() => {
-    const report = useEditorStore.getState().pendingQualityReport;
-    if (!report) return;
-    setPendingQualityReport(null);
-    setPendingIdeogramOutput(null);
-    // 找到最后一条 user 消息
-    const msgs = useEditorStore.getState().canvasChatMessages;
-    const lastUserMsg = [...msgs].reverse().find(m => m.role === 'user');
-    if (!lastUserMsg) return;
-    // 用 feedback 重新调用 sendMessage
-    sendMessage(lastUserMsg.content, { feedback: report.summaryText });
-  }, [sendMessage, setPendingQualityReport, setPendingIdeogramOutput]);
-
   /** 重试：重新发送触发指定 assistant 消息的用户消息 */
   const retryMessage = useCallback((messageId: string) => {
     const msgs = useEditorStore.getState().canvasChatMessages;
@@ -1111,7 +1075,6 @@ export function useCanvasChat() {
     isCanvasChatOpen,
     messages,
     pendingIdeogramOutput,
-    pendingQualityReport,
     isLoading,
     modelOptions,
     chatModel,
@@ -1140,7 +1103,6 @@ export function useCanvasChat() {
     handleSelectPreset,
     refreshProviders,
     hasProviders: modelOptions.length > 0,
-    handleRegenerate,
     // 区域化提问
     currentRegionTarget,
     regionTargetDismissed,

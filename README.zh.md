@@ -48,7 +48,6 @@ Ideogram4 Editor 是一个基于 Web 的可视化编辑器，专为 [Ideogram 4]
 - 💬 **画布级构图对话** — Canvas Chat 面板，AI 返回结构化 IdeogramOutput 并支持 Apply/Regenerate 工作流；Apply 会连带应用 JSON 中的画布尺寸与比例
 - ⚙️ **通用设置面板** — Canvas Chat 自动最大化、工作区备份管理
 - 💾 **工作区备份** — 桌面版使用本地 `.zip` 导出/导入；旧 Web 迁移桥保留 Gist 备份
-- ✅ **布局质量校验** — 生成前软校验（面积覆盖率、间距、边距、宽高比）
 - 🧩 **Skill 能力** — 兼容 Agent Skill 的包（`SKILL.md` + `references/`）驱动画布 AI；内置 **Ideogram 4**、**FLUX 3 Klein**、**MOSS-Image** 三个上游快照，并支持从 GitHub 链接、本地文件夹或粘贴 `SKILL.md` 导入。选中的 skill 决定 system prompt、输出校验与 Apply 规则；「复制模型 prompt」可直接把原始产出交给对应工作流
 
 ---
@@ -152,7 +151,6 @@ src/
 │   │   ├── ContextMenu.tsx               # 通用右键上下文菜单（createPortal→body）
 │   │   ├── ChatBubbleButton.tsx          # ✨ 按钮：选中 box 右上角
 │   │   ├── CanvasChatPanel.tsx           # 画布级 AI 构图浮动面板
-│   │   ├── LayoutQualityDialog.tsx       # 布局质量校验结果弹窗
 │   │   └── LayerPanel.tsx                # 图层管理面板
 │   ├── panels/
 │   │   ├── GlobalSettingsPanel.tsx        # 全局设置：模式/描述/美学/光照/媒介/背景/调色板
@@ -199,7 +197,6 @@ src/
 │   ├── llm-chat.ts                       # sendChatMessage() 多提供商 LLM + 多模态
 │   ├── llm-stream.ts                     # sendChatMessageStream() SSE 流式服务层
 │   ├── llm-canvas-chat.ts               # Canvas Chat system prompt + JSON 提取
-│   ├── layout-validator.ts              # 布局质量软校验
 │   ├── gist-backup.ts                   # GitHub Gist CRUD
 │   ├── workspace-backup.ts               # 备份包构建/解析/恢复预览
 │   └── workspace-persistence.ts          # workspace 状态持久化

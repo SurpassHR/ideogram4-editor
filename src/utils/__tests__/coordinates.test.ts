@@ -187,7 +187,7 @@ describe('detectBboxSystem + bboxToPixels integration', () => {
   });
 });
 
-// ─── Normalize to 0-1000 (for validateLayout pre-processing) ───────
+// ─── Normalize bbox to 0-1000 ──────────────────────────────────────
 
 describe('normalize bbox to 0-1000 scale', () => {
   it('should multiply fractional (0-1) coords by 1000', () => {
@@ -213,7 +213,7 @@ describe('normalize bbox to 0-1000 scale', () => {
       return { bbox: [y1 * 1000, x1 * 1000, y2 * 1000, x2 * 1000] as [number, number, number, number] };
     });
 
-    // Coverage calculation (same as validateLayout)
+    // Coverage calculation
     let totalArea = 0;
     for (const el of normed) {
       const [y1, x1, y2, x2] = el.bbox;

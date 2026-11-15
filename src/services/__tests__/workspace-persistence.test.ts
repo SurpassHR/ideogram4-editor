@@ -30,7 +30,6 @@ describe('workspace-persistence', () => {
           updatedAt: 1000,
           messages: [{ id: 'msg_1', role: 'user', content: '海报', timestamp: 1000 }],
           pendingIdeogramOutput: null,
-          pendingQualityReport: null,
           requestLogs: [],
         },
       ],
@@ -74,7 +73,6 @@ describe('workspace-persistence', () => {
             },
           ],
           pendingIdeogramOutput: null,
-          pendingQualityReport: null,
           requestLogs: [],
         },
       ],
@@ -110,7 +108,6 @@ describe('workspace-persistence', () => {
           updatedAt: 1000,
           messages: [],
           pendingIdeogramOutput: null,
-          pendingQualityReport: null,
           requestLogs: [
             {
               id: 'request_1',
@@ -144,7 +141,6 @@ describe('workspace-persistence', () => {
           updatedAt: 1000,
           messages: [],
           pendingIdeogramOutput: null,
-          pendingQualityReport: null,
           requestLogs: [
             {
               id: 'request_1',

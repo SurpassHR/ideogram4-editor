@@ -93,8 +93,26 @@ test('box clicks drive Canvas Chat region context without opening per-box chat',
     await boxes.nth(1).click({ modifiers: ['Meta'] });
     await expect(page.locator('.bottom-command-bar-scope-pill.is-box')).toContainText('2 boxes');
 
+    const boxesToggle = page.locator('.layer-panel-toggle');
+    const boxList = page.locator('.layer-panel');
+    await expect(boxesToggle).toContainText('Boxes');
+    await boxesToggle.click();
+    await expect(boxList).toBeVisible();
+
+    const toggleBeforeDrag = await boxesToggle.boundingBox();
+    expect(toggleBeforeDrag).not.toBeNull();
+    await page.mouse.move(toggleBeforeDrag!.x + toggleBeforeDrag!.width / 2, toggleBeforeDrag!.y + toggleBeforeDrag!.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(toggleBeforeDrag!.x - 180, toggleBeforeDrag!.y + 90, { steps: 6 });
+    await page.mouse.up();
+    const toggleAfterDrag = await boxesToggle.boundingBox();
+    expect(toggleAfterDrag).not.toBeNull();
+    expect(toggleAfterDrag!.x).toBeLessThan(toggleBeforeDrag!.x - 100);
+    await expect(boxList).toBeVisible();
+
     await page.mouse.click(bounds!.x + bounds!.width - 24, bounds!.y + bounds!.height - 24);
     await expect(page.locator('.bottom-command-bar-scope-pill.is-global')).toBeVisible();
+    await expect(boxList).toBeVisible();
   } finally {
     if (app) await app.close();
     await rm(userData, { recursive: true, force: true });

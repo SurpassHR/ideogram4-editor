@@ -59,7 +59,6 @@ src/
 │   │   ├── ContextMenu.tsx           # 通用右键上下文菜单（createPortal→body）
 │   │   ├── ChatBubbleButton.tsx      # ✨ 按钮：选中 box 右上角，编辑时在 input 内部右侧
 │   │   ├── CanvasChatPanel.tsx       # 画布级 AI 构图浮动面板：消息/模型/语言/预设/Apply 弹窗
-│   │   ├── LayoutQualityDialog.tsx   # 布局质量校验结果弹窗（Accept / Regenerate）
 │   │   └── LayerPanel.tsx            # 图层管理面板：显示所有 box 列表，支持选中/重命名/可见性
 │   ├── panels/
 │   │   ├── GlobalSettingsPanel.tsx    # 全局设置：模式/描述/美学/光照/媒介/背景/调色板
@@ -114,7 +113,6 @@ src/
 │   ├── skill-apply.ts               # extraction → 画布落框（所有 adapter 共用）
 │   ├── skill-adapters/              # 输出适配器：ideogram4 / flux3-layout / moss-layout / none
 │   ├── moss-compile.ts              # MOSS compile_prompt.py 的 TS 重实现（中心原点 yxyx）
-│   ├── layout-validator.ts          # 布局质量软校验（面积/覆盖率/间距/边距/数量/宽高比）
 │   ├── canvas-image-store.ts        # 当前画布图像（box 参考图/背景图）的 IndexedDB 存取
 │   ├── gist-backup.ts               # GitHub Gist CRUD：创建/更新/读取备份
 │   ├── workspace-backup.ts           # 备份包构建/解析/恢复预览生成

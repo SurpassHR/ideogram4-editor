@@ -46,7 +46,6 @@ Ideogram4 Editor is a web-based visual tool for crafting structured JSON prompts
 - 💬 **Canvas Chat** — Canvas-level AI composition dialog returning structured IdeogramOutput with Apply/Regenerate workflow; Apply also adopts the canvas size and aspect ratio given in the JSON
 - ⚙️ **General Settings** — Settings for Canvas Chat auto-maximize and canvas-level preferences
 - 💾 **Workspace Backup** — local `.zip` export/import in the desktop app; the legacy Web migration bridge retains Gist backup
-- ✅ **Layout Quality Validation** — Soft validation (area coverage, spacing, aspect ratios) before image generation
 - 🧩 **Skills** — Agent-Skill-compatible packages (`SKILL.md` + `references/`) drive the canvas AI; built-in snapshots for **Ideogram 4**, **FLUX 3 Klein** and **MOSS-Image**, plus import from a GitHub URL, a local folder or pasted `SKILL.md`. The selected skill supplies the system prompt, output validation and Apply rules; "Copy model prompt" hands the raw output to the matching workflow
 
 ---

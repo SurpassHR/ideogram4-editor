@@ -22,7 +22,6 @@ function makeCanvasSession(id: string, messages: ChatMessage[] = []) {
     updatedAt: 1000,
     messages,
     pendingIdeogramOutput: null,
-    pendingQualityReport: null,
     requestLogs: [],
   };
 }
@@ -60,7 +59,6 @@ describe('useCanvasChat', () => {
       activeCanvasChatSessionId: 'session_1',
       activeCanvasChatRequestId: null,
       pendingIdeogramOutput: null,
-      pendingQualityReport: null,
       isCanvasChatLoading: false,
       isLayoutStreaming: false,
       layoutStreamRecovery: null,

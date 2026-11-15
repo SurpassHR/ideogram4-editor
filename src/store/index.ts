@@ -31,7 +31,6 @@ import {
   readStoredJsonScheme,
   writeStoredJsonScheme,
 } from '../utils/json-schemes';
-import type { LayoutQualityReport } from '../services/layout-validator';
 import type { DesktopBootstrap, DesktopSettings } from '../../shared/desktop-contract';
 import {
   loadCanvasChatState,
@@ -103,7 +102,6 @@ function createCanvasChatSessionRecord(title = '新会话'): CanvasChatSession {
     updatedAt: now,
     messages: [],
     pendingIdeogramOutput: null,
-    pendingQualityReport: null,
     requestLogs: [],
   };
 }
@@ -120,7 +118,6 @@ function createInitialCanvasChatRuntime() {
       activeSessionId: activeSession.id,
       messages: activeSession.messages,
       pendingIdeogramOutput: activeSession.pendingIdeogramOutput,
-      pendingQualityReport: activeSession.pendingQualityReport,
     };
   }
   return {
@@ -128,7 +125,6 @@ function createInitialCanvasChatRuntime() {
     activeSessionId: initialCanvasChatSession.id,
     messages: initialCanvasChatSession.messages,
     pendingIdeogramOutput: initialCanvasChatSession.pendingIdeogramOutput,
-    pendingQualityReport: initialCanvasChatSession.pendingQualityReport,
   };
 }
 
@@ -788,10 +784,6 @@ interface EditorStore {
   ) => void;
   finishCanvasChatRequest: (requestId: string, status: 'success' | 'error', detail?: string) => void;
   replaceCanvasChatState: (state: PersistedCanvasChatStateV1) => void;
-
-  // 布局质量检测结果
-  pendingQualityReport: LayoutQualityReport | null;
-  setPendingQualityReport: (report: LayoutQualityReport | null) => void;
 
   // LLM 回复语言偏好（persist）
   chatResponseLang: string;
@@ -1562,7 +1554,6 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       activeCanvasChatRequestId: null,
       canvasChatMessages: [],
       pendingIdeogramOutput: null,
-      pendingQualityReport: null,
     }));
     persistCanvasChatRuntime(get());
     return session.id;
@@ -1577,7 +1568,6 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       activeCanvasChatRequestId: null,
       canvasChatMessages: session.messages,
       pendingIdeogramOutput: session.pendingIdeogramOutput,
-      pendingQualityReport: session.pendingQualityReport,
     };
     });
     persistCanvasChatRuntime(get());
@@ -1610,7 +1600,6 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
         activeCanvasChatRequestId: null,
         canvasChatMessages: [],
         pendingIdeogramOutput: null,
-        pendingQualityReport: null,
       };
     }
 
@@ -1626,7 +1615,6 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       activeCanvasChatRequestId: null,
       canvasChatMessages: nextSession.messages,
       pendingIdeogramOutput: nextSession.pendingIdeogramOutput,
-      pendingQualityReport: nextSession.pendingQualityReport,
     };
     });
     persistCanvasChatRuntime(get());
@@ -1640,7 +1628,6 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
         ? {
             canvasChatMessages: [],
             pendingIdeogramOutput: null,
-            pendingQualityReport: null,
             activeCanvasChatRequestId: null,
           }
         : {}),
@@ -1651,7 +1638,6 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
               updatedAt: Date.now(),
               messages: [],
               pendingIdeogramOutput: null,
-              pendingQualityReport: null,
               requestLogs: [],
             }
           : session
@@ -1727,7 +1713,6 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     set(state => ({
       canvasChatMessages: [],
       pendingIdeogramOutput: null,
-      pendingQualityReport: null,
       activeCanvasChatRequestId: null,
       canvasChatSessions: state.canvasChatSessions.map(session =>
         session.id === state.activeCanvasChatSessionId
@@ -1736,7 +1721,6 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
               updatedAt: Date.now(),
               messages: [],
               pendingIdeogramOutput: null,
-              pendingQualityReport: null,
               requestLogs: [],
             }
           : session
@@ -1876,22 +1860,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       activeCanvasChatRequestId: null,
       canvasChatMessages: activeSession.messages,
       pendingIdeogramOutput: activeSession.pendingIdeogramOutput,
-      pendingQualityReport: activeSession.pendingQualityReport,
     });
-    persistCanvasChatRuntime(get());
-  },
-
-  // 布局质量检测结果
-  pendingQualityReport: initialCanvasChatRuntime.pendingQualityReport,
-  setPendingQualityReport: (report) => {
-    set(state => ({
-      pendingQualityReport: report,
-      canvasChatSessions: state.canvasChatSessions.map(session =>
-        session.id === state.activeCanvasChatSessionId
-          ? { ...session, pendingQualityReport: report, updatedAt: Date.now() }
-          : session
-      ),
-    }));
     persistCanvasChatRuntime(get());
   },
 

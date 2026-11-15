@@ -1,7 +1,6 @@
 /** AI 对话与优化功能的消息类型定义 */
 
 import type { IdeogramOutput } from './index';
-import type { LayoutQualityReport } from '../services/layout-validator';
 
 /** Chat 请求的显式思考强度设置 */
 export type ChatThinkingLevel = 'off' | 'low' | 'medium' | 'high';
@@ -55,7 +54,6 @@ export interface CanvasChatSession {
   updatedAt: number;
   messages: ChatMessage[];
   pendingIdeogramOutput: IdeogramOutput | null;
-  pendingQualityReport: LayoutQualityReport | null;
   requestLogs: CanvasChatRequestLog[];
 }
 

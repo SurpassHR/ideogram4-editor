@@ -3,10 +3,8 @@ import { useRef, useEffect, useLayoutEffect } from 'react';
 import { useEditorStore } from '../../store';
 import { useArtboardZoom } from '../../hooks/useArtboardZoom';
 import { useI18n } from '../../i18n/context';
-import { useCanvasChat } from '../../hooks/useCanvasChat';
 import CanvasArea from './CanvasArea';
 import LayerPanel from './LayerPanel';
-import LayoutQualityDialog from './LayoutQualityDialog';
 import ArtboardToolbar from './ArtboardToolbar';
 import { IconRefresh, IconTrash } from '../ui/icons';
 
@@ -17,9 +15,6 @@ export default function Artboard() {
   const boxes = useEditorStore(s => s.boxes);
   const clearBoxes = useEditorStore(s => s.clearBoxes);
   const { t } = useI18n();
-  const { handleRegenerate } = useCanvasChat();
-  const pendingQualityReport = useEditorStore(s => s.pendingQualityReport);
-  const setPendingQualityReport = useEditorStore(s => s.setPendingQualityReport);
   const isLayoutStreaming = useEditorStore(s => s.isLayoutStreaming);
   const streamingLayoutBoxCount = useEditorStore(s => s.streamingLayoutBoxCount);
   const layoutLocked = useEditorStore(s => s.isLayoutStreaming || s.layoutStreamRecovery !== null);
@@ -89,12 +84,6 @@ export default function Artboard() {
       <LayerPanel />
       <BottomCommandBar />
 
-      {/* 布局质量检测对话框 */}
-      <LayoutQualityDialog
-        report={pendingQualityReport}
-        onAccept={() => setPendingQualityReport(null)}
-        onRegenerate={handleRegenerate}
-      />
     </div>
   );
 }

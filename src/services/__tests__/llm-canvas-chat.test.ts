@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { extractAndValidateIdeogramJSON, validateIdeogramJSONVerbose, buildCanvasChatContext, CANVAS_CHAT_SYSTEM_PROMPT, buildLayoutFeedbackPrompt } from '../llm-canvas-chat';
+import { extractAndValidateIdeogramJSON, validateIdeogramJSONVerbose, buildCanvasChatContext, CANVAS_CHAT_SYSTEM_PROMPT } from '../llm-canvas-chat';
 
 // ─── extractAndValidateIdeogramJSON ─────────────────────────────────
 
@@ -614,31 +614,6 @@ describe('buildCanvasChatContext', () => {
     const result = buildCanvasChatContext(snapshot);
     const parsed = JSON.parse(result);
     expect(parsed.compositional_deconstruction.elements).toHaveLength(0);
-  });
-});
-
-// ─── buildLayoutFeedbackPrompt ──────────────────────────────────────
-
-describe('buildLayoutFeedbackPrompt', () => {
-  it('应在反馈文本外包裹布局反馈提示结构', () => {
-    const result = buildLayoutFeedbackPrompt('element_area: elements too small\ncoverage: insufficient');
-    expect(result).toContain('[Layout Feedback]');
-    expect(result).toContain('element_area: elements too small');
-    expect(result).toContain('coverage: insufficient');
-    expect(result).toContain('Return your complete revised composition as a new');
-    expect(result).toContain('```json');
-  });
-
-  it('空字符串反馈也应生成有效的提示结构', () => {
-    const result = buildLayoutFeedbackPrompt('');
-    expect(result).toContain('[Layout Feedback]');
-    expect(result).toContain('```json');
-  });
-
-  it('特殊字符反馈应正确转义 no break', () => {
-    const result = buildLayoutFeedbackPrompt('spacing: < 3% margin');
-    expect(result).toContain('spacing: < 3% margin');
-    expect(result).toContain('[Layout Feedback]');
   });
 });
 
