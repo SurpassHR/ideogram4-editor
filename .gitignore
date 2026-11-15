@@ -21,6 +21,7 @@ release/
 # Tools
 .cline/
 .codegraph/
+graphify-out/
 .mcp.json
 .superpowers/
 
