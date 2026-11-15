@@ -235,33 +235,19 @@ Electron E2E 使用 `IDEOGRAM4_TEST_HEADLESS=1` 隐藏窗口，不抢前台焦�
 
 ## Agent 工作流规则
 
-### 1. 使用 CodeGraph 阅读代码
+### 1. 使用 Graphify 阅读代码
 
-优先使用 CodeGraph MCP 工具来阅读和理解代码，而非直接 `Read` 文件或 `Bash grep`。适用场景：理解代码结构、查找函数定义、分析调用链、搜索模式。直接读文件仅用于需要查看完整文件内容或精确修改的场景。
-
-### 2. 使用弱模型 Subagent 并行任务
-
-- **探索/搜索** → `haiku`；**一般编码** → `sonnet`；**复杂架构** → `opus`
-- 3 个及以下独立任务 → 同时启动；4+ → 分批每批最多 3 个；被依赖的任务先完成
-
-### 3. 使用 Kanban 管理任务链
-
-**分支规则**：创建任务时必须显式传 `--base-ref <当前分支>`（`git branch --show-current`），禁止固定写 `--base-ref main` 或省略。依赖链（`task link`）中的任务会自动启动，无需手动 `task start`。
+仓库已生成 `graphify-out/graph.json` 时，优先用 Graphify 查询代码结构和关系，而不是直接 `Read` 文件或 `Bash grep`：
 
 ```bash
-CURBR=$(git branch --show-current)
-kanban task create --title "Task 1" --prompt "..." --base-ref "$CURBR" --project-path /path/to/project
-kanban task link --task-id <id2> --linked-task-id <id1> --project-path /path/to/project
+graphify query "<问题>" --budget 1800
+graphify path "<概念 A>" "<概念 B>"
+graphify explain "<符号或模块>"
 ```
 
-**故障处理**（错误示例：缺少 `--base-ref` 可能创建 detached HEAD；固定 `--base-ref main` 在特性分支上会基于错误分支创建）：
-- 任务完成但代码未合并 → `git cherry-pick <commit>`
-- 并行任务冲突 → 优先采用最后完成的代码，再手动修复
-- 任务 worktree 在 `~/.cline/worktrees/<task-id>/`
+适用场景：理解代码结构、查找函数定义、分析调用链、跨文件搜索。直接读文件仅用于需要查看完整文件内容、精确修改，或 Graphify 查询结果不足的场景。代码结构发生较大变化后，可用 `graphify update .` 增量更新图谱。
 
-**依赖链规则**：见 @KANBAN.md
-
-### 4. GitHub Pages 部署规则
+### 2. GitHub Pages 部署规则
 
 部署地址 `https://gp.hrfuqiang.top/ideogram4-editor/`，自定义域名通过 `SurpassHR.github.io` 管理。
 
@@ -280,11 +266,11 @@ kanban task link --task-id <id2> --linked-task-id <id1> --project-path /path/to/
 - **不要修改 src/ 来适配部署**——hash 路由无需 404.html
 - Pages Source 必须设为 **GitHub Actions**（非分支），这是手动步骤
 
-### 5. 不重复造轮子：优先复用已有 UI 模式
+### 3. 不重复造轮子：优先复用已有 UI 模式
 
 修改或新增 UI 功能时，**必须先搜索项目中是否已有相同或相似的实现**（用 `ffgrep` 搜索 CSS 类名/组件名/功能关键词），优先复用。
 
-### 6. 剪贴板粘贴/外部数据导入规则
+### 4. 剪贴板粘贴/外部数据导入规则
 
 - 事件：用 `document.addEventListener('paste', handler)`（原生事件），不用 React `onPaste`
 - 区域过滤：双向检查 `el.contains(target) || target.contains(el)`
@@ -293,14 +279,14 @@ kanban task link --task-id <id2> --linked-task-id <id1> --project-path /path/to/
 - keydown：只在确有必要时 `e.preventDefault()`，不要无差别拦截
 - Demo 流程：涉及外部数据导入时，先做可交互 demo 验证真实数据流，再改项目代码
 
-### 7. 前端修改后必须用 Playwright 验证无白屏
+### 5. 前端修改后必须用 Playwright 验证无白屏
 
 每次修改前端代码后，**必须用 Playwright 验证页面正常渲染**。验证命令见「视觉验证」章节。
 
 - 白屏判定：`Failed to load module`、`Uncaught TypeError`、`MIME type mismatch`（非 favicon 404）
 - 常见原因：Vite 模块缓存 → `pkill -f vite` 重启；TypeScript 错误 → 先 `npx tsc --noEmit`；CSS 拼写错误；Store 字段缺初始值
 
-### 8. Commit 前必须通过 test 和 build
+### 6. Commit 前必须通过 test 和 build
 
 每次 commit 前，**必须先确保 `npm run test` 和 `npm run build` 都通过**：
 

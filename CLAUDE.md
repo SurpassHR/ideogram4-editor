@@ -33,4 +33,3 @@
 - [AGENTS.md](./AGENTS.md) — 完整项目说明、架构、工作流规则
 - [README.zh.md](./README.zh.md) — 中文用户文档
 - [docs/deployment.md](./docs/deployment.md) — 部署指南
-- [KANBAN.md](./KANBAN.md) — Kanban 依赖链规则
