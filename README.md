@@ -315,6 +315,16 @@ npm run test:e2e  # Electron smoke test (hidden window)
 npm run preview   # Preview Electron build
 ```
 
+### Desktop Releases
+
+`.github/workflows/build-desktop.yml` builds and uploads:
+
+- macOS: universal DMG + ZIP
+- Windows: x64 NSIS installer
+- Linux: x64 AppImage + DEB
+
+Pushing a `v*` tag publishes every installer plus `SHA256SUMS.txt` to GitHub Releases. The tag must be `v<package.json version>` or `v<package.json version>-<suffix>`; a suffix such as `-beta.1` creates a prerelease. Pushes to `main` and manual runs without a tag only produce workflow artifacts.
+
 ---
 
 ## License

@@ -512,6 +512,16 @@ npm run dist
 npm run preview
 ```
 
+### 桌面安装包发布
+
+`.github/workflows/build-desktop.yml` 会构建并上传以下安装包：
+
+- macOS：universal DMG + ZIP
+- Windows：x64 NSIS 安装程序
+- Linux：x64 AppImage + DEB
+
+推送 `v*` tag 后，工作流会把全部安装包和 `SHA256SUMS.txt` 发布到 GitHub Releases。tag 必须与 `package.json` 版本对应，格式为 `v<版本>` 或 `v<版本>-<后缀>`；带后缀（如 `-beta.1`）会发布为预发布版本。推送到 `main` 或手动运行但未使用 tag 时，只保留 Actions artifact，不会创建 Release。
+
 ---
 
 ## 📄 许可证
